@@ -9,15 +9,16 @@ import XCTest
         field.tap(); app.typeText("A draft that must survive keyboard dismissal")
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
         let transcript = app.scrollViews["chatTranscript"]
-        XCTAssertTrue(transcript.isHittable)
+        XCTAssertTrue(transcript.exists)
         XCTAssertGreaterThan(transcript.frame.height, 120, "Keyboard must not squeeze the transcript away")
         let latest = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Synthetic project answer 12.")).firstMatch
         expectation(for: NSPredicate(format: "hittable == true"), evaluatedWith: latest)
         waitForExpectations(timeout: 5)
         saveScreenshot(app, name: "Visible latest message while keyboard is open")
         XCTAssertLessThanOrEqual(field.frame.maxY, app.keyboards.firstMatch.frame.minY + 1)
-        // Drag downward inside the transcript, not a global gesture layered over text selection.
-        let start = transcript.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
+        // The scroll container can have no hittable point while its message children do.
+        // Start on the verified visible message, not the scroll view's full content bounds.
+        let start = latest.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1))
         let finish = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.88))
         start.press(forDuration: 0.05, thenDragTo: finish)
         XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
@@ -35,10 +36,11 @@ import XCTest
         field.tap(); app.typeText("Show my latest reply")
         app.buttons["chatSend"].tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
-        XCTAssertEqual(field.value as? String, "Message Asterion")
+        XCTAssertEqual(field.value as? String, "")
         let reply = app.staticTexts["Synthetic reply: Show my latest reply"]
         XCTAssertTrue(reply.waitForExistence(timeout: 10))
         XCTAssertTrue(reply.isHittable, "A new answer must be scrolled into view")
+        XCTAssertFalse(app.buttons["chatSend"].isEnabled, "The cleared composer must not submit an empty message")
         saveScreenshot(app, name: "Visible latest answer and bottom composer")
     }
 
@@ -112,7 +114,7 @@ import XCTest
         for _ in 0..<8 where !otherProject.isHittable { app.swipeUp() }
         XCTAssertTrue(otherProject.isHittable); otherProject.tap()
         app.tabBars.buttons["Assistant"].tap()
-        XCTAssertEqual(field.value as? String, "Message Asterion")
+        XCTAssertEqual(field.value as? String, "")
         XCTAssertFalse(app.buttons["chatSend"].isEnabled)
         field.tap(); app.typeText("Second project draft")
         app.buttons["chatKeyboardDone"].tap()
