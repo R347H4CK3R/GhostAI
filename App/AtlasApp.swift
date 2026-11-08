@@ -218,8 +218,9 @@ struct MemoryView: View {
                 Button(store.loadFailed ? "Restore backup" : "Merge backup") { if let data = pendingImport { store.importBackup(data) }; pendingImport = nil }
                 Button("Cancel", role: .cancel) { pendingImport = nil }
             }
-            .confirmationDialog("Delete this saved note?", isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } })) {
-                Button("Delete note", role: .destructive) { if let id = pendingDelete { store.forget(id) }; pendingDelete = nil }
+            .confirmationDialog("Delete this saved note?", isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }), presenting: pendingDelete) { id in
+                // Capture the presented ID: dismissal can clear the binding before this action runs.
+                Button("Delete note", role: .destructive) { store.forget(id); pendingDelete = nil }
                 Button("Cancel", role: .cancel) { pendingDelete = nil }
             }
         }
