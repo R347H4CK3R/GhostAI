@@ -247,8 +247,8 @@ struct EncryptedMemoryDocument: FileDocument {
         let counts = "\(result.noteCount) notes and \(result.chatCount) chats. "
         let source = result.format == .desktopNotes ? "Desktop notes file; no chats are included. " : "Encrypted chats and notes backup. "
         let effect = isRestoring
-            ? "The unreadable local file will be preserved separately before restoration."
-            : "Existing records stay unchanged. Records with an existing ID are skipped; this is not a two-way sync."
+            ? "The unreadable local file and encrypted queue will be preserved. Any configured private sync is paused before this local-only recovery and cannot resume until you explicitly review existing deletion rules."
+            : "Existing live records stay unchanged. If private sync is configured, known deleted IDs are restored as new copy IDs and included records will sync encrypted. Old deletion markers remain; unavailable sync history blocks import. This file import itself is not two-way sync."
         return counts + source + effect
     }
 

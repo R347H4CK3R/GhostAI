@@ -12,14 +12,13 @@ import XCTest
         return settings
     }
 
-    func testAutomaticCaptureIsOptInAndNeverCopiesCanonicalNotes() throws {
+    func testAutomaticCaptureIsDefaultAndNeverCopiesCanonicalNotes() throws {
         let root = location(); defer { try? FileManager.default.removeItem(at: root) }
         let cache = try KnowledgeCache(root: root, scope: scope())
         let saved = SavedState(notes: [MemoryNote(project: "owner/project", text: "note", source: "manual")],
                                chats: [ChatEntry(project: "owner/project", role: "user", text: "Orchid offline plan")])
-        XCTAssertEqual(try cache.captureSavedState(saved).stored, 0)
-        try cache.updateSettings(enabled())
         XCTAssertEqual(try cache.captureSavedState(saved).stored, 1)
+        try cache.updateSettings(enabled())
         XCTAssertEqual(try cache.captureSavedState(saved).stored, 0)
         XCTAssertEqual(try cache.entries().count, 1)
         XCTAssertEqual(try cache.search("orchid").first?.entry.text, "Orchid offline plan")

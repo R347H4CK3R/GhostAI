@@ -10,6 +10,7 @@ struct SelectedRepositoryContext: Sendable {
 }
 
 @MainActor final class AssistantStore: ObservableObject {
+    @Published private(set) var memorySync: PrivateMemorySyncController?
     @Published private(set) var saved = SavedState(notes: [], chats: [])
     @Published private(set) var project = "General"
     @Published private(set) var workspaceEpoch = UUID()
@@ -69,13 +70,14 @@ struct SelectedRepositoryContext: Sendable {
         networkMonitor.start { [weak self] path in
             Task { @MainActor [weak self] in self?.networkPathChanged(path) }
         }
-        do { saved = try disk.load(); rebuildKnowledge() }
+        do { saved = try disk.load(); rebuildKnowledge(); configureMemorySync() }
         catch { loadFailed = true; self.error = "Could not read saved memory. To protect it, writes are disabled: \(error.localizedDescription)" }
     }
     deinit { networkMonitor.cancel() }
 
     func networkPathChanged(_ path: AssistantNetworkPath) {
         networkPath = path
+        if path == .available { memorySync?.networkBecameAvailable() }
         // A path change says nothing about a service's access decision. A new question
         // or explicit repository selection can recheck it through the existing scope.
         guard !busy, connectionState != .accessDenied else { return }
@@ -102,6 +104,34 @@ struct SelectedRepositoryContext: Sendable {
         // Optional indexing cannot undo a successful canonical save. Always pass the full
         // state so chat deletion and backup recovery cannot leave stale indexed messages.
         knowledge?.captureSavedState(next)
+        memorySync?.localStateChanged()
+    }
+    private func configureMemorySync() {
+        guard !loadFailed else { return }
+        memorySync = PrivateMemorySyncController(root: disk.root.appendingPathComponent("PrivateMemorySync", isDirectory: true),
+            currentState: { [weak self] in
+                guard let self, !self.loadFailed else { throw PrivateMemorySyncFailure.storage }
+                return self.saved
+            },
+            applyState: { [weak self] state in
+                guard let self, !self.loadFailed else { throw PrivateMemorySyncFailure.storage }
+                try self.disk.save(state)
+                self.publishSavedState(state)
+            },
+            collectKnowledge: { [weak self] includePrivate, accountID in
+                guard let self, !self.loadFailed else { throw PrivateMemorySyncFailure.storage }
+                let projects = Array(Set(self.saved.notes.map(\.project) + self.saved.chats.map(\.project) + [self.project]))
+                return try KnowledgeLibraryModel.collectSyncSnapshots(root: self.disk.root.appendingPathComponent("Knowledge", isDirectory: true),
+                    knownProjects: projects, includePrivateWorkspaces: includePrivate, authenticatedAccountID: "github-user-\(accountID)",
+                    onUnresolvedLegacyScopes: { [weak self] count in self?.memorySync?.reportUnresolvedLegacyLibraries(count) })
+            },
+            applyKnowledge: { [weak self] snapshots, includePrivate, accountID in
+                guard let self, !self.loadFailed else { throw PrivateMemorySyncFailure.storage }
+                try KnowledgeLibraryModel.applySyncSnapshots(snapshots, root: self.disk.root.appendingPathComponent("Knowledge", isDirectory: true),
+                    includePrivateWorkspaces: includePrivate, authenticatedAccountID: "github-user-\(accountID)", canonicalState: self.saved)
+                self.knowledge?.captureSavedState(self.saved)
+                self.knowledge?.refresh()
+            })
     }
     private var permitsKnowledgeDiskAccess: Bool {
         #if DEBUG
@@ -114,7 +144,7 @@ struct SelectedRepositoryContext: Sendable {
         guard permitsKnowledgeDiskAccess else { return }
         do {
             let scope = try KnowledgeWorkspacePolicy.scope(workspace: project, liveRepository: liveRepository)
-            let library = KnowledgeLibraryModel(root: disk.root.appendingPathComponent("Knowledge", isDirectory: true), scope: scope)
+            let library = KnowledgeLibraryModel(root: disk.root.appendingPathComponent("Knowledge", isDirectory: true), scope: scope, onMutation: { [weak self] in self?.memorySync?.localStateChanged() })
             knowledge = library
             library.captureSavedState(saved)
         } catch { knowledgeIssue = KnowledgeFailure.invalidScope.localizedDescription }
@@ -149,7 +179,7 @@ struct SelectedRepositoryContext: Sendable {
                 temporary = false; library = current
             } else {
                 temporary = true
-                library = KnowledgeLibraryModel(root: disk.root.appendingPathComponent("Knowledge", isDirectory: true), scope: scope)
+                library = KnowledgeLibraryModel(root: disk.root.appendingPathComponent("Knowledge", isDirectory: true), scope: scope, onMutation: { [weak self] in self?.memorySync?.localStateChanged() })
             }
             defer {
                 if temporary {
@@ -186,13 +216,23 @@ struct SelectedRepositoryContext: Sendable {
     func backupData() throws -> Data { try MemoryBackup.encode(saved) }
     func importBackup(_ data: Data) {
         do {
-            let imported = try MemoryBackup.decode(data)
+            let decoded = try MemoryBackup.decode(data)
             if loadFailed {
+                // The restore confirmation discloses local-only recovery. Pause durably
+                // before touching canonical bytes; retain the unreadable file and queue.
+                let syncDisk = PrivateMemorySyncDisk(root: disk.root.appendingPathComponent("PrivateMemorySync", isDirectory: true))
+                if var config = try syncDisk.loadConfiguration() {
+                    config.enabled = false; config.localRecoveryNeedsReview = true
+                    try syncDisk.saveConfiguration(config)
+                }
+                let imported = decoded
                 try disk.recover(imported)
                 publishSavedState(imported)
                 loadFailed = false
                 rebuildKnowledge(liveRepository: selectedRepository?.repository)
+                if memorySync == nil { configureMemorySync(); memorySync?.sceneBecameActive() }
             } else {
+                let imported = try memorySync?.prepareConfirmedImport(decoded, current: saved) ?? decoded
                 try persist(MemoryBackup.merge(imported, into: saved))
             }
         } catch { self.error = error.localizedDescription }
@@ -207,7 +247,8 @@ struct SelectedRepositoryContext: Sendable {
             throw AppFailure.message("Every imported record must belong to the reviewed workspace.")
         }
         _ = try MemoryBackup.encode(additions)
-        let merged = MemoryBackup.merge(additions, into: saved)
+        let approved = try memorySync?.prepareConfirmedImport(additions, current: saved) ?? additions
+        let merged = MemoryBackup.merge(approved, into: saved)
         _ = try MemoryBackup.encode(merged)
         try persist(merged)
     }

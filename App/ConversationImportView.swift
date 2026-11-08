@@ -23,7 +23,7 @@ struct ConversationImportView: View {
         List {
             Section("Import copies you choose") {
                 Text("Only files you select are read. This app cannot access your ChatGPT accounts or inherit another assistant’s memories. Conversation exports do not guarantee saved-memory coverage.")
-                Text("Destination: local Memory and chat history in \(project). The local assistant may retrieve imported text. Hosted mode uses it only if you explicitly include and review it there. This is untrusted reference material, not permission to act.")
+                Text("Destination: Memory and chat history in \(project). The local assistant may retrieve imported text. If private GitHub sync is explicitly configured and this workspace is included, imported copies will also sync encrypted to that private vault. Hosted mode uses them only if explicitly included and reviewed. Imported text is not permission to act.")
                     .font(.footnote).foregroundStyle(.secondary)
                 Text("Extract ZIP files outside this app, then select conversations.json or one numbered conversation JSON part. Images, audio, video, attached files and links are not imported or downloaded. Only the selected active text branch is supported.")
                     .font(.footnote).foregroundStyle(.secondary)
@@ -70,7 +70,7 @@ struct ConversationImportView: View {
                 Section {
                     Toggle("I reviewed the selected content and want to import it, including any selected items I previously deleted.", isOn: $acknowledged)
                         .accessibilityIdentifier("conversationImport.acknowledge")
-                    Text("Existing record IDs are kept unchanged. Reimporting cannot overwrite them. Because canonical history has no deletion markers, an explicitly confirmed import can restore selected records you deleted. Duplicate-only selections add nothing.")
+                    Text("Existing live records are not overwritten. With private sync configured, explicitly restored IDs known to be deleted get stable new copy IDs; old deletion markers stay intact. Repeated imports keep an existing restored copy. If deletion history is unavailable, import pauses with an explanation instead of reporting a false restoration. Offline-knowledge suppression and retention rules remain separate.")
                         .font(.footnote).foregroundStyle(.secondary)
                     Button("Review import of \(selected.count) items") { reviewImport(preview) }
                         .disabled(selected.isEmpty || !acknowledged || reading)
@@ -94,7 +94,7 @@ struct ConversationImportView: View {
             Button("Import selected items") { saveSelection() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("The selected text will be added to local Memory and chat history in \(project). Existing records will not be overwritten. Selected records that were deleted can be restored. No ChatGPT account is connected.")
+            Text("The selected text will be added to Memory and chat history in \(project), and to your encrypted private vault if configured and in scope. Existing records will not be overwritten. Known synced deletions are restored as new copy IDs; unavailable deletion history blocks import. No ChatGPT account is connected.")
         }
         .onChange(of: project) { _, _ in reset() }
         .onChange(of: kind) { _, _ in reset() }
@@ -148,7 +148,7 @@ struct ConversationImportView: View {
             let incoming = try preview.selection(ids: selected, into: savedState, acknowledgeRestoringDeleted: acknowledged)
             if incoming.notes.isEmpty && incoming.chats.isEmpty { status = "All selected record IDs already exist. Nothing was changed."; return }
             try onImport(incoming)
-            let summary = "Imported \(incoming.chats.count) text messages and \(incoming.notes.count) memory notes into \(project)."
+            let summary = "Import completed in \(project). Existing live or restored copies were kept without duplication."
             reset(); status = summary
         } catch { status = safeMessage(error) }
     }
@@ -161,7 +161,8 @@ struct ConversationImportView: View {
         preview = nil; selected = []; acknowledged = false; showingConfirmation = false; status = nil
     }
     private func safeMessage(_ error: Error) -> String {
-        (error as? ConversationImportFailure ?? .unavailable).localizedDescription
+        if let known = error as? PrivateMemorySyncFailure { return known.localizedDescription }
+        return (error as? ConversationImportFailure ?? .unavailable).localizedDescription
     }
 }
 
