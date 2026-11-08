@@ -31,7 +31,10 @@ import XCTest
         reveal(app.staticTexts["No matching notes"], in: app)
         XCTAssertFalse(app.staticTexts["Synthetic workspace for draft isolation"].exists)
         saveScreenshot(app, name: "Memory search stays in the current workspace")
-        app.buttons["Cancel"].tap()
+        let closeSearch = app.buttons["Close"]
+        XCTAssertTrue(closeSearch.isHittable)
+        closeSearch.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
         reveal(app.staticTexts["Make room for what matters"], in: app)
         XCTAssertFalse(app.staticTexts["No matching notes"].exists)
     }
@@ -67,6 +70,19 @@ import XCTest
         XCTAssertGreaterThanOrEqual(workspace.frame.minY, app.navigationBars.firstMatch.frame.maxY)
         XCTAssertLessThanOrEqual(workspace.frame.maxY, app.tabBars.firstMatch.frame.minY)
         saveScreenshot(app, name: "Long project name at accessibility text size")
+        // A bounded row must not make the full visual name unavailable.
+        workspace.press(forDuration: 1)
+        app.buttons["Show full workspace name"].tap()
+        let fullName = app.staticTexts[identity]
+        XCTAssertTrue(fullName.waitForExistence(timeout: 5))
+        XCTAssertEqual(fullName.label, identity)
+        let close = app.buttons["projects.workspace.details.close"]
+        XCTAssertTrue(close.isHittable)
+        saveScreenshot(app, name: "Full workspace identity remains inspectable at large text")
+        close.tap()
+        reveal(workspace, in: app)
+        workspace.tap()
+        XCTAssertEqual(workspace.value as? String, "Selected")
     }
 
     func testPrivateSyncEntryOpensStatusAndSetup() {
@@ -87,13 +103,18 @@ import XCTest
         reveal(field, in: app)
         field.tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        let save = app.buttons["memoryNoteSaveKeyboard"]
+        XCTAssertTrue(save.waitForExistence(timeout: 5))
+        XCTAssertFalse(save.isEnabled, "A blank note cannot be saved from the keyboard toolbar")
         let noteText = "Synthetic newest note"
         field.typeText(noteText)
         waitForText(noteText, in: field)
-        let save = app.buttons["Remember note"]
-        reveal(save, in: app)
         XCTAssertTrue(save.isEnabled)
+        XCTAssertTrue(save.isHittable)
         XCTAssertTrue(app.keyboards.firstMatch.exists, "Exercise saving with the keyboard still visible")
+        XCTAssertGreaterThanOrEqual(save.frame.minY, app.navigationBars.firstMatch.frame.maxY)
+        XCTAssertLessThanOrEqual(save.frame.maxY, app.keyboards.firstMatch.frame.minY)
+        saveScreenshot(app, name: "Remember action is above the open keyboard")
         save.tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
         let note = app.staticTexts[noteText]
@@ -128,7 +149,7 @@ import XCTest
         } else if app.tables.firstMatch.waitForExistence(timeout: 2) {
             list = app.tables.firstMatch
         } else {
-            XCTFail("The active library must expose its native List", file: file, line: line)
+            failReveal("The active library must expose its native List", in: app, file: file, line: line)
             return
         }
         for attempt in 0...10 {
@@ -142,7 +163,7 @@ import XCTest
                              keyboard.exists ? keyboard.frame.minY : bounds.maxY) - 8
             if keyboard.exists && accessory.exists { bottom = min(bottom, accessory.frame.minY - 8) }
             guard !bounds.isEmpty, bounds.width > 32, bottom - top > 80 else {
-                XCTFail("No unobscured library area is available for scrolling", file: file, line: line)
+                failReveal("No unobscured library area is available for scrolling", in: app, file: file, line: line)
                 return
             }
             let frame = element.exists ? element.frame : .zero
@@ -158,7 +179,17 @@ import XCTest
             let end = origin.withOffset(CGVector(dx: x, dy: (moveDown ? lower : upper) - list.frame.minY))
             start.press(forDuration: 0.05, thenDragTo: end)
         }
-        XCTFail("Expected the whole target below navigation and above the keyboard/tab bar", file: file, line: line)
+        failReveal("Expected the whole target below navigation and above the keyboard/tab bar", in: app, file: file, line: line)
+    }
+    private func failReveal(_ message: String, in app: XCUIApplication, file: StaticString, line: UInt) {
+        // Automatic XCTest snapshots can contain only the root app on iOS 26.
+        // Preserve the actual controls and pixels when a visibility check fails.
+        let hierarchy = XCTAttachment(string: app.debugDescription)
+        hierarchy.name = "Library visibility failure hierarchy"
+        hierarchy.lifetime = .keepAlways
+        add(hierarchy)
+        saveScreenshot(app, name: "Library visibility failure")
+        XCTFail(message, file: file, line: line)
     }
     private func saveScreenshot(_ app: XCUIApplication, name: String) {
         let attachment = XCTAttachment(screenshot: app.screenshot())

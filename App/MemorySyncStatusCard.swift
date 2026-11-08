@@ -28,7 +28,6 @@ struct MemorySyncStatusCard: View {
             }.padding(.vertical, 6)
         }
         .buttonStyle(.plain)
-        .accessibilityElement(children: .ignore)
         .accessibilityLabel("Private sync: \(controller.statusTitle)")
         .accessibilityValue(controller.statusDetail + (controller.pendingChanges ? " Changes waiting to upload." : ""))
         .accessibilityIdentifier("memory.sync.open")

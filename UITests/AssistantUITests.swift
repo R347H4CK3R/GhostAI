@@ -205,7 +205,13 @@ import XCTest
         expectation(for: NSPredicate(format: "value == %@", note), evaluatedWith: field)
         waitForExpectations(timeout: 10)
         XCTAssertEqual(field.value as? String, note)
-        app.buttons["Remember note"].tap()
+        let remember = app.buttons["memoryNoteSaveKeyboard"]
+        XCTAssertTrue(remember.waitForExistence(timeout: 5))
+        XCTAssertTrue(remember.isEnabled)
+        XCTAssertTrue(remember.isHittable)
+        XCTAssertLessThanOrEqual(remember.frame.maxY, app.keyboards.firstMatch.frame.minY)
+        remember.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
         let saved = app.staticTexts[note]
         XCTAssertTrue(revealInContent(saved, in: app), "The exact note must be saved before relaunch")
         app.terminate(); app.launch()

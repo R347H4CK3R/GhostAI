@@ -15,12 +15,14 @@ private struct RepositorySelection: Hashable {
 struct RepositoriesView: View {
     @EnvironmentObject var store: AssistantStore
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @EnvironmentObject private var credentials: GitHubCredentialStore
     var onRepositorySelected: ((Repository, String, GitHubClient, String) -> Void)? = nil
     @State private var owner = ""
     @State private var search = ""
     @State private var searchPresented = false
     @State private var collection: ProjectCollection = .all
+    @State private var inspectedWorkspace: SavedWorkspaceSummary?
     private enum ProjectCollection: String, CaseIterable { case all = "All", saved = "Saved", github = "GitHub" }
     @State private var repositories: [Repository] = []
     @State private var page = 1
@@ -81,6 +83,28 @@ struct RepositoriesView: View {
             .searchable(text: $search, isPresented: $searchPresented,
                         placement: .navigationBarDrawer(displayMode: .always), prompt: "Search projects, owners or branches")
             .navigationTitle("Projects")
+            .sheet(item: $inspectedWorkspace) { project in
+                NavigationStack {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text(project.id).textSelection(.enabled)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text("\(project.noteCount) notes · \(project.messageCount) messages")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                    }
+                    .navigationTitle("Workspace details")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Close") { inspectedWorkspace = nil }
+                                .accessibilityIdentifier("projects.workspace.details.close")
+                        }
+                    }
+                }
+            }
             .navigationDestination(for: RepositorySelection.self) { selection in
                 if let id = selection.connectionID {
                     if let connection = credentials.connection, connection.id == id {
@@ -131,18 +155,31 @@ struct RepositoriesView: View {
                     search = ""
                 } label: {
                     HStack(alignment: .top, spacing: 12) {
-                        LibraryItemIcon(symbol: project.id == "General" ? "sparkles" : "folder")
+                        if !dynamicTypeSize.isAccessibilitySize {
+                            LibraryItemIcon(symbol: project.id == "General" ? "sparkles" : "folder")
+                        }
                         VStack(alignment: .leading, spacing: 5) {
                             Text(WorkspaceDisplay(project.id).title).font(.headline).foregroundStyle(.primary)
+                                .lineLimit(3).truncationMode(.middle)
                                 .fixedSize(horizontal: false, vertical: true)
                             Text(WorkspaceDisplay(project.id).subtitle).font(.caption).foregroundStyle(.secondary)
+                                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : nil)
                                 .fixedSize(horizontal: false, vertical: true)
-                            Text("\(project.noteCount) notes · \(project.messageCount) messages")
-                                .font(.caption).foregroundStyle(.secondary)
+                            if !dynamicTypeSize.isAccessibilitySize {
+                                Text("\(project.noteCount) notes · \(project.messageCount) messages")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            if dynamicTypeSize.isAccessibilitySize && project.id == store.project {
+                                Label("Selected", systemImage: "checkmark.circle.fill")
+                                    .font(.caption).foregroundStyle(.cyan).accessibilityHidden(true)
+                            }
                         }
-                        Spacer(minLength: 4)
-                        if project.id == store.project {
-                            Image(systemName: "checkmark.circle.fill").foregroundStyle(.cyan).accessibilityHidden(true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        if !dynamicTypeSize.isAccessibilitySize {
+                            Spacer(minLength: 4)
+                            if project.id == store.project {
+                                Image(systemName: "checkmark.circle.fill").foregroundStyle(.cyan).accessibilityHidden(true)
+                            }
                         }
                     }.padding(.vertical, 6)
                 }
@@ -150,6 +187,9 @@ struct RepositoriesView: View {
                 .accessibilityLabel(project.id)
                 .accessibilityValue(project.id == store.project ? "Selected" : "\(project.noteCount) notes, \(project.messageCount) messages")
                 .accessibilityHint("Switch the Assistant and Memory to this saved workspace")
+                .contextMenu {
+                    Button("Show full workspace name") { inspectedWorkspace = project }
+                }
                 .privacySensitive()
             }
             if savedWorkspaces.isEmpty {

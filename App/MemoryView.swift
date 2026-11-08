@@ -31,11 +31,8 @@ struct MemoryView: View {
                     Section("Quick note") {
                         TextField("A fact, decision or source excerpt", text: $note, axis: .vertical)
                             .lineLimit(2...8).focused($noteFocused).accessibilityIdentifier("memoryNoteInput")
-                        Button {
-                            store.remember(note)
-                            if store.error == nil { note = ""; search = ""; noteFocused = false }
-                        } label: { Label("Remember note", systemImage: "plus.circle.fill") }
-                        .disabled(store.loadFailed || note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        Button(action: rememberNote) { Label("Remember note", systemImage: "plus.circle.fill") }
+                            .disabled(!canRememberNote)
                         Text("Save useful context, not credentials. Notes are retrieved when needed, not permanently learned by the model.")
                             .font(.caption).foregroundStyle(.secondary)
                     }
@@ -90,6 +87,11 @@ struct MemoryView: View {
             .navigationTitle("Memory")
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
+                    if noteFocused {
+                        Button("Remember note", action: rememberNote)
+                            .disabled(!canRememberNote)
+                            .accessibilityIdentifier("memoryNoteSaveKeyboard")
+                    }
                     Spacer()
                     Button("Done") { noteFocused = false }
                 }
@@ -151,6 +153,14 @@ struct MemoryView: View {
     }
     private var visibleNotes: [MemoryNote] {
         LibraryPresentation.notes(store.saved.notes, project: store.project, query: search)
+    }
+    private var canRememberNote: Bool {
+        !store.loadFailed && !note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+    private func rememberNote() {
+        guard canRememberNote else { return }
+        store.remember(note)
+        if store.error == nil { note = ""; search = ""; noteFocused = false }
     }
     @ViewBuilder private var memoryMetrics: some View {
         LibraryMetric(value: String(store.saved.notes.filter { $0.project == store.project }.count), title: "Notes", symbol: "note.text")
