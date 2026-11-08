@@ -56,7 +56,8 @@ enum GitHubRequestPolicy {
         return config
     }
     static func safeError(_ error: Error, authenticated: Bool) -> Error {
-        if error is CancellationError { return CancellationError() }
+        if error is CancellationError || (error as? URLError)?.code == .cancelled { return CancellationError() }
+        if let urlError = error as? URLError, AssistantConnectionPolicy.isUnavailable(urlError) { return GitHubAccessError.unavailable }
         if let known = error as? GitHubAccessError { return known }
         if let known = error as? AppFailure { return known }
         // Never surface URLSession/decoder errors or HTTP response bodies; they may echo request details.
@@ -81,17 +82,17 @@ final class GitHubClient: NSObject, URLSessionTaskDelegate, @unchecked Sendable 
         } else { completionHandler(.cancelAuthenticationChallenge, nil) }
     }
 
-    func validateResponseStatus(_ statusCode: Int) throws {
+    func validateResponseStatus(_ statusCode: Int, rateLimitRemaining: String? = nil, retryAfter: String? = nil) throws {
         switch statusCode {
         case 200: return
         case 401:
             // Server rejection invalidates all clients, cached tool access and late-answer gates.
             authentication?.revoke()
-            throw AppFailure.message("GitHub rejected this token and ended its session. Sign out, check its expiration and connect again.")
-        case 403, 429:
-            throw AppFailure.message("GitHub denied this read or its rate limit was reached. Check repository permissions and try later.")
-        case 404:
-            throw AppFailure.message("GitHub repository or file is unavailable to this connection.")
+            throw GitHubAccessError.expired
+        case 403 where rateLimitRemaining == "0" || retryAfter.flatMap({ Int($0) }) != nil: throw GitHubAccessError.rateLimited
+        case 403, 404: throw GitHubAccessError.accessDenied
+        case 429: throw GitHubAccessError.rateLimited
+        case 500...599: throw GitHubAccessError.serviceUnavailable
         default:
             throw AppFailure.message("GitHub returned HTTP \(statusCode). No automatic retry was made.")
         }
@@ -116,7 +117,8 @@ final class GitHubClient: NSObject, URLSessionTaskDelegate, @unchecked Sendable 
             try validateSession()
             guard let http = response as? HTTPURLResponse, let finalURL = http.url else { throw GitHubAccessError.invalidResponse }
             try GitHubRequestPolicy.validate(finalURL)
-            try validateResponseStatus(http.statusCode)
+            try validateResponseStatus(http.statusCode, rateLimitRemaining: http.value(forHTTPHeaderField: "X-RateLimit-Remaining"),
+                                       retryAfter: http.value(forHTTPHeaderField: "Retry-After"))
             guard response.expectedContentLength <= Int64(maximumResponseBytes) else { throw GitHubAccessError.oversized }
             var data = Data()
             for try await byte in bytes {

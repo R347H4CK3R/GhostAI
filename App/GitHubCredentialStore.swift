@@ -5,6 +5,7 @@ import Security
 // These errors deliberately contain no URL, HTTP response body, OS error details or credential.
 enum GitHubAccessError: LocalizedError {
     case invalidToken, expired, untrustedDestination, directInstallRequired, keychain, cancelled, transport, oversized, invalidResponse
+    case unavailable, serviceUnavailable, accessDenied, rateLimited
     var errorDescription: String? {
         switch self {
         case .invalidToken: return "Enter a fine-grained GitHub token. Classic tokens and whitespace are not accepted."
@@ -13,6 +14,10 @@ enum GitHubAccessError: LocalizedError {
         case .directInstallRequired: return "Private GitHub access is for a directly installed app only. Do not enter tokens in Strata or another host."
         case .keychain: return "The device Keychain operation failed. No credential details were recorded. If removing a saved token failed, retry Sign out and remove saved token."
         case .cancelled: return "The GitHub connection was cancelled."
+        case .unavailable: return "The GitHub connection is unavailable. Saved context can be used instead; no automatic retry was made."
+        case .serviceUnavailable: return "GitHub is temporarily unavailable. This is a service outage, not evidence that the phone has no service."
+        case .accessDenied: return "GitHub denied access to this repository or file. Check the selected account and repository permissions."
+        case .rateLimited: return "GitHub rate limit reached. Try later; no automatic retry was made."
         case .transport: return "GitHub could not be reached securely. Check your connection and retry."
         case .oversized: return "GitHub response exceeds the size budget."
         case .invalidResponse: return "GitHub returned an unsupported response."

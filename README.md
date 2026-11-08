@@ -7,7 +7,7 @@ A personal assistant project with a native iPhone coding client, Android offline
 ## Implemented in source
 - SwiftUI conversation, projects, memory and capability screens.
 - Public repository discovery with pagination, directory browsing and text preview pinned to the selected commit.
-- Apple Foundation Models chat when the system model is available, explicit cancellation and project-scoped context.
+- Apple Foundation Models chat when the system model is available, explicit cancellation and project-scoped context. Selected repositories prefer bounded live GitHub reads, with honest setup/auth/rate-limit indicators and automatic saved-context fallback only on connection/service unavailability. On-device reasoning is not an offline state. See [live access](docs/LIVE_ACCESS.md).
 - Persisted chat and notes in Application Support using atomic writes and iOS protection until first user authentication, allowing background voice persistence after first unlock.
 - Offline keyword-ranked retrieval of saved notes. Save selected source excerpts with repository/path/commit provenance. A saved excerpt remains available offline; browsing uncached source still needs network.
 - Model-callable, read-only offline memory search constrained to the selected project.

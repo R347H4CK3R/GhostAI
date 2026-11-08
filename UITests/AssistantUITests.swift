@@ -3,6 +3,20 @@ import XCTest
 @MainActor final class AssistantUITests: XCTestCase {
     override func setUpWithError() throws { continueAfterFailure = false }
 
+    func testGeneralShowsGitHubSetupInsteadOfOfflineWhileChatting() {
+        let app = launchChatFixture("success")
+        let heading = app.descendants(matching: .any).matching(identifier: "chatIdentityAndConnection").firstMatch
+        XCTAssertTrue(heading.waitForExistence(timeout: 5))
+        XCTAssertTrue(heading.label.contains("GitHub not selected"))
+        let field = composer(in: app)
+        field.tap(); app.typeText("What repositories can you reach?")
+        app.buttons["chatSend"].tap()
+        XCTAssertTrue(app.staticTexts["Synthetic reply: What repositories can you reach?"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Apple on device · No live source used"].exists)
+        XCTAssertFalse(app.staticTexts["Offline fallback"].exists)
+        saveScreenshot(app, name: "General requires GitHub selection, not offline memory")
+    }
+
     func testLongChatRemainsVisibleWhileTypingAndSwipeDownDismissesKeyboard() {
         let app = launchChatFixture("success")
         let field = composer(in: app)

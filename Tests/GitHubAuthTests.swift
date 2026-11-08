@@ -68,7 +68,7 @@ final class GitHubAuthTests: XCTestCase {
             _ = try await tools.list(path: "")
             XCTFail("Cached directory data must be withheld after token rejection")
         } catch {
-            XCTAssertEqual(error as? RepositoryToolFailure, .readFailed)
+            XCTAssertEqual(error as? RepositoryToolFailure, .authenticationRequired)
         }
     }
 

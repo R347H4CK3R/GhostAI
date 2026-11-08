@@ -35,8 +35,10 @@ struct ChatView: View {
                     ToolbarItem(placement: .principal) {
                         VStack(spacing: 2) {
                             Label("Asterion Veyra", systemImage: "sparkles").font(.subheadline.weight(.semibold))
-                            Text(store.project).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                            Text(store.connectionState.shortLabel + " · " + store.project).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                                .accessibilityIdentifier("chatConnectionSummary")
                         }.accessibilityElement(children: .combine)
+                            .accessibilityIdentifier("chatIdentityAndConnection")
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         Menu {
@@ -87,7 +89,14 @@ struct ChatView: View {
                     }
                 }
                 .onChange(of: scenePhase) { _, phase in
-                    if !voice.allowsBackgroundVoice && (phase == .background || (phase == .inactive && awaitingVoiceReply)) { endVoiceConversation() }
+                    if !voice.allowsBackgroundVoice && (phase == .background || (phase == .inactive && awaitingVoiceReply)) {
+                        if store.busy {
+                            failedQuestion = submittedQuestion
+                            inlineError = "Request paused when the app left the foreground. Edit and send again when ready."
+                            store.cancel()
+                        }
+                        endVoiceConversation()
+                    }
                 }
                 .onChange(of: store.project) { _, _ in
                     composerFocused = false; endVoiceConversation()
@@ -110,7 +119,7 @@ struct ChatView: View {
                         }.padding(.vertical, 20)
                     }
                     ForEach(chats) { chat in
-                        message(chat.text, isUser: chat.role == "user")
+                        message(chat.text, isUser: chat.role == "user", source: store.responseSources[chat.id] ?? "Saved response · source not recorded")
                             .id(chat.id)
                     }
                     if !store.answer.isEmpty && !chats.contains(where: { $0.role == "assistant" && $0.text == store.answer }) {
@@ -125,7 +134,7 @@ struct ChatView: View {
                         if let submittedQuestion { message(submittedQuestion, isUser: true) }
                         HStack(spacing: 10) {
                             ProgressView()
-                            Text("Thinking on device…").font(.subheadline).foregroundStyle(.secondary)
+                            Text(store.connectionState == .checking ? "Checking live GitHub…" : "Thinking with Apple on device…").font(.subheadline).foregroundStyle(.secondary)
                                 .accessibilityIdentifier("chatPendingStatus")
                         }.padding(.vertical, 8)
                     }
@@ -166,6 +175,9 @@ struct ChatView: View {
     private var contextSummary: some View {
         VStack(alignment: .leading, spacing: 8) {
             Label(store.modelStatus, systemImage: "iphone").font(.caption).foregroundStyle(.secondary)
+            Label(store.connectionState.label, systemImage: store.connectionState.symbol)
+                .font(.caption).foregroundStyle(store.connectionState.usesSavedOnlyFallback ? Color.orange : Color.secondary)
+                .accessibilityIdentifier("chatConnectionStatus")
             if let repository = store.selectedRepository {
                 Label("\(repository.repository) @ \(repository.commit.prefix(8))", systemImage: "chevron.left.forwardslash.chevron.right")
                     .font(.caption2).foregroundStyle(.cyan)
@@ -182,9 +194,10 @@ struct ChatView: View {
         }.frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func message(_ text: String, isUser: Bool) -> some View {
+    private func message(_ text: String, isUser: Bool, source: String? = nil) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(isUser ? "You" : "Asterion").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            if !isUser, let source { Text(source).font(.caption2).foregroundStyle(.secondary) }
             Text(text).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
         }.padding(14).frame(maxWidth: .infinity, alignment: .leading)
             .background(isUser ? Color.cyan.opacity(0.1) : Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18))
