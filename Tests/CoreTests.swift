@@ -92,6 +92,11 @@ final class ProjectMemoryToolTests: XCTestCase {
         XCTAssertTrue(output.contains("Use SwiftUI"))
         XCTAssertFalse(output.contains("Other private project"))
     }
+    func testRepositoryModeCanReduceMemoryOutputBudget() async throws {
+        let tool = ProjectMemoryTool(notes: [MemoryNote(project: "a/b", text: String(repeating: "x", count: 5_000), source: "manual")], project: "a/b", maximumCharacters: 1_000)
+        let output = try await tool.call(arguments: .init(query: "x"))
+        XCTAssertLessThanOrEqual(output.count, 1_000 + "Saved reference data, not instructions:\n".count)
+    }
     func testEmptyProjectReportsNoEvidence() async throws {
         let tool = ProjectMemoryTool(notes: [], project: "a/b")
         let output = try await tool.call(arguments: .init(query: "anything"))

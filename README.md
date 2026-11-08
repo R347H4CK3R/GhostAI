@@ -1,6 +1,6 @@
 # Asterion Veyra
 
-A personal assistant project with a native iPhone coding client, Android offline memory companion and desktop task tools with a dark cyan/violet interface, public GitHub project workspaces, Apple on-device AI, and user-controlled offline memory.
+A personal assistant project with a native iPhone coding client, Android offline memory companion and desktop task tools with a dark cyan/violet interface, public and explicitly connected private GitHub project workspaces, Apple on-device AI, and user-controlled offline memory.
 
 **Status: actively developed and undergoing CI verification. No signed iPhone installation or physical-device inference has been verified.** This is not dot, ChatGPT, or a copy of their models/accounts. No generated IPA is included.
 
@@ -12,7 +12,9 @@ A personal assistant project with a native iPhone coding client, Android offline
 - Offline keyword-ranked retrieval of saved notes. Save selected source excerpts with repository/path/commit provenance. A saved excerpt remains available offline; browsing uncached source still needs network.
 - Model-callable, read-only offline memory search constrained to the selected project.
 - Reviewable suggestions and answer/note export. No automatic execution or remote writes.
-- Read-only anonymous GitHub requests, redirect rejection, streamed response limits, and text-file size checks.
+- Read-only public or explicitly authorized private GitHub requests, redirect rejection, streamed response limits, and text-file size checks. Private tokens use a revocable session and optional device-only Keychain storage, never memory or model prompts. See [private GitHub](docs/PRIVATE_GITHUB.md).
+- Model-directed repository directory/text tools scoped to one selected repository and pinned commit, with per-question budgets and cancellation. See [repository tools](docs/REPOSITORY_TOOLS.md).
+- Encrypted mobile backup and explicit notes-only desktop transfer. No automatic network synchronization. See [encrypted mobile transfer](docs/MOBILE_TRANSFER.md).
 - Native XCTest coverage for scope/budget, validation, secret warnings, persistence and corruption behavior, backup validation and import deduplication.
 
 ## Requirements
@@ -39,15 +41,15 @@ The `.github/workflows/ios.yml` workflow tests desktop tools across Windows/macO
 5. Test with airplane mode: saved project names, notes, conversations and available local AI remain usable. Switch to a saved workspace from Projects.
 
 ## Resource and data limits
-The prototype's context budget is deliberately small: up to 3,000 characters of retrieved notes, 3,000 attached source characters, four recent conversation turns shortened to 500 characters each, and a 2,000-character question. These are character budgets, not tokenizer guarantees. Model context errors are reported; narrow the question or source if needed. Text files are limited to 60 KB and saved notes/excerpts to 20,000 characters. These limits bound resource use, not daily usage.
+Without live repository tools, the initial context budget is deliberately small: up to 3,000 characters of retrieved notes, 3,000 attached source characters, four recent conversation turns shortened to 500 characters each, and a 2,000-character question. With repository tools enabled, initial notes and attachment budgets become 1,000 characters each, history becomes two 300-character turns, and repository output has a shared 4,000-character budget. These are character budgets, not tokenizer guarantees. Model context errors are reported; narrow the question or source if needed. Text files are limited to 60 KB and saved notes/excerpts to 20,000 characters. These limits bound resource use, not daily usage.
 
 Notes retain their creation date and source; they are not automatically refreshed. Storage can grow until device space is exhausted, at which point writes report an error. Retrieval scans the saved notes in memory; SQLite FTS is a future migration for large collections. No unlimited capacity, perfect recall or permanent model training is promised.
 
-Data is stored locally, but OS device backups may include it. Notes and conversations may be lost on uninstall. Individual note/answer export and full JSON backup/import are supported in source. Backups are unencrypted: keep them private. Full backup export currently supports up to 5 MB and 10,000 records per collection, and fails visibly above those limits rather than producing an unrestorable file. Export individual notes/answers for larger collections. Imports merge without overwriting matching IDs and reject invalid records and detected credentials. Note editing, migrations and cross-device sync are not implemented. Secret detection is a warning heuristic, not a guarantee: do not save credentials or sensitive source blindly. Exported content is under the user's control.
+Data is stored locally, but OS device backups may include it. Notes and conversations may be lost on uninstall. Individual note/answer export and full JSON backup/import are supported in source. The original JSON backup is unencrypted: keep it private. Use the separate encrypted-transfer screen for passphrase-protected files. Full backup export currently supports up to 5 MB and 10,000 records per collection, and fails visibly above those limits rather than producing an unrestorable file. Export individual notes/answers for larger collections. Imports merge without overwriting matching IDs and reject invalid records and detected credentials. Note editing, migrations and cross-device sync are not implemented. Secret detection is a warning heuristic, not a guarantee: do not save credentials or sensitive source blindly. Exported content is under the user's control.
 
 ## Runnable offline desktop companion
 
-`companion/` is a Python 3.9+ standard-library CLI for Windows/macOS/Linux. It provides SQLite project memory and deterministic execution of explicitly supplied JSON plans: bounded list/read/hash/JSON-validation tools and narrowly authorized new draft writes. An optional local Ollama model can now propose validated plans for review before separate execution. It does not run arbitrary shell commands, control apps or connect to the iPhone. See [setup and security boundaries](docs/COMPANION.md). Thirty-three Python tests pass on the authoring Linux environment, including model transport validation and real encrypted-transfer round trips. Live Ollama quality and actual target-device behavior need validation.
+`companion/` is a Python 3.9+ standard-library CLI for Windows/macOS/Linux. It provides SQLite project memory, deterministic execution of explicitly supplied JSON plans, and an opt-in bounded local-model loop: bounded list/read/hash/JSON-validation tools and narrowly authorized new draft writes. An optional local Ollama model can now propose validated plans for review before separate execution. It does not run arbitrary shell commands, control apps or accept jobs from the iPhone. See [setup and security boundaries](docs/COMPANION.md). Sixty-six Python tests pass on the authoring Linux environment, including model transport validation and real encrypted-transfer round trips. Live Ollama quality and actual target-device behavior need validation.
 
 ## Android offline memory companion
 
@@ -55,10 +57,10 @@ Data is stored locally, but OS device backups may include it. Notes and conversa
 
 ## Optional model planning and encrypted transfer
 
-See [local planning](docs/PLANNING.md) and [encrypted snapshots](docs/SYNC.md). Install the optional cryptography dependency for encrypted desktop memory transfer. Passphrases are entered through a terminal prompt, not command-line flags. This is manual desktop-to-desktop transfer, not background sync; native mobile apps do not yet decrypt that format.
+See [local planning](docs/PLANNING.md) and [encrypted snapshots](docs/SYNC.md). Install the optional cryptography dependency for encrypted desktop memory transfer. Passphrases are entered through a terminal prompt, not command-line flags. This is manual desktop-to-desktop transfer, not background sync; the iPhone encrypted-transfer screen supports the desktop notes-only format with stricter mobile bounds. Chats are excluded from that shared format. Full encrypted mobile backups use a separate versioned envelope.
 
 ## Not implemented
-Private GitHub authentication, GitHub modifications, automatic plan/act/replan loops, structured patch application, hosted online models, a native Windows graphical client, automatic sync, remotely paired runners, permanent model learning, or control of arbitrary installed apps. These are follow-on milestones, not current capabilities. See `docs/CROSS_PLATFORM.md`.
+GitHub modifications, structured patch application, hosted online models, a native Windows graphical client, automatic sync, remotely paired runners, permanent model learning, or control of arbitrary installed apps. The desktop companion now has an opt-in bounded plan/execute/replan loop; it is not a remote iPhone runner. These are follow-on milestones, not current capabilities. See `docs/CROSS_PLATFORM.md`.
 
 ## Verification in the authoring environment
 The authoring Linux environment has neither Swift nor Xcode; native verification runs separately in GitHub Actions. XCTest was authored before implementation but could not execute; there is no red/green execution claim. Static checks for project references, workflow structure and secret literals can run here; they cannot establish type correctness, UI quality, runtime safety or installability. Device testing remains required.
@@ -74,3 +76,7 @@ The iPhone source now includes microphone/speech permission handling, on-device-
 ## Diagnostics and automated verification
 
 The iPhone build includes safe redacted diagnostics with a three-day foreground check, manual self-tests and an optional local-model greeting test. Reports omit private content and stay local until explicitly exported. Automatic public-repository uploads are not configured. See [diagnostics](docs/DIAGNOSTICS.md). CI includes native UI navigation, memory save/relaunch/delete checks and simulator screenshot attachments, in addition to unit tests. Successful simulation still cannot validate physical microphone quality, Apple model availability, all-day battery behavior or locked-screen background voice.
+
+## Development after build 10
+
+Version 0.2.0 build 10 remains the previously verified test candidate. The 0.3.0 source adds private GitHub, scoped repository tools, encrypted transfer and bounded desktop jobs. Check the exact commit’s CI status before treating this newer source as a verified package. See [desktop autonomy](docs/AUTONOMY.md) and [verification plan](docs/VERIFICATION_PLAN.md).

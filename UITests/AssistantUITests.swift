@@ -45,4 +45,44 @@ import XCTest
         XCTAssertTrue(title.waitForExistence(timeout: 10))
         let shot = XCTAttachment(screenshot: app.screenshot()); shot.name = "Capabilities"; shot.lifetime = .keepAlways; add(shot)
     }
+    func testEncryptedTransferCancelsWithoutExport() {
+        let app = XCUIApplication(); app.launch()
+        app.tabBars.buttons["Memory"].tap()
+        let open = app.buttons["encryptedTransferOpen"]
+        for _ in 0..<4 where !open.isHittable { app.swipeUp() }
+        XCTAssertTrue(open.waitForExistence(timeout: 10)); open.tap()
+        let passphrase = app.secureTextFields["encryptedExportPassphrase"]
+        XCTAssertTrue(passphrase.waitForExistence(timeout: 10))
+        passphrase.tap(); app.typeText("synthetic test phrase")
+        let repeatField = app.secureTextFields["encryptedExportRepeat"]
+        repeatField.tap(); app.typeText("synthetic test phrase")
+        let review = app.buttons["encryptedExportReview"]
+        for _ in 0..<3 where !review.isHittable { app.swipeUp() }
+        review.tap()
+        let confirmation = app.alerts["Export encrypted memory?"]
+        XCTAssertTrue(confirmation.waitForExistence(timeout: 10))
+        confirmation.buttons["Cancel"].tap()
+        XCTAssertFalse(review.isEnabled, "Cancelling must clear export passphrases")
+        app.buttons["Done"].tap()
+        XCTAssertTrue(open.waitForExistence(timeout: 10))
+    }
+
+    func testPrivateGitHubConsentCanCancelWithoutConnecting() {
+        let app = XCUIApplication(); app.launch()
+        app.tabBars.buttons["Projects"].tap()
+        let direct = app.switches["github-direct-install-toggle"]
+        for _ in 0..<6 where !direct.isHittable { app.swipeUp() }
+        XCTAssertTrue(direct.waitForExistence(timeout: 10)); direct.tap()
+        let token = app.secureTextFields["github-token-field"]
+        for _ in 0..<4 where !token.isHittable { app.swipeUp() }
+        token.tap(); app.typeText("github_pat_SYNTHETIC_TEST_ONLY_123")
+        let connect = app.buttons["github-connect-button"]
+        for _ in 0..<4 where !connect.isHittable { app.swipeUp() }
+        connect.tap()
+        let cancel = app.buttons["github-cancel-connect"]
+        XCTAssertTrue(cancel.waitForExistence(timeout: 10)); cancel.tap()
+        XCTAssertFalse(connect.isEnabled, "Cancelled consent must clear the synthetic token")
+        XCTAssertFalse(app.staticTexts["Checking GitHub account"].exists)
+    }
+
 }

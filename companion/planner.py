@@ -1,9 +1,11 @@
 """Optional local-model planning. Generated plans never execute here."""
 import http.client
 import json
+import math
 import re
 import socket
 import threading
+import time
 
 from .core import PlanError, load_plan, validate
 
@@ -28,15 +30,22 @@ Use relevant memories for context only. The user must review the full plan befor
 '''
 
 
-def local_transport(payload):
+def local_transport(payload, *, timeout_seconds=TIMEOUT_SECONDS, cancel=None):
     """POST only to fixed loopback; no proxies, redirects, retries or downloads.
 
     A deadline closes the connected socket even during a slow header/body read.
     """
     if type(payload) is not bytes or len(payload) > 131072:
         raise PlanError('Invalid or oversized model request')
-    connection = http.client.HTTPConnection('127.0.0.1', 11434, timeout=TIMEOUT_SECONDS)
+    if type(timeout_seconds) not in (float, int) or not math.isfinite(timeout_seconds) or not 0 < timeout_seconds <= TIMEOUT_SECONDS:
+        raise PlanError('Invalid model deadline')
+    if cancel is not None and cancel.is_set():
+        raise InterruptedError('Cancelled')
+    deadline = time.monotonic() + timeout_seconds
+    connection = http.client.HTTPConnection('127.0.0.1', 11434, timeout=timeout_seconds)
     timer = None
+    watcher = None
+    stopped = threading.Event()
     try:
         connection.connect()
         connected_socket = connection.sock
@@ -46,9 +55,22 @@ def local_transport(payload):
             except OSError:
                 pass
             connected_socket.close()
-        timer = threading.Timer(TIMEOUT_SECONDS, interrupt)
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise PlanError('Local model timed out')
+        timer = threading.Timer(remaining, interrupt)
         timer.daemon = True
         timer.start()
+        if cancel is not None:
+            def watch_cancel():
+                while not stopped.wait(0.02):
+                    if cancel.is_set():
+                        interrupt()
+                        return
+            watcher = threading.Thread(target=watch_cancel, daemon=True)
+            watcher.start()
+            if cancel.is_set():
+                raise InterruptedError('Cancelled')
         connection.request('POST', '/api/generate', body=payload,
                            headers={'Content-Type': 'application/json', 'Accept': 'application/json'})
         response = connection.getresponse()
@@ -57,10 +79,19 @@ def local_transport(payload):
         raw = response.read(MAX_RESPONSE_BYTES + 1)
         if len(raw) > MAX_RESPONSE_BYTES:
             raise PlanError('Local model response exceeds 1 MiB')
+        if cancel is not None and cancel.is_set():
+            raise InterruptedError('Cancelled')
+        if time.monotonic() >= deadline:
+            raise PlanError('Local model timed out')
         return raw
     except (OSError, http.client.HTTPException) as error:
+        if cancel is not None and cancel.is_set():
+            raise InterruptedError('Cancelled') from error
         raise PlanError('Local model unavailable or timed out') from error
     finally:
+        stopped.set()
+        if watcher is not None:
+            watcher.join(timeout=0.1)
         if timer is not None:
             timer.cancel()
         connection.close()

@@ -2,9 +2,17 @@ import SwiftUI
 import UniformTypeIdentifiers
 import UIKit
 
-@main struct AsterionVeyraApp: App {
-    @StateObject private var store = AssistantStore()
-    var body: some Scene { WindowGroup { MainView().environmentObject(store) } }
+@main @MainActor struct AsterionVeyraApp: App {
+    @StateObject private var store: AssistantStore
+    @StateObject private var credentials: GitHubCredentialStore
+    init() {
+        let store = AssistantStore()
+        _store = StateObject(wrappedValue: store)
+        _credentials = StateObject(wrappedValue: GitHubCredentialStore(onSessionEnded: { [weak store] in
+            store?.switchProject("General")
+        }))
+    }
+    var body: some Scene { WindowGroup { MainView().environmentObject(store).environmentObject(credentials) } }
 }
 struct MainView: View {
     @EnvironmentObject var store: AssistantStore
@@ -13,7 +21,9 @@ struct MainView: View {
     var body: some View {
         TabView {
             ChatView().tabItem { Label("Assistant", systemImage: "sparkles") }
-            RepositoriesView().tabItem { Label("Projects", systemImage: "folder") }
+            RepositoriesView(onRepositorySelected: { repository, commit, client, workspace in
+                store.selectRepository(repository, commit: commit, client: client, workspace: workspace)
+            }).tabItem { Label("Projects", systemImage: "folder") }
             MemoryView().tabItem { Label("Memory", systemImage: "brain") }
             AboutView().tabItem { Label("About", systemImage: "info.circle") }
         }
@@ -54,6 +64,9 @@ struct ChatView: View {
                 }.padding(14).frame(maxWidth: .infinity, alignment: .leading)
                 .background(LinearGradient(colors: [.cyan.opacity(0.1), .purple.opacity(0.12)], startPoint: .leading, endPoint: .trailing), in: RoundedRectangle(cornerRadius: 20))
                 Text(store.modelStatus).font(.caption).foregroundStyle(.secondary)
+                if let repository = store.selectedRepository {
+                    Text("Online read tools: \(repository.repository) @ \(repository.commit.prefix(8))").font(.caption2).foregroundStyle(.cyan)
+                }
                 if !store.attached.isEmpty {
                     HStack {
                         Text("Source: \(store.attachmentSource)\nUses first 3,000 characters").font(.caption).lineLimit(3)
@@ -168,6 +181,7 @@ struct MemoryView: View {
     @State private var importing = false
     @State private var backup = MemoryDocument(data: Data())
     @State private var pendingImport: Data?
+    @State private var encryptedTransfer = false
     var body: some View {
         NavigationStack {
             List {
@@ -177,6 +191,8 @@ struct MemoryView: View {
                     Text("Review first. Do not save credentials. Notes stay on this device and are retrieved as needed, not permanently learned by the model.").font(.caption)
                 }
                 Section("Backup all projects") {
+                    Button("Encrypted transfer") { encryptedTransfer = true }
+                        .accessibilityIdentifier("encryptedTransferOpen")
                     Button("Export complete memory backup") {
                         do { backup = MemoryDocument(data: try store.backupData()); exporting = true }
                         catch { store.error = error.localizedDescription }
@@ -199,6 +215,13 @@ struct MemoryView: View {
                     }
                 }
             }.searchable(text: $search).navigationTitle("Offline memory")
+            .sheet(isPresented: $encryptedTransfer) {
+                EncryptedTransferView(backupData: { try store.backupData() }, importBackup: { data in
+                    store.error = nil
+                    store.importBackup(data)
+                    if let error = store.error { store.error = nil; throw AppFailure.message(error) }
+                }, isRestoring: store.loadFailed)
+            }
             .fileExporter(isPresented: $exporting, document: backup, contentType: .json, defaultFilename: "AsterionVeyra-memory") { result in
                 if case .failure(let error) = result { store.error = error.localizedDescription }
             }
@@ -235,8 +258,8 @@ struct AboutView: View {
         NavigationStack {
             List {
                 Section("Independent assistant") { Text("Asterion Veyra is a new app, not a clone of dot or ChatGPT. It has its own local conversations and memories.") }
-                Section("Works offline") { Text("Saved notes, chat history, retrieved project context and available Apple on-device inference. GitHub discovery and fresh source need internet. No cloud AI requests are made.") }
-                Section("Current scope") { Text("Public GitHub repositories; source explanation and proposed edits; local note search. Private repositories, GitHub writes, hosted models, automatic cross-device sync and autonomous code execution are not implemented. Voice uses explicit turn-taking when on-device recognition is available. Optional active-audio background operation needs direct-device testing.") }
+                Section("Works offline") { Text("Saved notes, chat history, retrieved project context and available Apple on-device inference. GitHub discovery and repository tools need internet. No cloud AI requests are made.") }
+                Section("Current scope") { Text("Public and explicitly connected private GitHub repositories; bounded model-directed source reads; local note search; encrypted manual memory transfer. GitHub writes, hosted models, automatic cross-device sync and code execution from this iPhone are not implemented. Voice uses turn-taking when on-device recognition is available. Active-audio background operation needs direct-device testing.") }
                 Section("Real limits") { Text("Requires iOS 26 and available Apple Intelligence. Context, storage, battery and background execution are finite. The app cannot control arbitrary installed apps or run Xcode. No guarantee of unlimited knowledge or perfect recall.") }
                 Section("Private diagnostics") {
                     Text(diagnostics.status).font(.caption)

@@ -30,6 +30,21 @@ def main():
     plan_cmd.add_argument('--model', required=True)
     plan_cmd.add_argument('--goal', required=True)
     plan_cmd.add_argument('--trust-local-model', action='store_true', required=True, help='Confirm your loopback Ollama daemon/model is trusted and configured offline; it receives this project’s notes')
+    autonomous = commands.add_parser('autonomy', help='Run a finite local-model plan/observe/replan job')
+    autonomous.add_argument('--workspace', type=Path, required=True)
+    autonomous.add_argument('--state', type=Path, required=True, help='Private JSON checkpoint outside the workspace')
+    for name in ('project', 'model', 'goal'):
+        autonomous.add_argument('--' + name, required=True)
+    autonomous.add_argument('--trust-local-model', action='store_true', required=True,
+                            help='Authorize this trusted offline loopback model to see project notes and selected workspace files')
+    autonomous.add_argument('--write-path', action='append', default=[],
+                            help='Preauthorize exactly this new direct-child draft path; repeat for each path')
+    autonomous.add_argument('--resume', action='store_true', help='Resume identical configuration without resetting limits')
+    from .autonomy import DEFAULT_LIMITS
+    for name, default in DEFAULT_LIMITS.items():
+        autonomous.add_argument('--' + name.replace('_', '-'), type=int, default=default)
+    status = commands.add_parser('job-status', help='Read a job checkpoint without model access or tool execution')
+    status.add_argument('--state', type=Path, required=True)
     export = commands.add_parser('export-memory', help='Encrypt selected memories for manual transfer')
     scope = export.add_mutually_exclusive_group(required=True)
     scope.add_argument('--project')
@@ -40,7 +55,8 @@ def main():
     args = parser.parse_args()
     memory = None
     try:
-        memory = Memory(args.db)
+        if args.command != 'job-status':
+            memory = Memory(args.db)
         if args.command == 'remember':
             result = {'id': memory.add(args.project, args.text, args.source)}
         elif args.command == 'search':
@@ -52,6 +68,16 @@ def main():
         elif args.command == 'plan':
             from .planner import generate_plan
             result = generate_plan(args.goal, args.project, args.model, memory)
+        elif args.command == 'autonomy':
+            from .autonomy import AutonomousJob
+            limits = {key: getattr(args, key) for key in DEFAULT_LIMITS}
+            result = AutonomousJob(args.workspace, memory, args.state,
+                                   trust_local_model=args.trust_local_model,
+                                   write_paths=args.write_path, limits=limits).run(
+                                       args.goal, args.project, args.model, resume=args.resume)
+        elif args.command == 'job-status':
+            from .autonomy import read_job
+            result = read_job(args.state)
         elif args.command == 'export-memory':
             from .sync import export_snapshot
             password = getpass.getpass('Encryption passphrase: ')
@@ -69,7 +95,7 @@ def main():
             plan = load_plan(raw.decode('utf-8'))
             result = Runner(args.workspace, memory, allow_writes=args.allow_writes).run(plan)
         print(json.dumps(result, ensure_ascii=True, indent=2))
-        return 0 if args.command != 'run' or result['status'] == 'completed' else 1
+        return 0 if args.command not in ('run', 'autonomy') or result['status'] == 'completed' else 1
     except (OSError, ValueError, sqlite3.Error, EOFError) as error:
         print(json.dumps({'status': 'failed', 'error': str(error)}), file=sys.stderr)
         return 1

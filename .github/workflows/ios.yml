@@ -66,6 +66,18 @@ jobs:
         run: |
           set -euo pipefail
           xcodebuild -project AsterionVeyra.xcodeproj -scheme AsterionVeyra -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -destination-timeout 120 -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 180 -resultBundlePath TestResults.xcresult CODE_SIGNING_ALLOWED=NO test 2>&1 | tee xcode-tests.log
+      - name: Export test screenshots
+        if: always()
+        run: |
+          if [ -d TestResults.xcresult ]; then
+            xcrun xcresulttool export attachments --path TestResults.xcresult --output-path test-screenshots || true
+          fi
+      - name: Verify encrypted Swift-to-desktop transfer
+        if: success()
+        run: |
+          python3 -m venv .verification-venv
+          .verification-venv/bin/python -m pip install -r companion/requirements-sync.txt
+          .verification-venv/bin/python Tests/verify_mobile_transfer.py test-screenshots
       - name: Compile unsigned device app
         run: |
           set -euo pipefail
@@ -78,12 +90,6 @@ jobs:
         with:
           name: AsterionVeyra-unsigned-IPA
           path: AsterionVeyra-unsigned.ipa
-      - name: Export test screenshots
-        if: always()
-        run: |
-          if [ -d TestResults.xcresult ]; then
-            xcrun xcresulttool export attachments --path TestResults.xcresult --output-path test-screenshots || true
-          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
