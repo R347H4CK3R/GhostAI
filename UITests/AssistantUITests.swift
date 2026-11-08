@@ -145,6 +145,35 @@ import XCTest
         attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
     }
 
+    private func revealInContent(_ element: XCUIElement, in app: XCUIApplication) -> Bool {
+        // iOS 26 can report a List row as hittable behind the navigation bar.
+        // Scroll only inside the unobscured content, and require the whole target
+        // to be below navigation and above the keyboard/tab bar before tapping.
+        for attempt in 0...8 {
+            let bounds = app.frame
+            let navigation = app.navigationBars.firstMatch
+            let tabs = app.tabBars.firstMatch
+            let keyboard = app.keyboards.firstMatch
+            let keyboardAccessory = app.otherElements.matching(identifier: "SystemInputAssistantView").firstMatch
+            let top = max(bounds.minY, navigation.exists ? navigation.frame.maxY : bounds.minY) + 8
+            var bottom = min(bounds.maxY, tabs.exists ? tabs.frame.minY : bounds.maxY,
+                             keyboard.exists ? keyboard.frame.minY : bounds.maxY) - 8
+            if keyboard.exists && keyboardAccessory.exists { bottom = min(bottom, keyboardAccessory.frame.minY - 8) }
+            guard bottom - top > 80 else { return false }
+            let frame = element.exists ? element.frame : .zero
+            if !frame.isEmpty && frame.minY >= top && frame.maxY <= bottom && element.isHittable { return true }
+            guard attempt < 8 else { return false }
+            let moveDown = !frame.isEmpty && frame.minY < top
+            let upper = top + (bottom - top) * 0.25
+            let lower = top + (bottom - top) * 0.75
+            let origin = app.coordinate(withNormalizedOffset: .zero)
+            let start = origin.withOffset(CGVector(dx: bounds.width / 2, dy: (moveDown ? upper : lower) - bounds.minY))
+            let finish = origin.withOffset(CGVector(dx: bounds.width / 2, dy: (moveDown ? lower : upper) - bounds.minY))
+            start.press(forDuration: 0.05, thenDragTo: finish)
+        }
+        return false
+    }
+
     func testLaunchMemoryPersistenceAndDeletion() {
         let app = XCUIApplication()
         app.launch()
@@ -154,13 +183,19 @@ import XCTest
         let note = "UI verification " + UUID().uuidString.prefix(8)
         let field = app.descendants(matching: .any).matching(identifier: "memoryNoteInput").firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 10))
-        field.tap(); app.typeText(note)
+        field.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        field.typeText(note)
+        // The event synthesizer can return before all characters reach the field.
+        // Do not submit the first character while the rest are still arriving.
+        expectation(for: NSPredicate(format: "value == %@", note), evaluatedWith: field)
+        waitForExpectations(timeout: 10)
+        XCTAssertEqual(field.value as? String, note)
         app.buttons["Remember note"].tap()
-        // Dismiss keyboard so saved content can be navigated reliably.
-        app.swipeUp()
+        let saved = app.staticTexts[note]
+        XCTAssertTrue(revealInContent(saved, in: app), "The exact note must be saved before relaunch")
         app.terminate(); app.launch()
         app.tabBars.buttons["Memory"].tap()
-        let saved = app.staticTexts[note]
         for _ in 0..<5 where !saved.isHittable { app.swipeUp() }
         XCTAssertTrue(saved.exists)
         let memory = XCTAttachment(screenshot: app.screenshot()); memory.name = "Saved offline memory"; memory.lifetime = .keepAlways; add(memory)
@@ -225,7 +260,7 @@ import XCTest
         for _ in 0..<4 where !token.isHittable { app.swipeUp() }
         token.tap(); app.typeText("github_pat_SYNTHETIC_TEST_ONLY_123")
         let connect = app.buttons["github-connect-button"]
-        for _ in 0..<4 where !connect.isHittable { app.swipeUp() }
+        XCTAssertTrue(revealInContent(connect, in: app), "Consent button must not be behind the navigation bar or keyboard")
         XCTAssertTrue(connect.isEnabled)
         connect.tap()
         let consent = app.alerts["Use this GitHub token?"]

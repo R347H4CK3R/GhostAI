@@ -93,13 +93,9 @@ jobs:
           python3 scripts/verify_app_icon.py
           python3 -m unittest discover -s scripts/tests -v
       - run: xcodegen generate
-      - name: Boot test simulator
+      - name: Boot owned test simulator
         timeout-minutes: 6
-        run: |
-          set -euo pipefail
-          DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys,re; ds=json.load(sys.stdin)["devices"]; keys=sorted((k for k in ds if "iOS-26" in k), key=lambda k: tuple(map(int,re.findall(r"[0-9]+",k))), reverse=True); print(next(d["udid"] for k in keys for d in ds[k] if "iPhone" in d["name"]))')
-          echo "SIMULATOR_ID=$DEVICE" >> "$GITHUB_ENV"
-          xcrun simctl bootstatus "$DEVICE" -b
+        run: python3 scripts/ci_simulator.py boot --output test-simulator --github-env "$GITHUB_ENV"
       - name: Unit tests
         timeout-minutes: 30
         run: |
@@ -117,6 +113,10 @@ jobs:
           python3 -m venv .verification-venv
           .verification-venv/bin/python -m pip install -r companion/requirements-sync.txt
           .verification-venv/bin/python Tests/verify_mobile_transfer.py test-screenshots
+      - name: Shut down owned test simulator before upgrade
+        if: ${{ always() && env.SIMULATOR_ID != '' }}
+        timeout-minutes: 2
+        run: python3 scripts/ci_simulator.py shutdown --output test-simulator --simulator-id "$SIMULATOR_ID"
       - name: Verify install-over-existing simulator upgrade
         timeout-minutes: 20
         run: python3 scripts/verify_simulator_upgrade.py --output upgrade-results --budget-seconds 1080
@@ -149,4 +149,5 @@ jobs:
             xcode-tests.log
             test-screenshots
             app-icon-assets.json
+            test-simulator
           if-no-files-found: ignore

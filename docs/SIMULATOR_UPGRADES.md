@@ -3,6 +3,28 @@
 The iOS CI job must pass `scripts/verify_simulator_upgrade.py` before packaging the new
 unsigned device app. A successful ordinary unit/UI test run alone is not upgrade evidence.
 
+## Main-suite simulator handoff
+
+The main iOS job creates its own uniquely named test simulator instead of borrowing a
+preexisting device. `scripts/ci_simulator.py` records the returned UUID, random name,
+runtime and device type before its one bounded boot attempt. After ordinary tests,
+screenshot export and transfer verification, the workflow shuts down only that device.
+It first verifies the exact environment UUID against the creation record and the current
+simulator listing, then requires a fresh listing to show `Shutdown`. A mismatch, unknown
+state, command failure or timeout fails the job; no mutation is retried. This step also
+runs after test failures to release only the workflow's own booted simulator. It never
+shuts down or deletes preexisting devices, and never uses `all` or `booted` selectors.
+Ownership, command logs and handoff results are in the ordinary iOS test artifact's
+`test-simulator` directory. No upgrade starts after a failed handoff.
+
+Run 32 (`2df442265ca5095b99f53d13459cdc4b88cc3e69`) passed its ordinary tests and
+transfer check but exceeded the upgrade's 180-second boot command limit during a fresh
+simulator's first-boot migration. The former workflow did not shut down its main test simulator.
+The handoff removes that avoidable overlap; resource pressure as the cause of the timeout
+is still unproven and needs native CI verification. Upgrade boot and launch limits are unchanged. Main-suite setup remains within its
+existing six-minute workflow limit, with a 330-second helper budget and one boot
+attempt capped at five minutes and the remaining setup budget.
+
 ## What actually runs
 
 1. Select an available iOS 26 runtime and compatible iPhone type. Create a new, uniquely
@@ -57,7 +79,7 @@ python3 scripts/verify_simulator_upgrade.py --output upgrade-results --budget-se
 
 Use a new output directory each time. `result.json` records the exact baseline/candidate,
 versions, retained hash, container checks, selected runtime/device, per-command durations,
-pass/failure stage and explicit untested capabilities. Candidate provenance always comes
+pass/failure stage, pre-boot simulator states and explicit untested capabilities. Candidate provenance always comes
 from the local checkout HEAD, including outside GitHub, with a dirty-state boolean covering
 tracked and untracked changes. It is sampled before this run creates evidence/build files;
 pre-existing generated files can still make it dirty. No Git status paths or file contents

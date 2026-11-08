@@ -148,6 +148,33 @@ class SimulatorUpgradeTests(unittest.TestCase):
         types = {'devicetypes': [{'identifier': 'phone', 'name': 'iPhone 16', 'minRuntimeVersion': 26 << 16}]}
         self.assertEqual(check.select_simulator({'runtimes': [runtime]}, types), ('ios26', 'phone'))
 
+    def test_upgrade_records_preexisting_states_and_labels_boot_timeout(self):
+        runner = Mock(output=self.root)
+        identifier = '11111111-2222-3333-4444-555555555555'
+        runtimes = {'runtimes': [{'identifier': 'ios26', 'version': '26.0', 'isAvailable': True,
+                    'supportedDeviceTypes': [{'identifier': 'iphone17', 'name': 'iPhone 17'}]}]}
+        devices = {'devices': {'ios26': [{'udid': 'other-device', 'state': 'Shutdown',
+                                        'name': 'Unneeded private local name'}]}}
+        def listing(args, **options):
+            return {'runtimes': runtimes, 'devicetypes': {}, 'devices': devices}[args[3]]
+        runner.json.side_effect = listing
+        def run(args, **options):
+            if args[2] == 'create':
+                return identifier, 0
+            if args[2] == 'bootstatus':
+                raise subprocess.TimeoutExpired(args, options['timeout'])
+            self.fail('Unexpected simulator operation: ' + repr(args))
+        runner.run.side_effect = run
+        result, owned = {'candidate_commit': 'a' * 40}, []
+        with patch.object(check.platform, 'system', return_value='Darwin'), patch.object(check.shutil, 'which', return_value='/synthetic/tool'):
+            with self.assertRaises(subprocess.TimeoutExpired):
+                check.verify_upgrade(runner, result, owned)
+        self.assertEqual(result['stage'], 'boot_isolated_simulator')
+        self.assertEqual(result['simulators_before_upgrade'], [
+            {'runtime': 'ios26', 'simulator_id': 'other-device', 'state': 'Shutdown'}])
+        self.assertEqual(owned, [identifier])
+        self.assertEqual(runner.run.call_count, 2, 'Do not retry uncertain boot or start a build')
+
     def test_only_two_upgrade_test_targets_receive_environment(self):
         value = {'TestConfigurations': [{'TestTargets': [
             {'BlueprintName': 'AsterionVeyraTests', 'EnvironmentVariables': {'EXISTING': '1'}},

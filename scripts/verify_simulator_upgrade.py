@@ -274,6 +274,10 @@ def verify_upgrade(runner, result, simulator):
         raise UnsupportedInfrastructure('Real upgrade verification requires macOS, Xcode 26 and XcodeGen')
     if not result.get('candidate_commit'):
         raise RuntimeError('Cannot verify an upgrade without the candidate Git revision')
+    listing = runner.json(['xcrun', 'simctl', 'list', 'devices', '-j'], timeout=15)
+    result['simulators_before_upgrade'] = [
+        {'runtime': runtime, 'simulator_id': device.get('udid'), 'state': device.get('state')}
+        for runtime, devices in listing['devices'].items() for device in devices]
     runtime, device_type = select_simulator(
         runner.json(['xcrun', 'simctl', 'list', 'runtimes', '-j']),
         runner.json(['xcrun', 'simctl', 'list', 'devicetypes', '-j']))
@@ -284,6 +288,7 @@ def verify_upgrade(runner, result, simulator):
     uuid.UUID(identifier)  # Never act on an ambiguous or malformed device selector.
     simulator.append(identifier)
     result['simulator_id'] = identifier
+    result['stage'] = 'boot_isolated_simulator'
     runner.run(['xcrun', 'simctl', 'bootstatus', identifier, '-b'], timeout=180)
     with tempfile.TemporaryDirectory(prefix='asterion-upgrade-') as directory:
         temporary = Path(directory)
