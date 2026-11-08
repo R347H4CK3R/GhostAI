@@ -79,8 +79,8 @@ import XCTest
         let connect = app.buttons["github-connect-button"]
         for _ in 0..<4 where !connect.isHittable { app.swipeUp() }
         connect.tap()
-        let cancel = app.buttons["github-cancel-connect"]
-        XCTAssertTrue(cancel.waitForExistence(timeout: 10)); cancel.tap()
+        let consent = app.alerts["Use this GitHub token?"]
+        XCTAssertTrue(consent.waitForExistence(timeout: 10)); consent.buttons["Cancel"].tap()
         XCTAssertFalse(connect.isEnabled, "Cancelled consent must clear the synthetic token")
         XCTAssertFalse(app.staticTexts["Checking GitHub account"].exists)
     }

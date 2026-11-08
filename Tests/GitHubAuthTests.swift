@@ -158,6 +158,26 @@ final class GitHubAuthTests: XCTestCase {
         XCTAssertThrowsError(try session.authorizationValue())
     }
 
+    @MainActor func testStoreDeinitializationRevokesRetainedActiveClient() throws {
+        var store: GitHubCredentialStore? = GitHubCredentialStore(vault: TestGitHubVault())
+        weak var releasedStore = store
+        let session = try XCTUnwrap(store).begin(token: syntheticToken, directInstallationConfirmed: true)
+        try XCTUnwrap(store).complete(session: session, account: GitHubAccount(id: 7, login: "example"), rememberOnDevice: false)
+        let client = try XCTUnwrap(store?.connection?.client)
+        store = nil
+        XCTAssertNil(releasedStore)
+        XCTAssertThrowsError(try client.validateSession())
+    }
+
+    @MainActor func testStoreDeinitializationRevokesRetainedPendingSession() throws {
+        var store: GitHubCredentialStore? = GitHubCredentialStore(vault: TestGitHubVault())
+        weak var releasedStore = store
+        let session = try XCTUnwrap(store).begin(token: syntheticToken, directInstallationConfirmed: true)
+        store = nil
+        XCTAssertNil(releasedStore)
+        XCTAssertThrowsError(try session.authorizationValue())
+    }
+
     @MainActor func testSignOutNotifiesOwnerAfterRevocationWithoutAViewObserver() throws {
         var notifications = 0
         var originalClient: GitHubClient?

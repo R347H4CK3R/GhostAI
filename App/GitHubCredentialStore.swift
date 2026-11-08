@@ -140,6 +140,8 @@ struct GitHubDeviceKeychain: GitHubCredentialVault {
     private let vault: GitHubCredentialVault
     private let onSessionEnded: (@MainActor () -> Void)?
     private var pending: GitHubAuthSession?
+    // Keep a plain Sendable reference for nonisolated teardown; @Published access is main-actor isolated.
+    private var activeSession: GitHubAuthSession?
     private var pendingToken: String?
     private var expiryTask: Task<Void, Never>?
     init(vault: GitHubCredentialVault = GitHubDeviceKeychain(), onSessionEnded: (@MainActor () -> Void)? = nil) {
@@ -150,7 +152,7 @@ struct GitHubDeviceKeychain: GitHubCredentialVault {
     deinit {
         expiryTask?.cancel()
         pending?.revoke()
-        connection?.session.revoke()
+        activeSession?.revoke()
     }
 
     // Calling init never reads the Keychain. Restore requires a fresh visible user action.
@@ -177,6 +179,7 @@ struct GitHubDeviceKeychain: GitHubCredentialVault {
             else { try vault.delete() } // Do not leave another account's saved credential behind.
         } catch { endSession(); throw GitHubAccessError.keychain }
         pending = nil; pendingToken = nil
+        activeSession = session
         connection = GitHubConnection(session: session, account: account)
         expiryTask = Task { [weak self] in
             let remaining = max(0, session.expiresAt.timeIntervalSinceNow)
@@ -189,10 +192,10 @@ struct GitHubDeviceKeychain: GitHubCredentialVault {
         if let connection, now >= connection.session.expiresAt { endSession() }
     }
     func endSession() {
-        let hadSession = pending != nil || connection != nil
+        let hadSession = pending != nil || activeSession != nil
         expiryTask?.cancel(); expiryTask = nil
         pending?.revoke(); pending = nil; pendingToken = nil
-        connection?.session.revoke(); connection = nil
+        activeSession?.revoke(); activeSession = nil; connection = nil
         // Lifecycle notification is synchronous, has no data payload and does not depend on a visible view.
         if hadSession { onSessionEnded?() }
     }
