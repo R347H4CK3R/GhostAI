@@ -226,7 +226,9 @@ enum KnowledgePolicy {
             var excluded = folder; var values = URLResourceValues(); values.isExcludedFromBackup = true
             try excluded.setResourceValues(values)
             let existed = FileManager.default.fileExists(atPath: databaseURL.path)
-            guard existed || (try totalDatabaseBytes()) + 65_536 <= maximumBytes - min(2_097_152, maximumBytes / 4) else { throw KnowledgeFailure.quota }
+            if !existed {
+                guard try totalDatabaseBytes() + 65_536 <= maximumBytes - min(2_097_152, maximumBytes / 4) else { throw KnowledgeFailure.quota }
+            }
             guard sqlite3_open_v2(databaseURL.path, &database, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK else {
                 throw KnowledgeFailure.unavailable
             }
