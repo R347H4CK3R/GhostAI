@@ -1,4 +1,5 @@
 import argparse
+import getpass
 import json
 from pathlib import Path
 import sqlite3
@@ -24,6 +25,18 @@ def main():
     run.add_argument('--workspace', type=Path, required=True)
     run.add_argument('--plan', type=Path, required=True)
     run.add_argument('--allow-writes', action='store_true')
+    plan_cmd = commands.add_parser('plan', help='Propose a plan using a trusted local Ollama model; never executes')
+    plan_cmd.add_argument('--project', required=True)
+    plan_cmd.add_argument('--model', required=True)
+    plan_cmd.add_argument('--goal', required=True)
+    plan_cmd.add_argument('--trust-local-model', action='store_true', required=True, help='Confirm your loopback Ollama daemon/model is trusted and configured offline; it receives this project’s notes')
+    export = commands.add_parser('export-memory', help='Encrypt selected memories for manual transfer')
+    scope = export.add_mutually_exclusive_group(required=True)
+    scope.add_argument('--project')
+    scope.add_argument('--all-projects', action='store_true')
+    export.add_argument('--output', type=Path, required=True)
+    imp = commands.add_parser('import-memory', help='Merge an encrypted memory snapshot without deleting existing data')
+    imp.add_argument('--input', type=Path, required=True)
     args = parser.parse_args()
     memory = None
     try:
@@ -36,6 +49,20 @@ def main():
             result = {'deleted': memory.delete(args.id)}
         elif args.command == 'history':
             result = memory.tasks()
+        elif args.command == 'plan':
+            from .planner import generate_plan
+            result = generate_plan(args.goal, args.project, args.model, memory)
+        elif args.command == 'export-memory':
+            from .sync import export_snapshot
+            password = getpass.getpass('Encryption passphrase: ')
+            if password != getpass.getpass('Confirm passphrase: '):
+                raise ValueError('Passphrases do not match')
+            count = export_snapshot(memory, args.output, password, project=args.project, all_projects=args.all_projects)
+            result = {'exported': count, 'encrypted': True, 'path': str(args.output)}
+        elif args.command == 'import-memory':
+            from .sync import import_snapshot
+            password = getpass.getpass('Decryption passphrase: ')
+            result = import_snapshot(memory, args.input, password)
         else:
             with args.plan.open('rb') as handle:
                 raw = handle.read(1_048_577)
@@ -43,7 +70,7 @@ def main():
             result = Runner(args.workspace, memory, allow_writes=args.allow_writes).run(plan)
         print(json.dumps(result, ensure_ascii=True, indent=2))
         return 0 if args.command != 'run' or result['status'] == 'completed' else 1
-    except (OSError, ValueError, sqlite3.Error) as error:
+    except (OSError, ValueError, sqlite3.Error, EOFError) as error:
         print(json.dumps({'status': 'failed', 'error': str(error)}), file=sys.stderr)
         return 1
     finally:

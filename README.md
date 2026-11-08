@@ -1,8 +1,8 @@
 # Asterion Veyra
 
-A separate personal iPhone coding assistant with a dark cyan/violet interface, public GitHub project workspaces, Apple on-device AI, and user-controlled offline memory.
+A personal assistant project with a native iPhone coding client, Android offline memory companion and desktop task tools with a dark cyan/violet interface, public GitHub project workspaces, Apple on-device AI, and user-controlled offline memory.
 
-**Status: source prototype. No iOS compilation, simulator run, signed installation or device inference has been verified.** This is not dot, ChatGPT, or a copy of their models/accounts. No generated IPA is included.
+**Status: actively developed and undergoing CI verification. No signed iPhone installation or physical-device inference has been verified.** This is not dot, ChatGPT, or a copy of their models/accounts. No generated IPA is included.
 
 ## Implemented in source
 - SwiftUI conversation, projects, memory and capability screens.
@@ -28,7 +28,7 @@ open AsterionVeyra.xcodeproj
 
 Choose a simulator and run the `AsterionVeyra` scheme's tests. For an actual device, set your own development team and signing settings in Xcode. The supplied project disables signing for reproducible unsigned builds; enable signing for your device build.
 
-The `.github/workflows/ios.yml` workflow selects Xcode 26, runs XCTest on an available iOS 26 simulator, compiles for device, and uploads `AsterionVeyra-unsigned-IPA` only if those stages succeed. It is configured but has **not been run**. An unsigned IPA cannot install directly on ordinary stock iOS. Use your own valid signing/provisioning process. No signing credentials are supplied or collected.
+The `.github/workflows/ios.yml` workflow tests desktop tools across Windows/macOS/Linux, tests/lints/builds the Android debug APK, selects Xcode 26 for iOS tests and device compilation, and uploads artifacts only after their relevant stages succeed. Check the actual [Actions results](https://github.com/R347H4CK3R/GhostAI/actions); source presence is not proof of a successful build. An unsigned IPA cannot install directly on ordinary stock iOS. Use your own valid signing/provisioning process. No signing credentials are supplied or collected.
 
 ## Try it
 1. Open Projects, type your GitHub username, and load public repositories.
@@ -46,10 +46,18 @@ Data is stored locally, but OS device backups may include it. Notes and conversa
 
 ## Runnable offline desktop companion
 
-`companion/` is a Python 3.9+ standard-library CLI for Windows/macOS/Linux. It provides SQLite project memory and deterministic execution of explicitly supplied JSON plans: bounded list/read/hash/JSON-validation tools and narrowly authorized new draft writes. It does not plan with an LLM, run arbitrary shell commands, control apps or connect to the iPhone. See [setup and security boundaries](docs/COMPANION.md). Eleven Python tests pass on the authoring Linux environment; Windows/macOS behavior needs direct validation.
+`companion/` is a Python 3.9+ standard-library CLI for Windows/macOS/Linux. It provides SQLite project memory and deterministic execution of explicitly supplied JSON plans: bounded list/read/hash/JSON-validation tools and narrowly authorized new draft writes. An optional local Ollama model can now propose validated plans for review before separate execution. It does not run arbitrary shell commands, control apps or connect to the iPhone. See [setup and security boundaries](docs/COMPANION.md). Thirty-three Python tests pass on the authoring Linux environment, including model transport validation and real encrypted-transfer round trips. Live Ollama quality and actual target-device behavior need validation.
+
+## Android offline memory companion
+
+`android/` provides a native Kotlin app for Android 8+, with project notes, search, source provenance, confirmed deletion and user-selected JSON backup import/export compatible with the iOS schema. It clearly labels itself an offline memory companion; no Android chat model is included. See [Android build and scope](docs/ANDROID.md). The CI workflow produces a debug-signed APK when tests, lint and compilation succeed. It is a testing artifact, not a production-signed release.
+
+## Optional model planning and encrypted transfer
+
+See [local planning](docs/PLANNING.md) and [encrypted snapshots](docs/SYNC.md). Install the optional cryptography dependency for encrypted desktop memory transfer. Passphrases are entered through a terminal prompt, not command-line flags. This is manual desktop-to-desktop transfer, not background sync; native mobile apps do not yet decrypt that format.
 
 ## Not implemented
-Private GitHub authentication, GitHub modifications, model-directed autonomous planning, structured patch application, online models, voice, native Windows/Android graphical clients, sync, remotely paired runners, permanent model learning, or control of arbitrary installed apps. These are follow-on milestones, not current capabilities. See `docs/CROSS_PLATFORM.md`.
+Private GitHub authentication, GitHub modifications, automatic plan/act/replan loops, structured patch application, hosted online models, voice, a native Windows graphical client, automatic sync, remotely paired runners, permanent model learning, or control of arbitrary installed apps. These are follow-on milestones, not current capabilities. See `docs/CROSS_PLATFORM.md`.
 
 ## Verification in the authoring environment
-The environment has neither Swift nor Xcode. XCTest was authored before implementation but could not execute; there is no red/green execution claim. Static checks for project references, workflow structure and secret literals can run here; they cannot establish type correctness, UI quality, runtime safety or installability. Device testing remains required.
+The authoring Linux environment has neither Swift nor Xcode; native verification runs separately in GitHub Actions. XCTest was authored before implementation but could not execute; there is no red/green execution claim. Static checks for project references, workflow structure and secret literals can run here; they cannot establish type correctness, UI quality, runtime safety or installability. Device testing remains required.
