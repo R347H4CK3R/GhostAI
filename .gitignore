@@ -17,3 +17,16 @@ __pycache__/
 android/local.properties
 *.jks
 *.keystore
+
+# Defense in depth: paired host state must live outside ALL Git worktrees.
+identity-key.pem
+identity-key-protection.bin
+identity-cert.pem
+identity.json
+host-config.json
+paired.sqlite
+paired.sqlite-*
+paired-audit.sqlite
+paired-audit.sqlite-*
+paired-host.lock
+paired-dispatch.lock

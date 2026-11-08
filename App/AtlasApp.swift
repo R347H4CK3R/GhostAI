@@ -6,6 +6,8 @@ import FoundationModels
 @main @MainActor struct AsterionVeyraApp: App {
     @StateObject private var store: AssistantStore
     @StateObject private var credentials: GitHubCredentialStore
+    // Shared by all windows: one durable identity, counter and outbox owner.
+    @StateObject private var pairedDesktop = PairedDesktopClient()
     init() {
         let store = AssistantStore()
         _store = StateObject(wrappedValue: store)
@@ -13,7 +15,7 @@ import FoundationModels
             store?.switchProject("General")
         }))
     }
-    var body: some Scene { WindowGroup { MainView().environmentObject(store).environmentObject(credentials) } }
+    var body: some Scene { WindowGroup { MainView().environmentObject(store).environmentObject(credentials).environmentObject(pairedDesktop) } }
 }
 struct MainView: View {
     @EnvironmentObject var store: AssistantStore
@@ -210,8 +212,13 @@ struct AboutView: View {
             List {
                 Section("Independent assistant") { Text("Asterion Veyra is a new app, not a clone of dot or ChatGPT. It has its own local conversations and memories.") }
                 Section("Works offline") { Text("Saved notes, chat history, retrieved project context and available Apple on-device inference. GitHub discovery and repository tools need internet. Local Assistant and voice stay on-device. The separate Hosted screen sends only the request you explicitly review to OpenAI and may incur API charges.") }
-                Section("Current scope") { Text("Public and explicitly connected private GitHub repositories; bounded model-directed source reads; local note search; encrypted manual memory transfer. Separate review screens support optional hosted answers and new-branch draft pull requests. They do not run automatically from model responses. Automatic cross-device sync and code execution from this iPhone are not implemented. Voice uses turn-taking when on-device recognition is available. Active-audio background operation needs direct-device testing.") }
+                Section("Current scope") { Text("Public and explicitly connected private GitHub repositories; bounded model-directed source reads; local note search; encrypted manual memory transfer. Separate review screens support optional hosted answers and new-branch draft pull requests. They do not run automatically from model responses. Automatic cross-device memory sync and arbitrary local code execution are not implemented. Optional paired desktop jobs are a development preview with native verification pending. Voice uses turn-taking when on-device recognition is available. Active-audio background operation needs direct-device testing.") }
                 Section("Real limits") { Text("Requires iOS 26 and available Apple Intelligence. Context, storage, battery and background execution are finite. The app cannot control arbitrary installed apps or run Xcode. No guarantee of unlimited knowledge or perfect recall.") }
+                Section("Paired desktop jobs") {
+                    NavigationLink("Review paired desktop setup") { PairedDesktopView() }
+                        .accessibilityIdentifier("pairedDesktop.open")
+                    Text("Development foreground client for explicitly paired, read-only jobs. No automatic memory sync or always-on phone execution.").font(.caption)
+                }
                 Section("Integrations") {
                     Button("Review integrations and permissions") { showIntegrations = true }
                         .accessibilityIdentifier("openIntegrations")

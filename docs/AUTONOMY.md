@@ -128,3 +128,7 @@ python -m unittest discover -s companion/tests -v
 Tests use fake model response bytes but real SQLite memory, real core filesystem tools, real atomic draft creation, real temporary checkpoints, and real OS locking. They cover multi-iteration observations, refusals, no-write default, exact-scope escalation attempts, budget exhaustion, cancellation, transport deadlines, checkpoint corruption, completed-job idempotency, and simulated process loss/audit failure immediately after a real write. Live Ollama answer quality, local model installation, and Windows/macOS runtime behavior are not established by the authoring Linux tests. Cross-platform Python CI is configured separately.
 
 Not implemented: background schedules/daemon, arbitrary app control, browser/shell/network tools beyond the fixed local model call, remote workers, mobile job submission, credentials, model installation, independent goal verification, semantic permission inference, overwrite/patch workflows, or automatic uncertain-write recovery.
+
+## Optional paired foreground host
+
+The separate [paired desktop preview](PAIRED_EXECUTION.md) exposes only reviewed, authenticated, bounded read-only jobs through HTTPS. It shares no existing notes implicitly and does not change the standalone local executor permissions. Windows activation and native iPhone verification remain gated.

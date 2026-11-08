@@ -14,6 +14,7 @@ targets:
         CFBundleDisplayName: Asterion Veyra
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSLocalNetworkUsageDescription: Connect only to the desktop you explicitly pair for bounded read-only jobs.
         NSMicrophoneUsageDescription: Record your voice only during a conversation you start.
         NSSpeechRecognitionUsageDescription: Transcribe spoken messages using available on-device recognition.
         UIBackgroundModes: [audio]
@@ -31,7 +32,7 @@ targets:
         INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: Turn your spoken messages into text using available on-device recognition.
         TARGETED_DEVICE_FAMILY: "1,2"
         CODE_SIGNING_ALLOWED: NO
-        MARKETING_VERSION: "0.3.2"
+        MARKETING_VERSION: "0.3.3"
         CURRENT_PROJECT_VERSION: "1"
   AsterionVeyraTests:
     type: bundle.unit-test
