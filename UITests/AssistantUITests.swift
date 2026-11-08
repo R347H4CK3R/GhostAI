@@ -84,7 +84,11 @@ import XCTest
         XCTAssertTrue(connect.isEnabled)
         connect.tap()
         let consent = app.alerts["Use this GitHub token?"]
-        XCTAssertTrue(consent.waitForExistence(timeout: 10)); consent.buttons["Cancel"].tap()
+        XCTAssertTrue(consent.waitForExistence(timeout: 10))
+        // iOS 26 exposes the same alert action as a nested button and wrapper.
+        // Scope to the action identifier inside this alert, then select its first representation.
+        consent.buttons.matching(identifier: "github-cancel-connect").firstMatch.tap()
+        XCTAssertTrue(consent.waitForNonExistence(timeout: 10))
         XCTAssertFalse(connect.isEnabled, "Cancelled consent must clear the synthetic token")
         XCTAssertFalse(app.staticTexts["Checking GitHub account"].exists)
     }
