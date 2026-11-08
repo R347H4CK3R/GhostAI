@@ -110,7 +110,7 @@ enum DiagnosticChecks {
         isRunning = true
         defer { isRunning = false }
         var next = DiagnosticReport(
-            appVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown",
+            appVersion: (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown") + " (" + (Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown") + ")",
             iosVersion: UIDevice.current.systemVersion)
         next.checks.storage = DiagnosticChecks.storage(in: reportDirectory)
         next.checks.serialization = DiagnosticChecks.serialization()

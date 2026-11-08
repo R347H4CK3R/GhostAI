@@ -130,7 +130,7 @@ struct ChatView: View {
                 }
             }
             .onChange(of: scenePhase) { _, phase in
-                if phase == .background && !voice.allowsBackgroundVoice { endVoiceConversation() }
+                if !voice.allowsBackgroundVoice && (phase == .background || (phase == .inactive && awaitingVoiceReply)) { endVoiceConversation() }
             }
             .onChange(of: store.project) { _, _ in endVoiceConversation() }
             .onDisappear { endVoiceConversation() }
