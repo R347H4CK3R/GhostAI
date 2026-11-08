@@ -8,22 +8,43 @@ targets:
     type: application
     platform: iOS
     sources: [App]
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: Asterion Veyra
+        NSMicrophoneUsageDescription: Record your voice only during a conversation you start.
+        NSSpeechRecognitionUsageDescription: Transcribe spoken messages using available on-device recognition.
+        UIBackgroundModes: [audio]
+        UILaunchScreen: {}
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.asterionveyra.assistant
         PRODUCT_MODULE_NAME: AsterionVeyra
         SWIFT_VERSION: "5.0"
-        GENERATE_INFOPLIST_FILE: YES
+        GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_KEY_CFBundleDisplayName: Asterion Veyra
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: Record your voice only when you start a voice conversation.
+        INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: Turn your spoken messages into text using available on-device recognition.
         TARGETED_DEVICE_FAMILY: "1,2"
         CODE_SIGNING_ALLOWED: NO
-        MARKETING_VERSION: "0.1.0"
+        MARKETING_VERSION: "0.2.0"
         CURRENT_PROJECT_VERSION: "1"
   AsterionVeyraTests:
     type: bundle.unit-test
     platform: iOS
     sources: [Tests]
+    dependencies:
+      - target: AsterionVeyra
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "5.0"
+        CODE_SIGNING_ALLOWED: NO
+  AsterionVeyraUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [UITests]
     dependencies:
       - target: AsterionVeyra
     settings:
@@ -37,5 +58,6 @@ schemes:
       targets:
         AsterionVeyra: all
         AsterionVeyraTests: [test]
+        AsterionVeyraUITests: [test]
     test:
-      targets: [AsterionVeyraTests]
+      targets: [AsterionVeyraTests, AsterionVeyraUITests]

@@ -59,13 +59,13 @@ struct DiskStore {
         if FileManager.default.fileExists(atPath: url.path) {
             let preserved = root.appendingPathComponent("unreadable-" + UUID().uuidString + ".json")
             try FileManager.default.copyItem(at: url, to: preserved)
-            try FileManager.default.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: preserved.path)
+            try FileManager.default.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], ofItemAtPath: preserved.path)
         }
         try save(state)
     }
     func save(_ state: SavedState) throws {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        try JSONEncoder().encode(state).write(to: url, options: [.atomic, .completeFileProtection])
+        try JSONEncoder().encode(state).write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
     }
 }
 enum GitHubRoute {

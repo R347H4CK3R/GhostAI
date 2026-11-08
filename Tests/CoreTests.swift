@@ -98,3 +98,9 @@ final class ProjectMemoryToolTests: XCTestCase {
         XCTAssertEqual(output, "No saved notes exist for this project.")
     }
 }
+
+final class AssistantShortcutTests: XCTestCase {
+    func testShortcutOpensAppInsteadOfStartingHiddenListening() {
+        XCTAssertTrue(OpenAsterionIntent.openAppWhenRun)
+    }
+}

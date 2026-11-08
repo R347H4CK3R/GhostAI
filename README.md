@@ -8,12 +8,12 @@ A personal assistant project with a native iPhone coding client, Android offline
 - SwiftUI conversation, projects, memory and capability screens.
 - Public repository discovery with pagination, directory browsing and text preview pinned to the selected commit.
 - Apple Foundation Models chat when the system model is available, explicit cancellation and project-scoped context.
-- Persisted chat and notes in Application Support using atomic writes and iOS complete file protection.
+- Persisted chat and notes in Application Support using atomic writes and iOS protection until first user authentication, allowing background voice persistence after first unlock.
 - Offline keyword-ranked retrieval of saved notes. Save selected source excerpts with repository/path/commit provenance. A saved excerpt remains available offline; browsing uncached source still needs network.
 - Model-callable, read-only offline memory search constrained to the selected project.
 - Reviewable suggestions and answer/note export. No automatic execution or remote writes.
 - Read-only anonymous GitHub requests, redirect rejection, streamed response limits, and text-file size checks.
-- Fourteen XCTest cases for scope/budget, validation, secret warnings, persistence and corruption behavior, backup validation and import deduplication.
+- Native XCTest coverage for scope/budget, validation, secret warnings, persistence and corruption behavior, backup validation and import deduplication.
 
 ## Requirements
 An Apple Intelligence-capable iPhone or iPad, iOS/iPadOS 26+, and Apple Intelligence enabled with the system model available. Local inference availability depends on device settings, language, region and downloaded assets. The app displays unavailable states instead of pretending it generated an answer.
@@ -58,7 +58,7 @@ Data is stored locally, but OS device backups may include it. Notes and conversa
 See [local planning](docs/PLANNING.md) and [encrypted snapshots](docs/SYNC.md). Install the optional cryptography dependency for encrypted desktop memory transfer. Passphrases are entered through a terminal prompt, not command-line flags. This is manual desktop-to-desktop transfer, not background sync; native mobile apps do not yet decrypt that format.
 
 ## Not implemented
-Private GitHub authentication, GitHub modifications, automatic plan/act/replan loops, structured patch application, hosted online models, voice, a native Windows graphical client, automatic sync, remotely paired runners, permanent model learning, or control of arbitrary installed apps. These are follow-on milestones, not current capabilities. See `docs/CROSS_PLATFORM.md`.
+Private GitHub authentication, GitHub modifications, automatic plan/act/replan loops, structured patch application, hosted online models, a native Windows graphical client, automatic sync, remotely paired runners, permanent model learning, or control of arbitrary installed apps. These are follow-on milestones, not current capabilities. See `docs/CROSS_PLATFORM.md`.
 
 ## Verification in the authoring environment
 The authoring Linux environment has neither Swift nor Xcode; native verification runs separately in GitHub Actions. XCTest was authored before implementation but could not execute; there is no red/green execution claim. Static checks for project references, workflow structure and secret literals can run here; they cannot establish type correctness, UI quality, runtime safety or installability. Device testing remains required.
@@ -66,3 +66,11 @@ The authoring Linux environment has neither Swift nor Xcode; native verification
 ## Strata
 
 See [Strata packaging and runtime validation](docs/STRATA.md). The normal unsigned IPA shape matches the documented importer, but Apple-model operation in a guest must be tested on-device.
+
+## iPhone voice test candidate
+
+The iPhone source now includes microphone/speech permission handling, on-device-only transcription when available, spoken replies, explicit voice turn-taking, and an optional background-active-audio setting for directly signed installations. Speech/model interruptions stop the session; no silent audio keeps unrelated work running. See [voice behavior and device checks](docs/VOICE.md) and [Siri entry](docs/WAKE.md). No guarantee of all-day continuous operation or custom wake-word support is made. Test these additions on the signed phone, not just in a simulator.
+
+## Diagnostics and automated verification
+
+The iPhone build includes safe redacted diagnostics with a three-day foreground check, manual self-tests and an optional local-model greeting test. Reports omit private content and stay local until explicitly exported. Automatic public-repository uploads are not configured. See [diagnostics](docs/DIAGNOSTICS.md). CI includes native UI navigation, memory save/relaunch/delete checks and simulator screenshot attachments, in addition to unit tests. Successful simulation still cannot validate physical microphone quality, Apple model availability, all-day battery behavior or locked-screen background voice.
