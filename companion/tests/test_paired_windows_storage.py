@@ -6,7 +6,6 @@ from ctypes import wintypes
 import hmac
 import json
 import os
-import re
 from pathlib import Path
 import sqlite3
 import tempfile
@@ -114,24 +113,33 @@ class NativeMutableStorageTests(unittest.TestCase):
                            ctypes.POINTER(pointer), ctypes.POINTER(pointer), ctypes.POINTER(pointer),
                            ctypes.POINTER(pointer), ctypes.POINTER(pointer)]
         getter.restype = wintypes.DWORD
-        convert = api.advapi.ConvertSecurityDescriptorToStringSecurityDescriptorW
-        convert.argtypes = [pointer, wintypes.DWORD, wintypes.DWORD,
-                            ctypes.POINTER(pointer), ctypes.POINTER(wintypes.DWORD)]
-        convert.restype = wintypes.BOOL
-        owner, dacl, descriptor, text = pointer(), pointer(), pointer(), pointer()
+        owner, dacl, descriptor = pointer(), pointer(), pointer()
         self.assertEqual(getter(str(path), 1, 5, ctypes.byref(owner), None,
                                 ctypes.byref(dacl), None, ctypes.byref(descriptor)), 0)
         try:
             self.assertEqual(api._sid_text(owner), api.sid)
             self.assertTrue(dacl.value)
-            self.assertTrue(convert(descriptor, 1, 4, ctypes.byref(text), None))
-            sddl = ctypes.wstring_at(text)
-            flags = 'ID' if inherited else ''
-            self.assertEqual(set(re.findall(r'\([^)]*\)', sddl)),
-                             {f'(A;{flags};FA;;;{api.sid})', f'(A;{flags};FA;;;SY)'})
-            self.assertEqual('P' in sddl.split('(', 1)[0], not inherited)
+            # SDDL can render a user SID as LA (local Administrator), so compare
+            # native ACE fields and canonical SID strings, not display aliases.
+            acl = ctypes.cast(dacl, ctypes.POINTER(windows._ACL)).contents
+            self.assertEqual(acl.count, 2)
+            entries = []
+            for index in range(acl.count):
+                entry = pointer()
+                self.assertTrue(api.advapi.GetAce(dacl, index, ctypes.byref(entry)))
+                ace = ctypes.cast(entry, ctypes.POINTER(windows._ACE)).contents
+                self.assertGreaterEqual(ace.size, ctypes.sizeof(windows._ACE) + 8)
+                sid = api._sid_text(pointer(entry.value + ctypes.sizeof(windows._ACE)))
+                entries.append((ace.type, ace.flags, ace.mask, sid))
+            flags = 0x10 if inherited else 0
+            self.assertCountEqual(entries, [(0, flags, 0x001F01FF, api.sid),
+                                            (0, flags, 0x001F01FF, 'S-1-5-18')])
+            control, revision = wintypes.WORD(), wintypes.DWORD()
+            self.assertTrue(api.advapi.GetSecurityDescriptorControl(
+                descriptor, ctypes.byref(control), ctypes.byref(revision)))
+            self.assertTrue(control.value & 0x0004)
+            self.assertEqual(bool(control.value & 0x1000), not inherited)
         finally:
-            if text.value: api.kernel.LocalFree(text)
             api.kernel.LocalFree(descriptor)
 
     def snapshot(self):
