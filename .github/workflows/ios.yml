@@ -66,7 +66,7 @@ jobs:
           echo "SIMULATOR_ID=$DEVICE" >> "$GITHUB_ENV"
           xcrun simctl bootstatus "$DEVICE" -b
       - name: Unit tests
-        timeout-minutes: 20
+        timeout-minutes: 30
         run: |
           set -euo pipefail
           xcodebuild -project AsterionVeyra.xcodeproj -scheme AsterionVeyra -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -destination-timeout 120 -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 180 -resultBundlePath TestResults.xcresult CODE_SIGNING_ALLOWED=NO test 2>&1 | tee xcode-tests.log

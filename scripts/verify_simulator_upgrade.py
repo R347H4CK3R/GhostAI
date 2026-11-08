@@ -173,20 +173,38 @@ class Runner:
         self.count = 0
 
     def terminate_owned_group(self, process):
-        """Escalate the owned group even when its leader exits before its children."""
+        """Escalate only the owned group, keeping its leader unreaped until then."""
+        if process.returncode is not None:
+            raise RuntimeError('Cannot safely signal a group whose leader was already reaped')
         try:
             os.killpg(process.pid, signal.SIGTERM)
+            # Reaping early permits PID reuse; probing zombie-only groups can report
+            # EPERM on Darwin. Keep our leader reserved throughout the grace period.
+            time.sleep(self.termination_grace_seconds)
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass  # Already gone. Never scan PIDs or signal another group.
+        except PermissionError as denied:
+            # Darwin excludes zombies from killpg and can return EPERM when every
+            # member has exited. EPERM alone is NOT proof of successful cleanup.
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                raise denied
             deadline = time.monotonic() + self.termination_grace_seconds
             while True:
-                process.poll()  # Reap the leader without mistaking its exit for group exit.
-                os.killpg(process.pid, 0)
+                # After reaping, only probe. Even if this PGID were reused, it must
+                # never receive a real signal from us. Only ESRCH proves absence.
+                try:
+                    os.killpg(process.pid, 0)
+                except ProcessLookupError:
+                    return
+                except PermissionError:
+                    pass
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
-                    os.killpg(process.pid, signal.SIGKILL)
-                    break
+                    raise denied
                 time.sleep(min(0.05, remaining))
-        except ProcessLookupError:
-            pass  # The group is already gone. Never signal another job or scan its PIDs.
         process.wait(timeout=5)
 
     def run(self, args, *, cwd=ROOT, timeout=60, required=True, cleanup=False):

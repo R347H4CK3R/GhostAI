@@ -13,7 +13,7 @@ import sys
 import tempfile
 import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location('verify_simulator_upgrade', ROOT / 'scripts/verify_simulator_upgrade.py')
@@ -152,21 +152,113 @@ class SimulatorUpgradeTests(unittest.TestCase):
 
     def test_timed_out_owned_command_is_recorded(self):
         runner = check.Runner(self.root, 10)
-        with self.assertRaises(subprocess.TimeoutExpired):
+        with patch.object(runner, 'termination_grace_seconds', 0.05), self.assertRaises(subprocess.TimeoutExpired):
             runner.run([sys.executable, '-c', 'import time; time.sleep(10)'], timeout=0.05)
         self.assertEqual(len(runner.steps), 1)
         self.assertTrue(runner.steps[0]['timed_out'])
         self.assertNotEqual(runner.steps[0]['exit_code'], 0)
 
     @unittest.skipUnless(os.name == 'posix', 'Process-group cleanup requires POSIX')
+    def test_zombie_group_permission_error_needs_confirmed_disappearance(self):
+        """A real child exits; only Darwin's zombie-group EPERM is simulated."""
+        runner = check.Runner(self.root, 10)
+        real_killpg = os.killpg
+        real_popen = subprocess.Popen
+        processes = []
+        denied_probe = False
+
+        def launch(*args, **kwargs):
+            process = real_popen(*args, **kwargs)
+            processes.append(process)
+            return process
+
+        def darwin_killpg(group, requested_signal):
+            nonlocal denied_probe
+            if requested_signal == signal.SIGKILL:
+                # The leader must still belong to us and be unreaped here.
+                if hasattr(os, 'WNOWAIT'):
+                    deadline = time.monotonic() + 2
+                    while True:
+                        exited = os.waitid(os.P_PID, group, os.WEXITED | os.WNOWAIT | os.WNOHANG)
+                        if exited is not None or time.monotonic() >= deadline:
+                            break
+                        time.sleep(0.01)
+                    self.assertIsNotNone(exited)
+                raise PermissionError(1, 'simulated Darwin zombie-only group')
+            if requested_signal == 0 and not denied_probe:
+                denied_probe = True
+                raise PermissionError(1, 'simulated transient zombie-only group')
+            return real_killpg(group, requested_signal)
+
+        try:
+            with patch.object(runner, 'termination_grace_seconds', 0.05), patch.object(check.os, 'killpg', side_effect=darwin_killpg), patch.object(check.subprocess, 'Popen', side_effect=launch):
+                with self.assertRaises(subprocess.TimeoutExpired):
+                    runner.run([sys.executable, '-c', 'import time; time.sleep(10)'], timeout=0.05)
+            self.assertTrue(denied_probe)
+            self.assertEqual(runner.steps[0]['exit_code'], -signal.SIGTERM)
+            self.assertTrue(runner.steps[0]['timed_out'])
+        finally:
+            # Synthetic child cleanup only, using the original system function.
+            for process in processes:
+                if process.returncode is None:
+                    try:
+                        real_killpg(process.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                    process.wait(timeout=5)
+
+    def test_permission_error_stays_failure_if_group_remains_or_cannot_be_reaped(self):
+        for probe_result in [None, PermissionError(1, 'still uninspectable')]:
+            with self.subTest(probe_result=probe_result):
+                runner = check.Runner(self.root, 10)
+                process = Mock(pid=123456, returncode=None)
+                calls = []
+                denied = PermissionError(1, 'synthetic signal denial')
+
+                def signal_group(group, requested_signal):
+                    calls.append((group, requested_signal))
+                    if len(calls) == 1:
+                        raise denied
+                    self.assertEqual(requested_signal, 0, 'Never signal after reaping')
+                    if isinstance(probe_result, Exception):
+                        raise probe_result
+
+                with patch.object(runner, 'termination_grace_seconds', 0.01), patch.object(check.os, 'killpg', side_effect=signal_group):
+                    with self.assertRaises(PermissionError) as caught:
+                        runner.terminate_owned_group(process)
+                self.assertIs(caught.exception, denied)
+                process.wait.assert_called_once_with(timeout=5)
+                self.assertGreater(len(calls), 1)
+
+        process = Mock(pid=123456, returncode=None)
+        process.wait.side_effect = subprocess.TimeoutExpired('synthetic child', 5)
+        denied = PermissionError(1, 'synthetic signal denial')
+        with patch.object(check.os, 'killpg', side_effect=denied) as send:
+            with self.assertRaises(PermissionError) as caught:
+                runner.terminate_owned_group(process)
+        self.assertIs(caught.exception, denied)
+        self.assertEqual(send.call_count, 1, 'Do not probe or signal after an unreaped denial')
+
+    def test_already_reaped_leader_is_never_signalled(self):
+        runner = check.Runner(self.root, 10)
+        process = Mock(pid=123456, returncode=0)
+        with patch.object(check.os, 'killpg') as send:
+            with self.assertRaisesRegex(RuntimeError, 'reaped'):
+                runner.terminate_owned_group(process)
+        send.assert_not_called()
+
+    @unittest.skipUnless(os.name == 'posix', 'Process-group cleanup requires POSIX')
     def test_timeout_kills_term_ignoring_descendant_after_leader_exits(self):
         heartbeat = self.root / 'heartbeat'
         group_file = self.root / 'owned-group'
+        stop_file = self.root / 'stop-descendant'
         child_code = (
             'import os, signal, time; from pathlib import Path; '
             'signal.signal(signal.SIGTERM, signal.SIG_IGN); '
             f'path = Path({str(heartbeat)!r}); '
-            '\nwhile True: path.write_text(str(time.monotonic_ns())); time.sleep(0.01)'
+            f'stop = Path({str(stop_file)!r}); deadline = time.monotonic() + 10; '
+            '\nwhile not stop.exists() and time.monotonic() < deadline: '
+            'path.write_text(str(time.monotonic_ns())); time.sleep(0.01)'
         )
         parent_code = (
             'import os, subprocess, sys, time; from pathlib import Path; '
@@ -175,6 +267,10 @@ class SimulatorUpgradeTests(unittest.TestCase):
             'time.sleep(30)'
         )
         runner = check.Runner(self.root, 10)
+        signal_patch = patch.object(check.os, 'killpg', wraps=os.killpg)
+        sent = signal_patch.start()
+        self.addCleanup(signal_patch.stop)
+        started = time.monotonic()
         try:
             with patch.object(check.Runner, 'termination_grace_seconds', 0.1, create=True):
                 with self.assertRaises(subprocess.TimeoutExpired):
@@ -183,15 +279,17 @@ class SimulatorUpgradeTests(unittest.TestCase):
             time.sleep(0.05)
             after = heartbeat.read_text()
             time.sleep(0.1)
+            self.assertLess(time.monotonic() - started, 8, 'Fixture must not self-expire during the assertion')
             self.assertEqual(heartbeat.read_text(), after, 'A descendant survived after its leader exited')
             self.assertTrue(runner.steps[0]['timed_out'])
         finally:
-            # Ensure a failing regression never leaks the synthetic child it created.
-            if group_file.exists():
-                try:
-                    os.killpg(int(group_file.read_text()), signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
+            # Never signal a saved PGID after Runner reaps it. A failing regression
+            # can stop its synthetic child cooperatively; it also expires in 10 s.
+            stop_file.write_text('stop')
+        group = int(group_file.read_text())
+        self.assertEqual([call.args for call in sent.call_args_list if call.args[1] != 0],
+                         [(group, signal.SIGTERM), (group, signal.SIGKILL)],
+                         'Do not send a third signal after reaping the owned group')
 
     def test_local_candidate_provenance_records_head_and_dirty_without_paths(self):
         repo = self.root / 'repo'; repo.mkdir()
