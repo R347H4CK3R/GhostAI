@@ -227,6 +227,28 @@ import XCTest
         XCTAssertFalse(app.staticTexts[note].exists, "Deletion must persist across launches")
     }
 
+    func testAppUpdatesNavigationDoesNotStartNetworkOrInstallAutomatically() {
+        let app = XCUIApplication(); app.launch()
+        let about = app.tabBars.buttons["About"]
+        XCTAssertTrue(about.waitForExistence(timeout: 15)); about.tap()
+        let openUpdates = app.buttons["updates.open"]
+        XCTAssertTrue(openUpdates.waitForExistence(timeout: 5)); openUpdates.tap()
+        let title = app.navigationBars["App updates"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["updates.status"].label, "Check for a published iPhone update.")
+        XCTAssertTrue(app.buttons["updates.check"].isEnabled)
+        XCTAssertFalse(app.buttons["updates.install"].exists)
+        saveScreenshot(app, name: "App updates requires an explicit check and SideStore approval")
+        let back = title.buttons.firstMatch
+        XCTAssertTrue(back.waitForExistence(timeout: 5)); back.tap()
+        XCTAssertTrue(openUpdates.waitForExistence(timeout: 5)); openUpdates.tap()
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["updates.status"].label, "Check for a published iPhone update.")
+        XCTAssertFalse(app.buttons["updates.install"].exists)
+        app.tabBars.buttons["Assistant"].tap()
+        XCTAssertTrue(app.buttons["chatSend"].waitForExistence(timeout: 5))
+    }
+
     func testCapabilitiesAndVoiceControlsAreVisible() {
         let app = XCUIApplication(); app.launch()
         let voice = app.buttons["chatVoiceSettings"]

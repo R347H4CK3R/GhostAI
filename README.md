@@ -81,6 +81,14 @@ The iPhone source now includes microphone/speech permission handling, on-device-
 
 The iPhone build includes safe redacted diagnostics with a three-day foreground check, manual self-tests and an optional local-model greeting test. Reports omit private content and stay local until explicitly exported. Automatic public-repository uploads are not configured. See [diagnostics](docs/DIAGNOSTICS.md). CI includes native UI navigation, memory save/relaunch/delete checks and simulator screenshot attachments, in addition to unit tests. Successful simulation still cannot validate physical microphone quality, Apple model availability, all-day battery behavior or locked-screen background voice.
 
+## Explicit SideStore update checks
+
+About → App updates checks public, verified-build GitHub Release metadata only
+when requested. A newer build offers a separate confirmed handoff to SideStore;
+opening it is not proof of successful signing or installation. No stable update
+is available until the reviewed publication workflow publishes an existing,
+fully verified IPA. See [update preparation and limits](docs/APP_UPDATES.md).
+
 ## Candidate versions and upgrade verification
 
 Version 0.3.0 build 17 is the previously verified unsigned test candidate. The focused 0.3.1 hotfix changes the chat composer, keyboard behavior, response visibility and icon packaging. The larger 0.3.2 source adds the separately reviewed capabilities described above. Source presence does not mean those features have passed native CI: check the exact commit and its artifacts before installing.

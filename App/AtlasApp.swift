@@ -210,6 +210,10 @@ struct AboutView: View {
     var body: some View {
         NavigationStack {
             List {
+                Section("App updates") {
+                    NavigationLink("Check for app updates") { AppUpdatesView() }
+                        .accessibilityIdentifier("updates.open")
+                }
                 Section("Independent assistant") { Text("Asterion Veyra is a new app, not a clone of dot or ChatGPT. It has its own local conversations and memories.") }
                 Section("Works offline") { Text("Saved notes, chat history, retrieved project context and available Apple on-device inference. GitHub discovery and repository tools need internet. Local Assistant and voice stay on-device. The separate Hosted screen sends only the request you explicitly review to OpenAI and may incur API charges.") }
                 Section("Current scope") { Text("Public and explicitly connected private GitHub repositories; bounded model-directed source reads; local note search; encrypted manual memory transfer. Separate review screens support optional hosted answers and new-branch draft pull requests. They do not run automatically from model responses. Automatic cross-device memory sync and arbitrary local code execution are not implemented. Optional paired desktop jobs are a development preview with native verification pending. Voice uses turn-taking when on-device recognition is available. Active-audio background operation needs direct-device testing.") }
