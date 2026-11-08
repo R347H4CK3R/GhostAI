@@ -3,11 +3,13 @@ import contextlib
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import plistlib
 import shutil
 import struct
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -53,7 +55,7 @@ class IconValidationTests(unittest.TestCase):
         with zipfile.ZipFile(path, 'w') as archive:
             archive.writestr(prefix + 'Info.plist', plistlib.dumps(info, fmt=plistlib.FMT_BINARY))
             if assets:
-                # Presence is the check's contract; it does not parse Apple's private CAR format.
+                # Synthetic bytes; CAR tests substitute only the native tool boundary.
                 archive.writestr(prefix + 'Assets.car', b'fixture-placeholder')
             archive.writestr(prefix + 'AppIcon60x60@2x.png', png(120))
             if high_resolution:
@@ -192,6 +194,39 @@ class IconValidationTests(unittest.TestCase):
         with mock.patch('subprocess.run', side_effect=FileNotFoundError('xcrun')):
             with self.assertRaisesRegex(ValueError, '180px.*assetutil'):
                 check.verify_ipa(self.make_ipa(high_resolution=False))
+
+    def test_catalog_timeout_fails_closed(self):
+        with mock.patch('subprocess.run', side_effect=subprocess.TimeoutExpired('assetutil', 120)):
+            with self.assertRaisesRegex(ValueError, 'assetutil.*timed out'):
+                check.verify_ipa(self.make_ipa(high_resolution=False))
+
+    def test_cli_inspects_bundled_catalog_and_writes_inventory(self):
+        # Exercise argparse, subprocess, CAR extraction and persistence together.
+        # This executable is a synthetic native-tool substitute, not Apple tooling.
+        tool = self.path / 'xcrun'
+        entries = [{'SchemaVersion': 2}, self.catalog_entry()]
+        tool.write_text(f'#!{sys.executable}\n'
+                        'import pathlib, sys\n'
+                        'assert sys.argv[1:-1] == ["--sdk", "iphoneos", "assetutil", "--info"]\n'
+                        'assert pathlib.Path(sys.argv[-1]).read_bytes() == b"fixture-placeholder"\n'
+                        f'print({json.dumps(entries)!r})\n')
+        tool.chmod(0o755)
+        report = self.path / 'cli-assets.json'
+        result = subprocess.run([sys.executable, str(ROOT / 'scripts/verify_app_icon.py'),
+                                 '--ipa-only', '--ipa', str(self.make_ipa(high_resolution=False)),
+                                 '--asset-info-output', str(report)],
+                                capture_output=True, text=True,
+                                env={**os.environ, 'PATH': str(self.path) + os.pathsep + os.environ['PATH']})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('PASS IPA', result.stdout)
+        self.assertEqual(json.loads(report.read_text()), entries)
+
+    def test_cli_inventory_output_requires_an_ipa(self):
+        result = subprocess.run([sys.executable, str(ROOT / 'scripts/verify_app_icon.py'),
+                                 '--asset-info-output', str(self.path / 'unused.json')],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('--asset-info-output requires --ipa', result.stderr)
 
 
 if __name__ == '__main__':

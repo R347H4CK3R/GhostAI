@@ -72,6 +72,28 @@ final class BackupRecoveryTests: XCTestCase {
         let merged = MemoryBackup.merge(SavedState(notes: [], chats: [older]), into: SavedState(notes: [], chats: [newer]))
         XCTAssertEqual(merged.chats.map(\.text), ["old", "new"])
     }
+    func testEqualTimestampMergePreservesCurrentAndIncomingOrderWithoutChangingDates() throws {
+        let date = Date(timeIntervalSince1970: 1_700_000_000)
+        let existing = ChatEntry(id: UUID(uuidString: "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF")!, project: "General", role: "user", text: "existing", date: date)
+        let question = ChatEntry(id: UUID(uuidString: "EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE")!, project: "General", role: "user", text: "question", date: date)
+        let answer = ChatEntry(id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!, project: "General", role: "assistant", text: "answer", date: date)
+        let incoming = SavedState(notes: [], chats: [question, answer])
+        let merged = MemoryBackup.merge(incoming, into: SavedState(notes: [], chats: [existing]))
+        XCTAssertEqual(merged.chats.map(\.id), [existing.id, question.id, answer.id])
+        XCTAssertEqual(merged.chats.map(\.date), [date, date, date])
+        let restored = try MemoryBackup.decode(MemoryBackup.encode(merged))
+        XCTAssertEqual(restored.chats.map(\.id), [existing.id, question.id, answer.id])
+    }
+    func testMergeKeepsExistingDuplicateContentDateAndOrder() {
+        let date = Date(timeIntervalSince1970: 1_700_000_000)
+        let original = ChatEntry(project: "General", role: "user", text: "original", date: date)
+        let following = ChatEntry(project: "General", role: "assistant", text: "following", date: date)
+        var duplicate = original; duplicate.text = "incoming edit"; duplicate.date = date.addingTimeInterval(-1)
+        let merged = MemoryBackup.merge(SavedState(notes: [], chats: [duplicate]), into: SavedState(notes: [], chats: [original, following]))
+        XCTAssertEqual(merged.chats.map(\.id), [original.id, following.id])
+        XCTAssertEqual(merged.chats.map(\.text), ["original", "following"])
+        XCTAssertEqual(merged.chats.map(\.date), [date, date])
+    }
     func testRecoveryPreservesCorruptFile() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }

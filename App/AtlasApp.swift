@@ -1,6 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 import UIKit
+import FoundationModels
 
 @main @MainActor struct AsterionVeyraApp: App {
     @StateObject private var store: AssistantStore
@@ -18,14 +19,16 @@ struct MainView: View {
     @EnvironmentObject var store: AssistantStore
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var diagnostics = DiagnosticsController()
+    @State private var selectedTab = "assistant"
     var body: some View {
-        TabView {
-            ChatView().tabItem { Label("Assistant", systemImage: "sparkles") }
+        TabView(selection: $selectedTab) {
+            ChatView().tabItem { Label("Assistant", systemImage: "sparkles") }.tag("assistant")
             RepositoriesView(onRepositorySelected: { repository, commit, client, workspace in
                 store.selectRepository(repository, commit: commit, client: client, workspace: workspace)
-            }).tabItem { Label("Projects", systemImage: "folder") }
-            MemoryView().tabItem { Label("Memory", systemImage: "brain") }
-            AboutView().tabItem { Label("About", systemImage: "info.circle") }
+            }).tabItem { Label("Projects", systemImage: "folder") }.tag("projects")
+            MemoryView().tabItem { Label("Memory", systemImage: "brain") }.tag("memory")
+            HostedAssistantView().tabItem { Label("Hosted", systemImage: "cloud") }.tag("hosted")
+            AboutView(onOpenIntegration: { selectedTab = $0 }).tabItem { Label("About", systemImage: "info.circle") }.tag("about")
         }
         .environmentObject(diagnostics)
         .task { diagnostics.runIfDue() }
@@ -47,6 +50,7 @@ struct MemoryView: View {
     @State private var backup = MemoryDocument(data: Data())
     @State private var pendingImport: Data?
     @State private var encryptedTransfer = false
+    @State private var conversationImport: ConversationImportRoute?
     var body: some View {
         NavigationStack {
             List {
@@ -54,6 +58,27 @@ struct MemoryView: View {
                     TextField("A fact, decision or source excerpt", text: $note, axis: .vertical).lineLimit(3...8).accessibilityIdentifier("memoryNoteInput")
                     Button("Remember note") { store.remember(note); if store.error == nil { note = "" } }
                     Text("Review first. Do not save credentials. Notes stay on this device and are retrieved as needed, not permanently learned by the model.").font(.caption)
+                }
+                Section("Offline knowledge") {
+                    if let knowledge = store.knowledge {
+                        KnowledgeStatusRow(model: knowledge, savedState: store.saved)
+                    } else {
+                        Text(store.loadFailed ? "Restore canonical memory before opening the library." : "Offline library is unavailable in this session.")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
+                    if let issue = store.knowledgeIssue { Text(issue).font(.footnote).foregroundStyle(.orange) }
+                }
+                Section("Import chosen conversations") {
+                    Button("Import conversations or memories") {
+                        guard !store.loadFailed, conversationImport == nil else { return }
+                        // Capture approval scope and preview state once, at the user's tap.
+                        conversationImport = ConversationImportRoute(project: store.project,
+                            workspaceEpoch: store.workspaceEpoch, savedState: store.saved)
+                    }
+                    .disabled(store.loadFailed)
+                    .accessibilityIdentifier("conversationImport.open")
+                    Text("Preview a conversation export or memory file you select, then confirm what to add to this workspace. No ChatGPT account is connected. Nothing is saved before your confirmation.")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
                 Section("Backup all projects") {
                     Button("Encrypted transfer") { encryptedTransfer = true }
@@ -63,7 +88,7 @@ struct MemoryView: View {
                         catch { store.error = error.localizedDescription }
                     }
                     Button(store.loadFailed ? "Restore backup and preserve unreadable data" : "Import and merge backup") { importing = true }
-                    Text("Exports include all project notes and chats as unencrypted JSON. Store them privately. Import preserves existing records and does not refresh source code.").font(.caption)
+                    Text("Exports include all project notes and chats as unencrypted JSON. Store them privately. Import preserves existing records and does not refresh source code. This backup does not include the separate offline knowledge library, imported files or action cache.").font(.caption)
                 }
                 Section("Saved notes") {
                     ForEach(store.saved.notes.filter { $0.project == store.project && (search.isEmpty || $0.text.localizedCaseInsensitiveContains(search)) }) { memory in
@@ -80,6 +105,22 @@ struct MemoryView: View {
                     }
                 }
             }.searchable(text: $search).navigationTitle("Offline memory")
+            .sheet(item: $conversationImport) { route in
+                NavigationStack {
+                    ConversationImportView(project: route.project, savedState: route.savedState) { additions in
+                        try route.apply(additions, to: store)
+                    }
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Close") { conversationImport = nil }
+                                .accessibilityIdentifier("conversationImport.close")
+                        }
+                    }
+                }.id(route.id)
+            }
+            .onChange(of: store.workspaceEpoch) { _, epoch in
+                if let route = conversationImport, route.workspaceEpoch != epoch { conversationImport = nil }
+            }
             .sheet(isPresented: $encryptedTransfer) {
                 EncryptedTransferView(backupData: { try store.backupData() }, importBackup: { data in
                     store.error = nil
@@ -113,19 +154,69 @@ struct MemoryView: View {
             }
         }
     }
+    /// The sheet owns an immutable destination and snapshot, never a live approval binding.
+    struct ConversationImportRoute: Identifiable {
+        let id = UUID()
+        let project: String
+        let workspaceEpoch: UUID
+        let savedState: SavedState
+
+        @MainActor func apply(_ additions: SavedState, to store: AssistantStore) throws {
+            try store.importConversationAdditions(additions, expectedProject: project,
+                                                  expectedWorkspaceEpoch: workspaceEpoch)
+        }
+    }
+    private struct KnowledgeStatusRow: View {
+        @ObservedObject var model: KnowledgeLibraryModel
+        let savedState: SavedState
+        var body: some View {
+            NavigationLink {
+                KnowledgeLibraryView(model: model, savedState: savedState)
+            } label: {
+                VStack(alignment: .leading, spacing: 5) {
+                    Label("Search and manage offline knowledge", systemImage: "books.vertical")
+                    Text(status).font(.caption).foregroundStyle(.secondary)
+                }
+            }.accessibilityIdentifier("knowledge.open")
+            if let message = model.message { Text(message).font(.footnote).foregroundStyle(.orange) }
+        }
+        private var status: String {
+            if model.unavailable { return "Library unavailable · existing data preserved" }
+            let enabled = [model.settings.captureConversations, model.settings.captureActions, model.settings.captureResearch].filter { $0 }.count
+            let capture = enabled == 0 ? "Automatic capture off" : "\(enabled) of 3 capture types enabled"
+            let count = model.coverage?.entries ?? 0
+            return "\(capture) · \(count) saved items" + (model.coverage?.captureIsFull == true ? " · full" : "")
+        }
+    }
+
 }
 struct AboutView: View {
+    var onOpenIntegration: ((String) -> Void)? = nil
+    @State private var showIntegrations = false
     @EnvironmentObject var store: AssistantStore
     @EnvironmentObject private var diagnostics: DiagnosticsController
     @State private var diagnosticPreview: String?
     @State private var brightness = Double(UIScreen.main.brightness)
+    private var localModelAvailable: Bool {
+        if case .available = SystemLanguageModel.default.availability { return true }
+        return false
+    }
+    private func openIntegration(_ tab: String) {
+        showIntegrations = false
+        onOpenIntegration?(tab)
+    }
     var body: some View {
         NavigationStack {
             List {
                 Section("Independent assistant") { Text("Asterion Veyra is a new app, not a clone of dot or ChatGPT. It has its own local conversations and memories.") }
-                Section("Works offline") { Text("Saved notes, chat history, retrieved project context and available Apple on-device inference. GitHub discovery and repository tools need internet. No cloud AI requests are made.") }
-                Section("Current scope") { Text("Public and explicitly connected private GitHub repositories; bounded model-directed source reads; local note search; encrypted manual memory transfer. GitHub writes, hosted models, automatic cross-device sync and code execution from this iPhone are not implemented. Voice uses turn-taking when on-device recognition is available. Active-audio background operation needs direct-device testing.") }
+                Section("Works offline") { Text("Saved notes, chat history, retrieved project context and available Apple on-device inference. GitHub discovery and repository tools need internet. Local Assistant and voice stay on-device. The separate Hosted screen sends only the request you explicitly review to OpenAI and may incur API charges.") }
+                Section("Current scope") { Text("Public and explicitly connected private GitHub repositories; bounded model-directed source reads; local note search; encrypted manual memory transfer. Separate review screens support optional hosted answers and new-branch draft pull requests. They do not run automatically from model responses. Automatic cross-device sync and code execution from this iPhone are not implemented. Voice uses turn-taking when on-device recognition is available. Active-audio background operation needs direct-device testing.") }
                 Section("Real limits") { Text("Requires iOS 26 and available Apple Intelligence. Context, storage, battery and background execution are finite. The app cannot control arbitrary installed apps or run Xcode. No guarantee of unlimited knowledge or perfect recall.") }
+                Section("Integrations") {
+                    Button("Review integrations and permissions") { showIntegrations = true }
+                        .accessibilityIdentifier("openIntegrations")
+                    Text("See bundled tools, data destinations and setup. No accounts are connected or requests sent by opening this catalog.").font(.caption)
+                }
                 Section("Private diagnostics") {
                     Text(diagnostics.status).font(.caption)
                     Button("Run safe self-checks") { diagnostics.runChecks() }.disabled(diagnostics.isRunning)
@@ -165,6 +256,13 @@ struct AboutView: View {
                 }
                 Section("Privacy") { Text("GitHub receives requested usernames, repositories and file paths. Saved data uses iOS protection until first unlock after restart, allowing active background voice to save while locked. It stays in Application Support. Device backups may include it. Uninstalling can delete it. Export important notes before changing devices. Pattern-based secret detection is incomplete.") }
             }.navigationTitle("Capabilities")
+            .sheet(isPresented: $showIntegrations) {
+                IntegrationsView(runtime: IntegrationRuntimeSnapshot(network: .unknown,
+                    localModelAvailable: localModelAvailable,
+                    memoryAvailable: !store.loadFailed), navigation: IntegrationNavigation(
+                    openAssistant: { openIntegration("assistant") }, openMemory: { openIntegration("memory") },
+                    openProjects: { openIntegration("projects") }, openHosted: { openIntegration("hosted") }))
+            }
             .sheet(isPresented: Binding(get: { diagnosticPreview != nil }, set: { if !$0 { diagnosticPreview = nil } })) {
                 NavigationStack {
                     ScrollView { Text(diagnosticPreview ?? "").font(.system(.caption, design: .monospaced)).textSelection(.enabled).padding() }

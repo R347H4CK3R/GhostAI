@@ -82,6 +82,16 @@ jobs:
           python3 -m venv .verification-venv
           .verification-venv/bin/python -m pip install -r companion/requirements-sync.txt
           .verification-venv/bin/python Tests/verify_mobile_transfer.py test-screenshots
+      - name: Verify install-over-existing simulator upgrade
+        timeout-minutes: 20
+        run: python3 scripts/verify_simulator_upgrade.py --output upgrade-results --budget-seconds 1080
+      - name: Upload simulator upgrade evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AsterionVeyra-simulator-upgrade
+          path: upgrade-results
+          if-no-files-found: ignore
       - name: Compile unsigned device app
         run: |
           set -euo pipefail

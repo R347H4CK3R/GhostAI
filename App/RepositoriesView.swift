@@ -225,6 +225,11 @@ struct RepositoryView: View {
             Section {
                 Button("Use this project in Assistant") { selectWorkspace() }.disabled(commit.isEmpty || loading)
                 if !commit.isEmpty { Text("Pinned commit \(commit.prefix(12))").font(.caption.monospaced()) }
+                if !commit.isEmpty {
+                    NavigationLink("Review a repository edit") {
+                        RepositoryProposalView(repository: repository, immutableCommit: commit, readClient: client)
+                    }.disabled(loading)
+                }
                 Text(path.isEmpty ? "/" : path).font(.caption)
                 Button("Reload folder") { Task { await browse(path) } }.disabled(loading)
                 if !path.isEmpty { Button("Parent folder") { Task { await browse(path.split(separator: "/").dropLast().joined(separator: "/")) } }.disabled(loading) }
@@ -296,12 +301,15 @@ struct RepositoryView: View {
     private func open(_ file: RepoFile) async {
         guard !loading else { return }; loading = true
         let requestGeneration = generation
+        let readCommit = commit
         defer { if generation == requestGeneration { loading = false } }
         do {
-            let source = try await client.text(repo: repository.full_name, file: file, ref: commit)
+            let source = try await client.text(repo: repository.full_name, file: file, ref: readCommit)
             try Task.checkCancellation(); try client.validateSession()
             guard generation == requestGeneration else { return }
             selected = file; text = source; showFile = true
+            store.captureRepositoryRead(source, repository: repository.full_name, path: file.path,
+                                        commit: readCommit, workspace: workspace, client: client)
         } catch { if generation == requestGeneration && !Task.isCancelled { store.error = GitHubRequestPolicy.safeError(error, authenticated: true).localizedDescription } }
     }
 }

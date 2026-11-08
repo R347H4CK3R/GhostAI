@@ -118,9 +118,12 @@ enum MemoryBackup {
     static func merge(_ incoming: SavedState, into current: SavedState) -> SavedState {
         // Keep the current record on duplicate ID; imports never overwrite existing records.
         let noteIDs = Set(current.notes.map(\.id)); let chatIDs = Set(current.chats.map(\.id))
-        return SavedState(notes: current.notes + incoming.notes.filter { !noteIDs.contains($0.id) },
-                          chats: (current.chats + incoming.chats.filter { !chatIDs.contains($0.id) }).sorted {
-                              $0.date == $1.date ? $0.id.uuidString < $1.id.uuidString : $0.date < $1.date
-                          })
+        // Equal source timestamps (including missing timestamps assigned one import time)
+        // must retain source sequence, not hash/UUID order. Existing entries precede new
+        // entries on a tie; no source date is changed to manufacture an ordering.
+        let chats = (current.chats + incoming.chats.filter { !chatIDs.contains($0.id) }).enumerated().sorted {
+            $0.element.date == $1.element.date ? $0.offset < $1.offset : $0.element.date < $1.element.date
+        }.map(\.element)
+        return SavedState(notes: current.notes + incoming.notes.filter { !noteIDs.contains($0.id) }, chats: chats)
     }
 }
