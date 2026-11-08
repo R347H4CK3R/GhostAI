@@ -25,9 +25,25 @@ import XCTest
         // Check installed icon presence and tappability. Screenshot artwork needs visual review.
         XCUIDevice.shared.press(.home)
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        let icon = springboard.icons.matching(identifier: "Asterion Veyra").firstMatch
         XCTAssertTrue(springboard.wait(for: .runningForeground, timeout: 10))
-        for _ in 0..<4 where !icon.isHittable { springboard.swipeLeft() }
+        saveScreenshot(XCUIScreen.main.screenshot(), name: "Upgrade Home before icon selection")
+        let icons = springboard.icons.matching(identifier: "Asterion Veyra")
+        var visibleIcon: XCUIElement?
+        // Home can still be settling when SpringBoard becomes foreground. Do
+        // not swipe away from an already-visible icon or choose an off-page
+        // representation via firstMatch. This isolated simulator needs no
+        // App Library/search fallback: require a genuine visible Home icon.
+        let homeIconReady = NSPredicate { _, _ in
+            visibleIcon = icons.allElementsBoundByIndex.first { candidate in
+                guard candidate.exists else { return false }
+                let frame = candidate.frame
+                return !frame.isEmpty && springboard.frame.contains(frame) && candidate.isHittable
+            }
+            return visibleIcon != nil
+        }
+        expectation(for: homeIconReady, evaluatedWith: springboard)
+        waitForExpectations(timeout: 10)
+        let icon = try XCTUnwrap(visibleIcon, "The upgraded app must expose a visible Home icon")
         XCTAssertTrue(icon.waitForExistence(timeout: 5), "The upgraded app must retain its home-screen icon")
         XCTAssertTrue(icon.isHittable)
         saveScreenshot(XCUIScreen.main.screenshot(), name: "Upgrade home-screen icon for visual review")
