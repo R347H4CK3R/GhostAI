@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "write_paths": ["project-note.txt"],
+  "budgets": {},
+  "steps": [{"tool": "write_draft", "path": "project-note.txt", "content": "Draft prepared locally. Review before sharing.\n"}]
+}

@@ -1,0 +1,41 @@
+name: AsterionVeyra
+options:
+  bundleIdPrefix: dev.asterionveyra
+  deploymentTarget:
+    iOS: "26.0"
+targets:
+  AsterionVeyra:
+    type: application
+    platform: iOS
+    sources: [App]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.asterionveyra.assistant
+        PRODUCT_MODULE_NAME: AsterionVeyra
+        SWIFT_VERSION: "5.0"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Asterion Veyra
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGNING_ALLOWED: NO
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+  AsterionVeyraTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [Tests]
+    dependencies:
+      - target: AsterionVeyra
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "5.0"
+        CODE_SIGNING_ALLOWED: NO
+schemes:
+  AsterionVeyra:
+    build:
+      targets:
+        AsterionVeyra: all
+        AsterionVeyraTests: [test]
+    test:
+      targets: [AsterionVeyraTests]

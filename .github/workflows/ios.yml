@@ -1,0 +1,50 @@
+name: Verify and package iPhone prototype
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  desktop-companion:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -s companion/tests -v
+  ios:
+    needs: desktop-companion
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode 26
+        run: |
+          XCODE=$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' | sort -V | tail -1)
+          test -n "$XCODE" || { echo 'Xcode 26 is required'; exit 1; }
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+      - run: brew install xcodegen
+      - run: xcodegen generate
+      - name: Unit tests
+        run: |
+          set -euo pipefail
+          DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; ds=json.load(sys.stdin)["devices"]; print(next(d["udid"] for key,values in ds.items() if "iOS-26" in key for d in values if "iPhone" in d["name"]))')
+          xcodebuild -project AsterionVeyra.xcodeproj -scheme AsterionVeyra -destination "platform=iOS Simulator,id=$DEVICE" CODE_SIGNING_ALLOWED=NO test
+      - name: Compile unsigned device app
+        run: |
+          set -euo pipefail
+          xcodebuild -project AsterionVeyra.xcodeproj -scheme AsterionVeyra -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+          mkdir Payload
+          cp -R build/Build/Products/Release-iphoneos/AsterionVeyra.app Payload/
+          zip -qr AsterionVeyra-unsigned.ipa Payload
+          unzip -t AsterionVeyra-unsigned.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AsterionVeyra-unsigned-IPA
+          path: AsterionVeyra-unsigned.ipa

@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "write_paths": [],
+  "budgets": {"max_steps": 5, "max_bytes": 1048576, "max_entries": 1000, "max_seconds": 30},
+  "steps": [{"tool": "list_files", "path": "."}]
+}
