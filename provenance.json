@@ -1,17 +1,17 @@
 {
-  "artifactID": 13636236172,
-  "build": 42,
-  "commit": "983e06fb393db37c2171fc13e1e2e587189b0bde",
-  "ipaSHA256": "dd1354dbfc6050195f4a7835c507b7b3cd07c5c5144406fa851bac7198e01361",
-  "ipaSize": 2968359,
+  "artifactID": 13639002511,
+  "build": 44,
+  "commit": "59aa7329efa87ce01b247ca309941c20b2e3dc8d",
+  "ipaSHA256": "d2932fb99a7cd36b6e1a80c9f855217b4b90932f3bee221d50a34c88adcc2218",
+  "ipaSize": 2974789,
   "packagingAttempt": 1,
-  "releaseAssetID": 725331236,
-  "releaseID": 438551295,
+  "releaseAssetID": 725558846,
+  "releaseID": 438602151,
   "repository": "R347H4CK3R/GhostAI",
   "runAttempt": 1,
-  "runID": 42524593047,
-  "runURL": "https://github.com/R347H4CK3R/GhostAI/actions/runs/42524593047/attempts/1",
+  "runID": 42533026061,
+  "runURL": "https://github.com/R347H4CK3R/GhostAI/actions/runs/42533026061/attempts/1",
   "schemaVersion": 1,
-  "sourceSHA256": "77ee7cbb36aabd73a46babb1a1908751105de0e9e0061050573b3f1de7b6b0cc",
-  "tag": "ios-build-42"
+  "sourceSHA256": "8d6afb5f5dc6f42ebc7c23d9f70058531b28f0d788b55fc4dd6de3298214ed6b",
+  "tag": "ios-build-44"
 }

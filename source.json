@@ -11,18 +11,18 @@
       },
       "bundleIdentifier": "dev.asterionveyra.assistant",
       "developerName": "R347H4CK3R",
-      "iconURL": "https://raw.githubusercontent.com/R347H4CK3R/GhostAI/983e06fb393db37c2171fc13e1e2e587189b0bde/App/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png",
+      "iconURL": "https://raw.githubusercontent.com/R347H4CK3R/GhostAI/59aa7329efa87ce01b247ca309941c20b2e3dc8d/App/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png",
       "localizedDescription": "A personal AI assistant with voice, notes, and explicitly paired desktop access. Requires iOS 26 or later.",
       "name": "Asterion Veyra",
       "versions": [
         {
-          "buildVersion": "42",
-          "date": "2026-11-08T22:00:45Z",
-          "downloadURL": "https://github.com/R347H4CK3R/GhostAI/releases/download/ios-build-42/AsterionVeyra-unsigned.ipa",
+          "buildVersion": "44",
+          "date": "2026-11-08T23:41:16Z",
+          "downloadURL": "https://github.com/R347H4CK3R/GhostAI/releases/download/ios-build-44/AsterionVeyra-unsigned.ipa",
           "minOSVersion": "26.0",
-          "sha256": "dd1354dbfc6050195f4a7835c507b7b3cd07c5c5144406fa851bac7198e01361",
-          "size": 2968359,
-          "version": "0.3.5"
+          "sha256": "d2932fb99a7cd36b6e1a80c9f855217b4b90932f3bee221d50a34c88adcc2218",
+          "size": 2974789,
+          "version": "0.3.6"
         }
       ]
     }
