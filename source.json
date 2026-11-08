@@ -1,0 +1,34 @@
+{
+  "apps": [
+    {
+      "appPermissions": {
+        "entitlements": [],
+        "privacy": {
+          "NSLocalNetworkUsageDescription": "Connect only to the desktop you explicitly pair for bounded read-only jobs.",
+          "NSMicrophoneUsageDescription": "Record your voice only during a conversation you start.",
+          "NSSpeechRecognitionUsageDescription": "Transcribe spoken messages using available on-device recognition."
+        }
+      },
+      "bundleIdentifier": "dev.asterionveyra.assistant",
+      "developerName": "R347H4CK3R",
+      "iconURL": "https://raw.githubusercontent.com/R347H4CK3R/GhostAI/c517179f56f258451836344886d87d8d8318ce26/App/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png",
+      "localizedDescription": "A personal AI assistant with voice, notes, and explicitly paired desktop access. Requires iOS 26 or later.",
+      "name": "Asterion Veyra",
+      "versions": [
+        {
+          "buildVersion": "37",
+          "date": "2026-11-08T19:44:09Z",
+          "downloadURL": "https://github.com/R347H4CK3R/GhostAI/releases/download/ios-build-37/AsterionVeyra-unsigned.ipa",
+          "minOSVersion": "26.0",
+          "sha256": "f4de6599376ed0da5f68138f6e84e5fef5ea1fbb80f912a44ca95fdc87e8ff62",
+          "size": 2530647,
+          "version": "0.3.4"
+        }
+      ]
+    }
+  ],
+  "identifier": "dev.asterionveyra.source",
+  "name": "Asterion Veyra",
+  "news": [],
+  "sourceURL": "https://raw.githubusercontent.com/R347H4CK3R/GhostAI/sidestore-source/source.json"
+}

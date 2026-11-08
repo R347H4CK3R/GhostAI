@@ -1,0 +1,17 @@
+{
+  "artifactID": 13630427588,
+  "build": 37,
+  "commit": "c517179f56f258451836344886d87d8d8318ce26",
+  "ipaSHA256": "f4de6599376ed0da5f68138f6e84e5fef5ea1fbb80f912a44ca95fdc87e8ff62",
+  "ipaSize": 2530647,
+  "packagingAttempt": 2,
+  "releaseAssetID": 725000882,
+  "releaseID": 438477565,
+  "repository": "R347H4CK3R/GhostAI",
+  "runAttempt": 2,
+  "runID": 42511200595,
+  "runURL": "https://github.com/R347H4CK3R/GhostAI/actions/runs/42511200595/attempts/2",
+  "schemaVersion": 1,
+  "sourceSHA256": "297794e7c305f39be7a50435f4be796e71f1a4c78e5d86354a580dd4e5c617af",
+  "tag": "ios-build-37"
+}
