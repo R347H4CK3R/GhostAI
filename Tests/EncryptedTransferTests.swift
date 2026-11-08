@@ -139,7 +139,7 @@ final class EncryptedTransferTests: XCTestCase {
                 CCKeyDerivationPBKDF(CCPBKDFAlgorithm(kCCPBKDF2), passwordBytes.bindMemory(to: CChar.self).baseAddress, password.count, saltBytes.bindMemory(to: UInt8.self).baseAddress, salt.count, CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA256), 600_000, &key, 32)
             }
         }
-        XCTAssertEqual(status, kCCSuccess)
+        XCTAssertEqual(status, Int32(kCCSuccess))
         let prefix = Data("VEYRA-MEMORY\0\u{1}".utf8) + salt + nonce
         let box = try AES.GCM.seal(JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]), using: SymmetricKey(data: key), nonce: AES.GCM.Nonce(data: nonce), authenticating: prefix)
         return prefix + box.ciphertext + box.tag
