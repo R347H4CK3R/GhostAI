@@ -468,7 +468,15 @@ def _descriptor_path(descriptor):
     for root in ('/proc/self/fd', '/dev/fd'):
         candidate = f'{root}/{descriptor}'
         try:
-            if _same_file(os.stat(candidate), os.fstat(descriptor)):
+            # macOS /dev/fd entries are descriptor devices: stat(path) reports
+            # the device, while opening it duplicates the protected file. Check
+            # the opened object, never fall back to reopening the state path.
+            probe = os.open(candidate, os.O_RDONLY | os.O_NONBLOCK | getattr(os, 'O_CLOEXEC', 0))
+            try:
+                matches = _same_file(os.fstat(probe), os.fstat(descriptor))
+            finally:
+                os.close(probe)
+            if matches:
                 os.lseek(descriptor, 0, os.SEEK_SET)
                 return candidate
         except OSError:

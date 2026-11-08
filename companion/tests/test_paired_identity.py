@@ -259,6 +259,44 @@ class IdentityTests(unittest.TestCase):
             self.assertEqual(len(done), 2)
             self.assertEqual(hashlib.sha256(client.getpeercert(binary_form=True)).hexdigest(), result['tls_leaf_sha256'])
 
+    @unittest.skipIf(os.name == 'nt', 'POSIX descriptor-backed TLS loading')
+    def test_tls_loading_accepts_descriptor_devices_with_distinct_path_metadata(self):
+        self.initialize()
+        before = {path.name: path.read_bytes() for path in self.state.iterdir()}
+        original_stat = os.stat
+
+        def device_metadata(path, *args, **kwargs):
+            info = original_stat(path, *args, **kwargs)
+            if isinstance(path, str) and path.startswith(('/proc/self/fd/', '/dev/fd/')):
+                # macOS exposes /dev/fd/N as a character device. Its path stat
+                # differs from the underlying file returned by opening it.
+                fields = list(info)
+                fields[0:3] = [stat.S_IFCHR | 0o600, info.st_ino + 1, info.st_dev + 1]
+                return os.stat_result(fields)
+            return info
+
+        with mock.patch.object(identity.os, 'stat', side_effect=device_metadata):
+            context = identity.server_ssl_context(self.state)
+        self.assertEqual(context.num_tickets, 0)
+        self.assertEqual({path.name: path.read_bytes() for path in self.state.iterdir()}, before)
+
+    @unittest.skipIf(os.name == 'nt', 'POSIX descriptor-backed TLS loading')
+    def test_tls_loading_rejects_descriptor_path_opening_a_different_file(self):
+        self.initialize()
+        unrelated = self.root / 'unrelated.pem'
+        unrelated.write_bytes(b'not the protected certificate or key')
+        original_open = os.open
+
+        def wrong_descriptor(path, flags, *args, **kwargs):
+            if isinstance(path, str) and path.startswith(('/proc/self/fd/', '/dev/fd/')):
+                return original_open(unrelated, flags, *args, **kwargs)
+            return original_open(path, flags, *args, **kwargs)
+
+        with mock.patch.object(identity.os, 'open', side_effect=wrong_descriptor):
+            with self.assertRaises(identity.IdentityError) as caught:
+                identity.server_ssl_context(self.state)
+        self.assertEqual(caught.exception.code, 'protected_tls_key_loading_unavailable')
+
     def rewrite_synthetic_certificate(self, *, san=None, eku=None, expired=False, future=False,
                                       ca=False, wrong_signer=False, extra=False):
         key = serialization.load_pem_private_key((self.state / 'identity-key.pem').read_bytes(), None)
