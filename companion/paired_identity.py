@@ -31,9 +31,9 @@ KEY_PROTECTION_FILE = 'identity-key-protection.bin'
 MAX_METADATA_BYTES = 4096
 MAX_PEM_BYTES = 16384
 LIFETIME = timedelta(days=30)
-# No CLI or environment override. A reviewed source change after native CI is
-# required before enabling real Windows identity creation/loading.
-WINDOWS_PROTECTED_STORAGE_RELEASED = False
+# No CLI or environment override. Native Windows storage/lifecycle evidence and
+# independent review are recorded in docs/PAIRED_EXECUTION.md.
+WINDOWS_PROTECTED_STORAGE_RELEASED = True
 _ORIGIN = re.compile(r'https://([0-9]{1,3}(?:\.[0-9]{1,3}){3}):([1-9][0-9]{0,4})', re.ASCII)
 _NETWORKS = tuple(ipaddress.IPv4Network(item) for item in ('10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16'))
 

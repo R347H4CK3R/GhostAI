@@ -5,12 +5,13 @@ adapter and an iPhone **About → Review paired desktop setup** screen. Nothing 
 preconfigured. Development used disposable synthetic state and loopback tests,
 not the user's devices, files, credentials, network or firewall.
 
-**Native verification is still required.** Swift compilation/XCTest, real
-URLSession/Keychain behavior and physical-device pairing are unverified here.
-Windows protected-storage code exists, but normal Windows setup remains disabled
-by `WINDOWS_PROTECTED_STORAGE_RELEASED = False` in `companion/paired_identity.py`.
-There is no command-line/environment bypass. Do not enable it until reviewed
-Windows DACL/DPAPI tests and integration checks have actually passed.
+**Device and broader release verification is still required.** Real-phone
+URLSession/Keychain behavior and physical-device pairing are not established here.
+Windows protected storage is enabled by default after native DACL/DPAPI and
+synthetic lifecycle tests passed independent review. This enables the explicitly
+approved setup flow; it does not create state or start a listener by itself.
+There is no command-line/environment bypass. Each release candidate must verify
+the enabled-default path in native Windows CI.
 
 ## Scope
 
@@ -160,7 +161,7 @@ handles and current-user DPAPI protecting the password for encrypted PKCS8. No
 plaintext temporary key file is created. This does not defend against malware
 running as the same local OS account; all private ancestry must remain trusted.
 
-The Windows candidate also rechecks the protected state directory and every direct
+Windows storage also rechecks the protected state directory and every direct
 state artifact before mutable operations, including registry/audit SQLite sidecars,
 checkpoints, temporary files and locks. Mutable files require current-user ownership
 and only current-user/SYSTEM full-control ACEs. New files have an explicit owner
@@ -230,15 +231,23 @@ Git-location/private-storage guards. Use a temporary directory outside Git; this
 authoring runtime requires `TMPDIR=/dev/shm` because its normal temp/workspace roots
 contain `.git` markers. No marker is removed or masked for testing.
 
-Native mutable-storage regression tests are authored but must run on Windows:
-approved setup → enrollment/approval → bounded synthetic job → audit/checkpoint →
-close/reopen/result recovery, plus broad/null/wrong-owner/unsupported ACL cases for
-all artifact classes and directory weakening during execution. If a test token
-cannot assign a different owner, that skip is missing evidence, not a pass.
-The Windows release flag remains false pending that run and independent review.
+Native Windows storage evidence: [run32, Windows job](https://github.com/R347H4CK3R/GhostAI/actions/runs/42496753893/job/128780637235)
+tested preview `2df442265ca5095b99f53d13459cdc4b88cc3e69`, tree
+`493d1a7fea7b9b95153623d03f3ce2d9471f77aa`: 170 tests, 152 passed and 18 expected
+platform-specific skips. All nine native identity/DACL/DPAPI/TLS tests and all eleven
+mutable-storage tests passed, including wrong-owner and symlink cases without
+skips. Coverage includes approved setup → enrollment/approval → bounded synthetic
+job → audit/checkpoint → close/reopen/result recovery, unsafe artifact ACLs,
+directory weakening, retained journals and actual process-crash recovery.
+Independent review found no remaining Windows protected-storage activation blocker.
 
-Required native evidence remains: Windows DACL/DPAPI and full setup, Swift compile
-and XCTest, actual Keychain/passcode/restore, TLS rejection before bytes, Host on
+The mutable-storage suite now exercises normal setup and the full lifecycle
+without overriding the release flag. Release candidates must pass that unpatched
+Windows suite too. A skipped wrong-owner or other required native case is missing
+evidence, not a pass.
+
+Separate native/device release gates include full Swift/XCTest verification,
+actual Keychain/passcode/restore, TLS rejection before bytes, Host on
 ports 8443/443, proxy/PAC/redirect handling, cancellation, multiple windows and
 physical Python↔Swift pairing/jobs. Current synthetic evidence is not proof that
 actual devices are paired or that the feature is production-ready.

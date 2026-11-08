@@ -24,8 +24,7 @@ from companion.tests.test_paired_protocol import b64, public, sign
 @unittest.skipUnless(os.name == 'nt', 'requires actual Windows ownership and DACL APIs')
 class NativeMutableStorageTests(unittest.TestCase):
     def setUp(self):
-        gate = patch.object(paired_identity, 'WINDOWS_PROTECTED_STORAGE_RELEASED', True)
-        gate.start(); self.addCleanup(gate.stop)
+        # Exercise the shipping default, without a release-gate override.
         self.temp = tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name).resolve()
         self.state = self.root / 'private'; self.work = self.root / 'work'; self.work.mkdir()
@@ -146,7 +145,7 @@ class NativeMutableStorageTests(unittest.TestCase):
         # Host locks can deny data reads; all snapshots below have a closed host.
         return {p.name: p.read_bytes() for p in self.state.iterdir()}
 
-    def test_setup_enrollment_job_audit_checkpoint_and_reopen_recovery(self):
+    def test_enabled_default_setup_enrollment_job_audit_checkpoint_and_reopen_recovery(self):
         self.open(); self.enroll()
         status, job = self.request('/v1/jobs/submit', self.submission()); self.assertEqual(status, 202)
         replies = iter([plan(read()), complete('Synthetic native observation.')])
