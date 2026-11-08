@@ -16,8 +16,10 @@ unsigned device app. A successful ordinary unit/UI test run alone is not upgrade
    This v1 file contains two project notes and two General conversation messages, with
    fixed identities and native Swift reference-date numbers.
 4. Seed the prior release's real `diagnostics.lastSuccessfulReport.v1` preference in
-   `Library/Preferences/dev.asterionveyra.assistant.plist`. Its synthetic 2100 date suppresses
-   automatic diagnostics during this isolated test. The old app has no persisted voice
+   `Library/Preferences/dev.asterionveyra.assistant.plist`. Its synthetic recent UTC date suppresses
+   automatic diagnostics during this isolated test; future dates trigger diagnostics and are
+   deliberately not used. The exact per-run timestamp is passed to the native test and must
+   survive unchanged. The old app has no persisted voice
    settings, so the test does not invent any. No credentials or permission grants are seeded.
 5. Launch and terminate the old app, requiring the original state and preference to survive.
    Install the candidate **without uninstalling, erasing, or resetting**. Require the same
@@ -62,6 +64,11 @@ launch, XCTest, or timeout failure. `2` explicitly means unsupported infrastruct
 as running on Linux or lacking an iOS 26 runtime. **Both nonzero statuses fail CI**; unavailable
 infrastructure is not reported as an app failure or silently counted as success.
 
+Each app launch has one bounded three-minute attempt, subject to the same total work
+budget. A timed-out launch is uncertain and is not automatically retried. Failure evidence
+includes a screenshot and app-related SpringBoard, runningboardd and launchd logs from
+only the newly created simulator, before that simulator is shut down and deleted.
+
 Host-only tests run on Linux/macOS without pretending to run an iPhone:
 
 ```sh
@@ -77,7 +84,7 @@ legacy/current xctestrun parsing, and rejection of skipped/empty XCTest results.
 This adds one sequential macOS step, **two simulator builds**, **one new simulator**, and
 **two selected XCTest methods**, not a second full suite. The current test build is separate
 from the earlier suite so test artifacts/state cannot be confused. Limits are 7 minutes per
-build, 3 minutes to boot, and 6 minutes for selected tests, sharing an **18-minute total work
+build, 3 minutes to boot, 3 minutes for each launch, and 6 minutes for selected tests, sharing an **18-minute total work
 budget**. These are maxima, not additive allocations: the remaining total budget limits
 each command, including the initial provenance snapshot. Cleanup/evidence commands have
 90 seconds of combined timeout allowances, plus bounded process-group termination grace.

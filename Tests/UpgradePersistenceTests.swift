@@ -35,8 +35,13 @@ final class UpgradePersistenceTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: disk.url), original, "The prior installation's exact file must survive")
         assertPriorState(try disk.load())
         XCTAssertEqual(try Data(contentsOf: disk.url), original, "Reading must not rewrite or reset the old store")
+        let timestamp = try XCTUnwrap(ProcessInfo.processInfo.environment["ASTERION_UPGRADE_PREFERENCE_EPOCH"].flatMap(Double.init))
+        XCTAssertTrue(timestamp.isFinite)
+        let expectedPreference = Date(timeIntervalSince1970: timestamp)
+        XCTAssertFalse(DiagnosticChecks.isDue(lastRun: expectedPreference, now: Date()),
+                       "The seeded preference must suppress diagnostics using the production date policy")
         XCTAssertEqual(UserDefaults.standard.object(forKey: "diagnostics.lastSuccessfulReport.v1") as? Date,
-                       Date(timeIntervalSince1970: 4_102_444_800), "The actual prior-release persisted preference must survive")
+                       expectedPreference, "The exact prior-release persisted preference must survive")
     }
 
     private func assertPriorState(_ state: SavedState, file: StaticString = #filePath, line: UInt = #line) {

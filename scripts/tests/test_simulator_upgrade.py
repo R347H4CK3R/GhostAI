@@ -1,6 +1,7 @@
 """Host-only tests for the upgrade gate, including deliberate preservation failures."""
 import copy
 import contextlib
+from datetime import datetime, timezone
 import io
 import importlib.util
 import json
@@ -53,6 +54,13 @@ class SimulatorUpgradeTests(unittest.TestCase):
         prefs = plistlib.loads((self.root / check.PREFERENCES_PATH).read_bytes())
         self.assertEqual(prefs[check.PREFERENCE_KEY], check.PREFERENCE_DATE)
         self.assertEqual(check.verify_container(self.root)['notes'], 2)
+
+    def test_seeded_diagnostics_date_is_recent_and_not_in_the_future(self):
+        check.seed_container(self.root)
+        preferences = plistlib.loads((self.root / check.PREFERENCES_PATH).read_bytes())
+        age = (datetime.now(timezone.utc).replace(tzinfo=None) - preferences[check.PREFERENCE_KEY]).total_seconds()
+        self.assertGreaterEqual(age, 0, 'A future date makes production diagnostics due immediately')
+        self.assertLess(age, 3 * 24 * 60 * 60, 'The seeded date must suppress the actual three-day schedule')
 
     def test_seed_refuses_existing_state_or_preferences(self):
         for relative in [check.STATE_PATH, check.PREFERENCES_PATH]:
@@ -124,6 +132,12 @@ class SimulatorUpgradeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             check.configure_test_run({'AsterionVeyraTests': {}})
 
+    def test_native_targets_receive_the_exact_seeded_preference_timestamp(self):
+        with patch.object(check, 'PREFERENCE_DATE', datetime(2026, 1, 2)):
+            value = check.configure_test_run({'AsterionVeyraTests': {}, 'AsterionVeyraUITests': {}})
+        for target in value.values():
+            self.assertEqual(target['EnvironmentVariables'].get('ASTERION_UPGRADE_PREFERENCE_EPOCH'), '1767312000')
+
     def test_app_metadata_rejects_different_bundle_or_non_simulator(self):
         valid = {'CFBundleIdentifier': check.BUNDLE_ID, 'CFBundleVersion': '18', 'CFBundleShortVersionString': '0.3.2', 'CFBundleSupportedPlatforms': ['iPhoneSimulator']}
         app = self.root / 'App.app'; app.mkdir()
@@ -141,6 +155,65 @@ class SimulatorUpgradeTests(unittest.TestCase):
         for invalid in [dict(summary, passedTests=0), dict(summary, skippedTests=2), dict(summary, result='Failed'), dict(summary, totalTestCount=1)]:
             with self.assertRaises(ValueError):
                 check.validate_test_summary(invalid)
+
+    def test_cold_launch_has_bounded_headroom_and_still_requires_stop(self):
+        runner = Mock(output=self.root)
+        calls = []
+
+        def simulate_simctl(args, **options):
+            calls.append((args, options))
+            if args[2] == 'launch' and options.get('timeout', 60) < 90:
+                raise subprocess.TimeoutExpired(args, options.get('timeout', 60))
+            return 'synthetic simulator response', 0
+
+        runner.run.side_effect = simulate_simctl
+        result = {}
+        with patch.object(check.time, 'sleep'):
+            check.launch_and_stop(runner, result, 'owned-simulator', 'launch_baseline')
+        self.assertEqual(result['stage'], 'launch_baseline')
+        self.assertEqual([args[2] for args, _ in calls], ['launch', 'terminate'])
+        self.assertLessEqual(calls[0][1]['timeout'], 180)
+        self.assertTrue(all('owned-simulator' in args for args, _ in calls))
+
+    def test_uncertain_or_failed_launch_is_not_retried_or_reported_as_success(self):
+        for error in [subprocess.TimeoutExpired('simctl launch', 180), RuntimeError('launch failed')]:
+            runner = Mock(output=self.root)
+            runner.run.side_effect = error
+            result = {}
+            with self.subTest(error=error), self.assertRaises(type(error)):
+                check.launch_and_stop(runner, result, 'owned-simulator', 'launch_baseline')
+            self.assertEqual(runner.run.call_count, 1)
+            self.assertEqual(result['stage'], 'launch_baseline')
+
+    def test_launch_failure_captures_scoped_diagnostics_and_stays_failed(self):
+        output = self.root / 'failed-launch'
+        runner = check.Runner(output, 10)
+        calls = []
+
+        def fail_launch(_, result, simulator):
+            simulator.append('owned-simulator')
+            result['stage'] = 'launch_baseline'
+            raise subprocess.TimeoutExpired('synthetic launch', 180)
+
+        def record(args, **options):
+            calls.append((args, options))
+            return '', 0
+
+        with patch.object(check, 'Runner', return_value=runner), patch.object(runner, 'run', side_effect=record), patch.object(check, 'verify_upgrade', side_effect=fail_launch), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(check.main(['--output', str(output)]), 1)
+        report = json.loads((output / 'result.json').read_text())
+        self.assertEqual(report['status'], 'failed')
+        self.assertEqual(report['stage'], 'launch_baseline')
+        self.assertTrue(report['isolated_simulator_deleted'])
+        screenshots = [args for args, _ in calls if 'screenshot' in args]
+        self.assertEqual(len(screenshots), 1)
+        logs = [args for args, _ in calls if '--predicate' in args]
+        self.assertEqual(len(logs), 1)
+        self.assertIn('runningboardd', logs[0][-1])
+        self.assertIn(check.BUNDLE_ID, logs[0][-1])
+        self.assertTrue(all('owned-simulator' in args for args, _ in calls))
+        self.assertFalse(any('launch' in args for args, _ in calls), 'Failure diagnostics must not retry uncertain launch')
+        self.assertLessEqual(sum(options['timeout'] for _, options in calls), 60)
 
 
     def test_failed_command_is_logged_and_does_not_become_success(self):

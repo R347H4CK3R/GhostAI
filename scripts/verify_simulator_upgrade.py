@@ -7,7 +7,7 @@ Exit 0: verified; 1: failed; 2: unsupported infrastructure (never a passing CI s
 """
 import argparse
 import copy
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 import math
@@ -30,9 +30,10 @@ FIXTURE = ROOT / 'Tests/Fixtures/upgrade-state-v1.json'
 STATE_PATH = Path('Library/Application Support/AsterionVeyra/state.json')
 PREFERENCES_PATH = Path(f'Library/Preferences/{BUNDLE_ID}.plist')
 PREFERENCE_KEY = 'diagnostics.lastSuccessfulReport.v1'
-# A synthetic future report date suppresses automatic diagnostics in this isolated smoke run.
+# Production treats future dates as due. Seed a recent whole-second UTC date once
+# per invocation and pass that exact value to the native preservation assertion.
 # Voice settings are session-only in the baseline and are intentionally not fabricated here.
-PREFERENCE_DATE = datetime(2100, 1, 1)
+PREFERENCE_DATE = datetime.now(timezone.utc).replace(tzinfo=None, microsecond=0) - timedelta(minutes=1)
 TARGETS = {'AsterionVeyraTests', 'AsterionVeyraUITests'}
 
 
@@ -126,6 +127,8 @@ def configure_test_run(value):
         if name in TARGETS:
             found.add(name)
             target.setdefault('EnvironmentVariables', {})['ASTERION_UPGRADE_SMOKE'] = '1'
+            target['EnvironmentVariables']['ASTERION_UPGRADE_PREFERENCE_EPOCH'] = str(
+                int(PREFERENCE_DATE.replace(tzinfo=timezone.utc).timestamp()))
     if found != TARGETS:
         raise ValueError('Generated xctestrun does not contain both required upgrade test targets')
     return value
@@ -239,6 +242,18 @@ class Runner:
         return json.loads(self.run(args, **kwargs)[0])
 
 
+def launch_and_stop(runner, result, identifier, label, screenshot=False):
+    result['stage'] = label
+    # Cold iOS 26 simulators can spend over a minute initializing launch services.
+    # This is one bounded attempt, still constrained by Runner's total deadline.
+    runner.run(['xcrun', 'simctl', 'launch', '--terminate-running-process', identifier, BUNDLE_ID], timeout=180)
+    time.sleep(3)
+    if screenshot:
+        runner.run(['xcrun', 'simctl', 'io', identifier, 'screenshot', runner.output / 'upgraded-app.png'])
+    # simctl terminate fails if the app has already exited/crashed during this window.
+    runner.run(['xcrun', 'simctl', 'terminate', identifier, BUNDLE_ID])
+
+
 def verify_upgrade(runner, result, simulator):
     result['stage'] = 'infrastructure'
     if platform.system() != 'Darwin' or any(shutil.which(t) is None for t in ['xcrun', 'xcodebuild', 'xcodegen']):
@@ -290,21 +305,12 @@ def verify_upgrade(runner, result, simulator):
                 raise ValueError('Unexpected simulator data container path')
             return path
 
-        def launch_and_stop(label, screenshot=False):
-            result['stage'] = label
-            runner.run(['xcrun', 'simctl', 'launch', '--terminate-running-process', identifier, BUNDLE_ID])
-            time.sleep(3)
-            if screenshot:
-                runner.run(['xcrun', 'simctl', 'io', identifier, 'screenshot', runner.output / 'upgraded-app.png'])
-            # simctl terminate fails if the app has already exited/crashed during this window.
-            runner.run(['xcrun', 'simctl', 'terminate', identifier, BUNDLE_ID])
-
         result['stage'] = 'install_seed_baseline'
         runner.run(['xcrun', 'simctl', 'install', identifier, old_app])
         before = container()
         seed_container(before)
         result['fixture'] = verify_container(before)
-        launch_and_stop('launch_baseline')
+        launch_and_stop(runner, result, identifier, 'launch_baseline')
         verify_container(before)
         result['stage'] = 'install_over_existing'
         # Intentionally no uninstall/reset/erase between these two installations.
@@ -314,7 +320,7 @@ def verify_upgrade(runner, result, simulator):
             raise ValueError('Installing the new app replaced the prior data container')
         result['post_install'] = verify_container(after)
         result['same_data_container'] = True
-        launch_and_stop('launch_upgraded_app', screenshot=True)
+        launch_and_stop(runner, result, identifier, 'launch_upgraded_app', screenshot=True)
         result['post_launch'] = verify_container(after)
         result['stage'] = 'native_and_ui_readability'
         test_runs = list((new_build / 'Build/Products').glob('*.xctestrun'))
@@ -375,13 +381,20 @@ def main(argv=None):
     finally:
         # Best-effort diagnostics and evidence, bounded separately so timeout still leaves a report.
         if simulator:
-            for command in [
-                ['xcrun', 'simctl', 'spawn', simulator[0], 'log', 'show', '--last', '5m', '--style', 'compact', '--predicate', 'process == "AsterionVeyra"'],
-                ['xcrun', 'simctl', 'shutdown', simulator[0]],
-                ['xcrun', 'simctl', 'delete', simulator[0]],
-            ]:
+            predicate = ('process == "AsterionVeyra" OR '
+                         '((process == "SpringBoard" OR process == "runningboardd" OR process == "launchd") AND '
+                         f'(eventMessage CONTAINS[c] "{BUNDLE_ID}" OR eventMessage CONTAINS[c] "AsterionVeyra"))')
+            commands = []
+            if result['status'] != 'passed':
+                commands.append((['xcrun', 'simctl', 'io', simulator[0], 'screenshot', output / 'failure-screen.png'], 10))
+            commands.extend([
+                (['xcrun', 'simctl', 'spawn', simulator[0], 'log', 'show', '--last', '5m', '--info', '--style', 'compact', '--predicate', predicate], 10),
+                (['xcrun', 'simctl', 'shutdown', simulator[0]], 20),
+                (['xcrun', 'simctl', 'delete', simulator[0]], 20),
+            ])
+            for command, timeout in commands:
                 try:
-                    _, code = runner.run(command, required=False, cleanup=True, timeout=20)
+                    _, code = runner.run(command, required=False, cleanup=True, timeout=timeout)
                     if command[2] == 'delete':
                         result['isolated_simulator_deleted'] = code == 0
                 except Exception as error:
