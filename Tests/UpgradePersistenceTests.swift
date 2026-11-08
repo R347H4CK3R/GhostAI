@@ -42,6 +42,10 @@ final class UpgradePersistenceTests: XCTestCase {
                        "The seeded preference must suppress diagnostics using the production date policy")
         XCTAssertEqual(UserDefaults.standard.object(forKey: "diagnostics.lastSuccessfulReport.v1") as? Date,
                        expectedPreference, "The exact prior-release persisted preference must survive")
+        let identity = try XCTUnwrap(ProcessInfo.processInfo.environment["ASTERION_UPGRADE_CONTINUITY_ID"])
+        XCTAssertEqual(identity.count, 32)
+        XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("upgrade-continuity-v1.txt"), encoding: .utf8),
+                       identity, "The unique fixture from the baseline installation must survive")
     }
 
     private func assertPriorState(_ state: SavedState, file: StaticString = #filePath, line: UInt = #line) {

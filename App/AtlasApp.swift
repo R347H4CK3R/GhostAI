@@ -83,7 +83,7 @@ struct MemoryView: View {
                 Section("Backup all projects") {
                     Button("Encrypted transfer") { encryptedTransfer = true }
                         .accessibilityIdentifier("encryptedTransferOpen")
-                    Button("Export complete memory backup") {
+                    Button("Export chats and notes backup") {
                         do { backup = MemoryDocument(data: try store.backupData()); exporting = true }
                         catch { store.error = error.localizedDescription }
                     }

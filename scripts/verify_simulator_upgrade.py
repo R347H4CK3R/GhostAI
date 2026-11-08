@@ -29,6 +29,8 @@ BUNDLE_ID = 'dev.asterionveyra.assistant'
 FIXTURE = ROOT / 'Tests/Fixtures/upgrade-state-v1.json'
 STATE_PATH = Path('Library/Application Support/AsterionVeyra/state.json')
 PREFERENCES_PATH = Path(f'Library/Preferences/{BUNDLE_ID}.plist')
+CONTINUITY_PATH = Path('Library/Application Support/AsterionVeyra/upgrade-continuity-v1.txt')
+CONTINUITY_ID = uuid.uuid4().hex
 PREFERENCE_KEY = 'diagnostics.lastSuccessfulReport.v1'
 # Production treats future dates as due. Seed a recent whole-second UTC date once
 # per invocation and pass that exact value to the native preservation assertion.
@@ -74,14 +76,15 @@ def validate_fixture(data):
 def seed_container(container):
     data = FIXTURE.read_bytes()
     validate_fixture(data)
-    state, preferences = container / STATE_PATH, container / PREFERENCES_PATH
+    state, preferences, marker = container / STATE_PATH, container / PREFERENCES_PATH, container / CONTINUITY_PATH
     # Never overwrite a file, even if a mistakenly selected container belongs to another run.
-    if state.exists() or preferences.exists():
+    if state.exists() or preferences.exists() or marker.exists():
         raise ValueError('Refusing to seed an existing state or preferences file')
     state.parent.mkdir(parents=True, exist_ok=True)
     preferences.parent.mkdir(parents=True, exist_ok=True)
     state.write_bytes(data)
     preferences.write_bytes(plistlib.dumps({PREFERENCE_KEY: PREFERENCE_DATE}, fmt=plistlib.FMT_BINARY))
+    marker.write_text(CONTINUITY_ID, encoding='ascii')
 
 
 def verify_container(container):
@@ -92,8 +95,18 @@ def verify_container(container):
     preferences = plistlib.loads((container / PREFERENCES_PATH).read_bytes())
     if preferences.get(PREFERENCE_KEY) != PREFERENCE_DATE:
         raise ValueError('Prior persisted diagnostics preference changed or disappeared')
+    marker = (container / CONTINUITY_PATH).read_bytes()
+    if marker != CONTINUITY_ID.encode('ascii'):
+        raise ValueError('Prior installation fixture identity changed or was replaced')
     return {'state_sha256': hashlib.sha256(data).hexdigest(), 'notes': len(value['notes']),
-            'chats': len(value['chats']), 'preference_preserved': True}
+            'chats': len(value['chats']), 'preference_preserved': True,
+            'fixture_identity_preserved': True, 'fixture_identity_sha256': hashlib.sha256(marker).hexdigest()}
+
+
+def verify_retained_container(previous, current):
+    # iOS may relocate Application_Home during an update (Apple TN2285).
+    # Verify the freshly resolved container, never copy/reseed data to make it pass.
+    return dict(verify_container(current), container_path_changed=previous != current)
 
 
 def select_simulator(runtime_listing, device_listing):
@@ -129,6 +142,7 @@ def configure_test_run(value):
             target.setdefault('EnvironmentVariables', {})['ASTERION_UPGRADE_SMOKE'] = '1'
             target['EnvironmentVariables']['ASTERION_UPGRADE_PREFERENCE_EPOCH'] = str(
                 int(PREFERENCE_DATE.replace(tzinfo=timezone.utc).timestamp()))
+            target['EnvironmentVariables']['ASTERION_UPGRADE_CONTINUITY_ID'] = CONTINUITY_ID
     if found != TARGETS:
         raise ValueError('Generated xctestrun does not contain both required upgrade test targets')
     return value
@@ -311,17 +325,16 @@ def verify_upgrade(runner, result, simulator):
         seed_container(before)
         result['fixture'] = verify_container(before)
         launch_and_stop(runner, result, identifier, 'launch_baseline')
-        verify_container(before)
+        baseline_after_launch = container()
+        result['baseline_post_launch'] = verify_retained_container(before, baseline_after_launch)
         result['stage'] = 'install_over_existing'
         # Intentionally no uninstall/reset/erase between these two installations.
         runner.run(['xcrun', 'simctl', 'install', identifier, new_app])
         after = container()
-        if before != after:
-            raise ValueError('Installing the new app replaced the prior data container')
-        result['post_install'] = verify_container(after)
-        result['same_data_container'] = True
+        result['post_install'] = verify_retained_container(baseline_after_launch, after)
         launch_and_stop(runner, result, identifier, 'launch_upgraded_app', screenshot=True)
-        result['post_launch'] = verify_container(after)
+        after_launch = container()
+        result['post_launch'] = verify_retained_container(after, after_launch)
         result['stage'] = 'native_and_ui_readability'
         test_runs = list((new_build / 'Build/Products').glob('*.xctestrun'))
         if len(test_runs) != 1:
@@ -339,9 +352,7 @@ def verify_upgrade(runner, result, simulator):
         summary = runner.json(['xcrun', 'xcresulttool', 'get', 'test-results', 'summary', '--path', runner.output / 'Upgrade.xcresult'])
         (runner.output / 'test-summary.json').write_text(json.dumps(summary, indent=2) + '\n')
         validate_test_summary(summary)
-        if container() != before:
-            raise ValueError('Test execution replaced the app data container')
-        result['post_tests'] = verify_container(after)
+        result['post_tests'] = verify_retained_container(after_launch, container())
         result['native_readability'] = 'passed'
         result['ui_readability'] = 'passed'
         result['home_icon_presence_and_launch'] = 'passed'

@@ -66,8 +66,8 @@ struct EncryptedMemoryDocument: FileDocument {
                         }
                     }
                     Text(format == .mobileBackup
-                         ? "Includes every saved note and chat. Open this format on another compatible iPhone or iPad."
-                         : "Includes every saved note, with its project and source. Chats are excluded. Open this format with the desktop companion.")
+                         ? "Includes every saved note and chat. The offline knowledge library, imported source files, action cache, settings and credentials are excluded. Open this format on another compatible iPhone or iPad."
+                         : "Includes every saved note, with its project and source. Chats, the offline knowledge library, imported source files, action cache, settings and credentials are excluded. Open this format with the desktop companion.")
                         .font(.caption)
                     SecureField("New passphrase (12+ characters)", text: $exportPassphrase)
                         .textContentType(.newPassword).textInputAutocapitalization(.never).autocorrectionDisabled()
@@ -114,8 +114,8 @@ struct EncryptedMemoryDocument: FileDocument {
                 Button("Cancel", role: .cancel) { clearPassphrases() }
             } message: {
                 Text(format == .mobileBackup
-                     ? "This file will contain notes and chats from ALL projects. Anyone with the file and passphrase can read them. You choose where to save it next."
-                     : "This file will contain notes from ALL projects, but NO chats. Anyone with the file and passphrase can read them. You choose where to save it next.")
+                     ? "This file will contain notes and chats from ALL projects, but not the offline knowledge library, imported source files, action cache, settings or credentials. Anyone with the file and passphrase can read them. You choose where to save it next."
+                     : "This file will contain notes from ALL projects, but NO chats, offline knowledge library, imported source files, action cache, settings or credentials. Anyone with the file and passphrase can read them. You choose where to save it next.")
             }
             .alert(isRestoring ? "Restore verified memory?" : "Merge verified memory?",
                    isPresented: Binding(get: { pendingImport != nil }, set: { if !$0 { pendingImport = nil } }),
@@ -245,7 +245,7 @@ struct EncryptedMemoryDocument: FileDocument {
 
     private func importReview(_ result: EncryptedMemoryTransfer.Decoded) -> String {
         let counts = "\(result.noteCount) notes and \(result.chatCount) chats. "
-        let source = result.format == .desktopNotes ? "Desktop notes file; no chats are included. " : "Full mobile backup. "
+        let source = result.format == .desktopNotes ? "Desktop notes file; no chats are included. " : "Encrypted chats and notes backup. "
         let effect = isRestoring
             ? "The unreadable local file will be preserved separately before restoration."
             : "Existing records stay unchanged. Records with an existing ID are skipped; this is not a two-way sync."

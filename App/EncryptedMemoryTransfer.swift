@@ -11,7 +11,7 @@ enum EncryptedMemoryTransfer {
         var id: String { rawValue }
         var title: String {
             switch self {
-            case .mobileBackup: return "Full encrypted mobile backup"
+            case .mobileBackup: return "Encrypted chats and notes"
             case .desktopNotes: return "Encrypted notes for desktop (no chats)"
             }
         }

@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import plistlib
 import signal
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -93,6 +94,40 @@ class SimulatorUpgradeTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'preference'):
             check.verify_container(self.root)
 
+    def test_relocated_container_requires_retained_bytes_preferences_and_identity(self):
+        before, after = self.root / 'old-uuid', self.root / 'new-uuid'
+        before.mkdir()
+        check.seed_container(before)
+        shutil.copytree(before, after)
+        shutil.rmtree(before)
+        report = check.verify_retained_container(before, after)
+        self.assertTrue(report['container_path_changed'])
+        self.assertTrue(report['preference_preserved'])
+        self.assertTrue(report['fixture_identity_preserved'])
+        (after / check.STATE_PATH).write_bytes(b'changed state')
+        with self.assertRaisesRegex(ValueError, 'state bytes'):
+            check.verify_retained_container(before, after)
+
+    def test_missing_or_replaced_fixture_identity_fails_even_with_matching_state(self):
+        check.seed_container(self.root)
+        marker = self.root / 'Library/Application Support/AsterionVeyra/upgrade-continuity-v1.txt'
+        self.assertTrue(marker.is_file(), 'Seed the continuity marker only in the baseline')
+        marker.write_bytes(b'not-the-original-fixture')
+        with self.assertRaisesRegex(ValueError, 'identity'):
+            check.verify_container(self.root)
+        marker.unlink()
+        with self.assertRaises(FileNotFoundError):
+            check.verify_container(self.root)
+
+    def test_seed_refuses_preexisting_continuity_marker_without_writing_state(self):
+        marker = self.root / 'Library/Application Support/AsterionVeyra/upgrade-continuity-v1.txt'
+        marker.parent.mkdir(parents=True)
+        marker.write_bytes(b'preserve-existing-marker')
+        with self.assertRaises(ValueError):
+            check.seed_container(self.root)
+        self.assertEqual(marker.read_bytes(), b'preserve-existing-marker')
+        self.assertFalse((self.root / check.STATE_PATH).exists())
+
     def test_selects_latest_available_ios26_runtime_and_compatible_iphone(self):
         data = {'runtimes': [
             {'identifier': 'ios26', 'version': '26.0', 'isAvailable': True, 'supportedDeviceTypes': [{'identifier': 'iphone16', 'name': 'iPhone 16'}]},
@@ -137,6 +172,7 @@ class SimulatorUpgradeTests(unittest.TestCase):
             value = check.configure_test_run({'AsterionVeyraTests': {}, 'AsterionVeyraUITests': {}})
         for target in value.values():
             self.assertEqual(target['EnvironmentVariables'].get('ASTERION_UPGRADE_PREFERENCE_EPOCH'), '1767312000')
+            self.assertEqual(target['EnvironmentVariables'].get('ASTERION_UPGRADE_CONTINUITY_ID'), check.CONTINUITY_ID)
 
     def test_app_metadata_rejects_different_bundle_or_non_simulator(self):
         valid = {'CFBundleIdentifier': check.BUNDLE_ID, 'CFBundleVersion': '18', 'CFBundleShortVersionString': '0.3.2', 'CFBundleSupportedPlatforms': ['iPhoneSimulator']}

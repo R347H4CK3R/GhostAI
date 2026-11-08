@@ -14,7 +14,8 @@ unsigned device app. A successful ordinary unit/UI test run alone is not upgrade
    first launch, write the harmless `Tests/Fixtures/upgrade-state-v1.json` to the actual
    data container's `Library/Application Support/AsterionVeyra/state.json`.
    This v1 file contains two project notes and two General conversation messages, with
-   fixed identities and native Swift reference-date numbers.
+   fixed identities and native Swift reference-date numbers. A unique synthetic continuity
+   marker is seeded beside it once, only before the baseline's first launch.
 4. Seed the prior release's real `diagnostics.lastSuccessfulReport.v1` preference in
    `Library/Preferences/dev.asterionveyra.assistant.plist`. Its synthetic recent UTC date suppresses
    automatic diagnostics during this isolated test; future dates trigger diagnostics and are
@@ -22,8 +23,12 @@ unsigned device app. A successful ordinary unit/UI test run alone is not upgrade
    survive unchanged. The old app has no persisted voice
    settings, so the test does not invent any. No credentials or permission grants are seeded.
 5. Launch and terminate the old app, requiring the original state and preference to survive.
-   Install the candidate **without uninstalling, erasing, or resetting**. Require the same
-   data-container path, identical state bytes, and the same decoded preference. Launch the
+   Install the candidate **without uninstalling, erasing, or resetting**. Resolve the active
+   data container again and require identical state bytes, the same decoded preference,
+   and the unique original continuity marker. The absolute container path may legitimately
+   change during an update, as documented in [Apple TN2285](https://developer.apple.com/library/archive/technotes/tn2285/);
+   path changes are recorded, never treated as evidence of either retention or loss. No data
+   is copied, recreated or reseeded after the baseline installation. Launch the
    candidate normally and check again. Immediate startup crashes fail the run.
 6. Execute exactly two selected native/UI tests on this same simulator. The native test uses
    production `DiskStore.load()` and checks every fixture identity, project, text, role and
@@ -31,8 +36,9 @@ unsigned device app. A successful ordinary unit/UI test run alone is not upgrade
    text, checks project separation, captures the installed home-screen icon, checks its
    presence and tappability, opens the app from it, and relaunches it. The screenshot needs
    human visual review to verify refreshed artwork; this is not an automated artwork check. It never sends a model request or starts voice.
-7. Require exactly two passing tests with no skips in the xcresult summary. Recheck the
-   container and bytes after XCTest. Collect logs/screenshots/results and delete only the
+7. Require exactly two passing tests with no skips in the xcresult summary. Resolve the
+   container again and recheck bytes, preference and continuity marker after XCTest.
+   Collect logs/screenshots/results and delete only the
    simulator created by this invocation.
 
 The normal suite also runs the standalone prior-format DiskStore fixture test. The two
