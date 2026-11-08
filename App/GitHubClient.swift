@@ -81,6 +81,22 @@ final class GitHubClient: NSObject, URLSessionTaskDelegate, @unchecked Sendable 
         } else { completionHandler(.cancelAuthenticationChallenge, nil) }
     }
 
+    func validateResponseStatus(_ statusCode: Int) throws {
+        switch statusCode {
+        case 200: return
+        case 401:
+            // Server rejection invalidates all clients, cached tool access and late-answer gates.
+            authentication?.revoke()
+            throw AppFailure.message("GitHub rejected this token and ended its session. Sign out, check its expiration and connect again.")
+        case 403, 429:
+            throw AppFailure.message("GitHub denied this read or its rate limit was reached. Check repository permissions and try later.")
+        case 404:
+            throw AppFailure.message("GitHub repository or file is unavailable to this connection.")
+        default:
+            throw AppFailure.message("GitHub returned HTTP \(statusCode). No automatic retry was made.")
+        }
+    }
+
     private func read<T: Decodable>(_ url: URL, as: T.Type, maximumResponseBytes: Int = 2_000_000) async throws -> T {
         try await readResponse(url, as: T.self, maximumResponseBytes: maximumResponseBytes).value
     }
@@ -100,14 +116,7 @@ final class GitHubClient: NSObject, URLSessionTaskDelegate, @unchecked Sendable 
             try validateSession()
             guard let http = response as? HTTPURLResponse, let finalURL = http.url else { throw GitHubAccessError.invalidResponse }
             try GitHubRequestPolicy.validate(finalURL)
-            guard http.statusCode == 200 else {
-                switch http.statusCode {
-                case 401: throw AppFailure.message("GitHub rejected this token. Sign out, check its expiration and connect again.")
-                case 403, 429: throw AppFailure.message("GitHub denied this read or its rate limit was reached. Check repository permissions and try later.")
-                case 404: throw AppFailure.message("GitHub repository or file is unavailable to this connection.")
-                default: throw AppFailure.message("GitHub returned HTTP \(http.statusCode). No automatic retry was made.")
-                }
-            }
+            try validateResponseStatus(http.statusCode)
             guard response.expectedContentLength <= Int64(maximumResponseBytes) else { throw GitHubAccessError.oversized }
             var data = Data()
             for try await byte in bytes {

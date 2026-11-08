@@ -35,6 +35,57 @@ final class GitHubAuthTests: XCTestCase {
         XCTAssertThrowsError(try client.request(for: URL(string: "https://api.github.com/user/repos")!))
     }
 
+    func testUnauthorizedResponseRevokesEveryClientBoundToTheSession() throws {
+        let session = try GitHubAuthSession(token: syntheticToken)
+        let rejectedClient = GitHubClient(authentication: session)
+        let otherClient = GitHubClient(authentication: session)
+        XCTAssertThrowsError(try rejectedClient.validateResponseStatus(401))
+        XCTAssertThrowsError(try otherClient.validateSession())
+        XCTAssertThrowsError(try otherClient.request(for: URL(string: "https://api.github.com/user/repos")!))
+    }
+
+    func testPermissionAndRateLimitResponsesDoNotRevokeCredentials() throws {
+        for status in [403, 429] {
+            let session = try GitHubAuthSession(token: syntheticToken)
+            let client = GitHubClient(authentication: session)
+            XCTAssertThrowsError(try client.validateResponseStatus(status))
+            XCTAssertNoThrow(try client.validateSession())
+        }
+    }
+
+    func testUnauthorizedResponseBlocksPreviouslyCachedToolDirectory() async throws {
+        let session = try GitHubAuthSession(token: syntheticToken)
+        let client = GitHubClient(authentication: session)
+        // Replace only tree transport. Keep the production session-access check.
+        var reader = RepositoryToolReader.github(client: client, repository: "owner/repo")
+        reader.tree = { _, _ in (files: [], responseBytes: 29) }
+        let scope = try RepositoryToolScope(repository: "owner/repo", commit: String(repeating: "a", count: 40))
+        let tools = try RepositoryQuestionTools(scope: scope, reader: reader)
+        let before = try await tools.list(path: "")
+        XCTAssertTrue(before.contains("Directory has no entries."))
+        XCTAssertThrowsError(try client.validateResponseStatus(401))
+        do {
+            _ = try await tools.list(path: "")
+            XCTFail("Cached directory data must be withheld after token rejection")
+        } catch {
+            XCTAssertEqual(error as? RepositoryToolFailure, .readFailed)
+        }
+    }
+
+    @MainActor func testUnauthorizedResponseWithholdsLateModelAnswer() throws {
+        let session = try GitHubAuthSession(token: syntheticToken)
+        let client = GitHubClient(authentication: session)
+        let store = AssistantStore()
+        store.selectRepository(Repository(id: 7, full_name: "owner/private", default_branch: "main"),
+                               commit: String(repeating: "a", count: 40), client: client, workspace: "GitHub account 7: owner/private")
+        let context = store.selectedRepository
+        let savedCount = store.saved.chats.count
+        XCTAssertThrowsError(try client.validateResponseStatus(401))
+        XCTAssertThrowsError(try store.acceptAnswer("private-source answer", question: "inspect", project: store.project, repository: context))
+        XCTAssertTrue(store.answer.isEmpty)
+        XCTAssertEqual(store.saved.chats.count, savedCount)
+    }
+
     func testExpiredSessionCannotCreateRequest() throws {
         let session = try GitHubAuthSession(token: syntheticToken, expiresAt: Date(timeIntervalSince1970: 1))
         XCTAssertThrowsError(try GitHubRequestPolicy.request(url: URL(string: "https://api.github.com/user")!, authentication: session))
