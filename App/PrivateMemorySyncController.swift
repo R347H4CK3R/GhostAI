@@ -50,7 +50,7 @@ import Combine
                 statusTitle = configuration.localRecoveryNeedsReview == true ? "Recovered memory is local only" : (isEnabled ? "Ready to sync" : "Private sync paused")
                 statusDetail = configuration.localRecoveryNeedsReview == true ? PrivateMemorySyncFailure.recoveryReviewRequired.localizedDescription : "Encrypted notes, chats and saved knowledge use \(configuration.repository). Credentials and settings stay local."
             }
-        } catch { configurationUnreadable = true; blocked = true; statusTitle = "Sync needs attention"; statusDetail = PrivateMemorySyncFailure.storage.localizedDescription }
+        } catch { configurationUnreadable = true; blocked = true; statusTitle = "Sync needs attention"; statusDetail = safeMessage(error) }
     }
     deinit { operation?.cancel(); scheduled?.cancel(); session?.revoke() }
 
@@ -323,7 +323,7 @@ import Combine
                 queue.serverRetryAfter = serverCooldown?.until; serverRetryAfter = serverCooldown?.until
                 queue.retryAfter = max(Date().addingTimeInterval(delay), serverCooldown?.until ?? Date()); retryAfter = queue.retryAfter
                 do { try await save(queue, passphrase: secrets.passphrase, id: id) }
-                catch { blocked = true; statusTitle = "Sync queue needs attention"; statusDetail = PrivateMemorySyncFailure.storage.localizedDescription; return }
+                catch { blocked = true; statusTitle = "Sync queue needs attention"; statusDetail = safeMessage(error); return }
             }
             guard generation == id else { return }
             statusTitle = retryable ? "Changes queued for retry" : "Sync needs attention"
@@ -382,6 +382,7 @@ import Combine
         try disk.writeEncryptedJournal(encrypted)
     }
     private func safeMessage(_ error: Error) -> String {
+        if let known = error as? PrivateMemorySyncStorageFailure { return known.localizedDescription }
         if error is PrivateMemorySyncCooldown { return PrivateMemorySyncFailure.rateLimited.localizedDescription }
         if let known = error as? PrivateMemorySyncFailure { return known.localizedDescription }
         if let known = error as? EncryptedMemoryTransfer.Failure { return known.localizedDescription }

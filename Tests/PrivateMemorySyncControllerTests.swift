@@ -60,6 +60,15 @@ import CryptoKit
     private func vault() -> SyncTestVault {
         let value = SyncTestVault(); value.value = .init(token: "github_pat_SYNTHETIC_NOT_A_REAL_CREDENTIAL", passphrase: passphrase); return value
     }
+    func testFreshInstallationWithoutSyncDirectoryStaysUnconfigured() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let controller = PrivateMemorySyncController(root: root, currentState: { SavedState(notes: [], chats: []) }, applyState: { _ in XCTFail("No sync should apply") }, collectKnowledge: { _, _ in [] }, applyKnowledge: { _, _, _ in }, vault: SyncTestVault())
+        XCTAssertFalse(controller.isConfigured); XCTAssertFalse(controller.isEnabled)
+        XCTAssertEqual(controller.statusTitle, "Private sync needs setup")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.path))
+    }
+
     func testUnreadableConfigurationAndMissingQueueCannotCreateANewBaseline() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -69,6 +78,9 @@ import CryptoKit
         try corrupted.write(to: disk.configurationURL)
         let emptyVault = SyncTestVault(), server = SyncTestServer(mode: .normal)
         let controller = PrivateMemorySyncController(root: root, currentState: { SavedState(notes: [], chats: []) }, applyState: { _ in XCTFail("Missing history must not apply") }, collectKnowledge: { _, _ in [] }, applyKnowledge: { _, _, _ in }, vault: emptyVault, transport: .init { request, _, _ in try await server.send(request) })
+        XCTAssertTrue(controller.statusDetail.contains("readConfiguration"))
+        XCTAssertTrue(controller.statusDetail.contains("decode"))
+        XCTAssertFalse(controller.statusDetail.contains(root.path))
         controller.sceneBecameActive()
         defer { controller.sceneBecameInactive() }
         do {
