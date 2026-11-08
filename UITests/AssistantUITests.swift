@@ -25,9 +25,15 @@ import XCTest
         let delete = app.buttons["Delete note: " + note]
         for _ in 0..<3 where !delete.isHittable { app.swipeUp() }
         XCTAssertTrue(delete.exists); delete.tap()
+        app.buttons["Cancel"].tap()
+        XCTAssertTrue(saved.exists, "Cancelling must preserve the note")
+        delete.tap()
         app.buttons["Delete note"].tap()
         expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: saved)
         waitForExpectations(timeout: 5)
+        app.terminate(); app.launch()
+        app.tabBars.buttons["Memory"].tap()
+        XCTAssertFalse(app.staticTexts[note].exists, "Deletion must persist across launches")
     }
 
     func testCapabilitiesAndVoiceControlsAreVisible() {

@@ -214,8 +214,8 @@ struct MemoryView: View {
                     pendingImport = data
                 } catch { store.error = error.localizedDescription }
             }
-            .confirmationDialog(store.loadFailed ? "Restore this backup? The unreadable local file will be preserved separately." : "Merge this backup into local memory? Existing records will be kept.", isPresented: Binding(get: { pendingImport != nil }, set: { if !$0 { pendingImport = nil } })) {
-                Button(store.loadFailed ? "Restore backup" : "Merge backup") { if let data = pendingImport { store.importBackup(data) }; pendingImport = nil }
+            .confirmationDialog(store.loadFailed ? "Restore this backup? The unreadable local file will be preserved separately." : "Merge this backup into local memory? Existing records will be kept.", isPresented: Binding(get: { pendingImport != nil }, set: { if !$0 { pendingImport = nil } }), presenting: pendingImport) { data in
+                Button(store.loadFailed ? "Restore backup" : "Merge backup") { store.importBackup(data); pendingImport = nil }
                 Button("Cancel", role: .cancel) { pendingImport = nil }
             }
             .confirmationDialog("Delete this saved note?", isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }), presenting: pendingDelete) { id in
