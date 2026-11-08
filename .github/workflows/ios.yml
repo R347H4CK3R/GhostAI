@@ -90,7 +90,7 @@ jobs:
           cp -R build/Build/Products/Release-iphoneos/AsterionVeyra.app Payload/
           zip -qr AsterionVeyra-unsigned.ipa Payload
           unzip -t AsterionVeyra-unsigned.ipa
-          python3 scripts/verify_app_icon.py --ipa AsterionVeyra-unsigned.ipa
+          python3 scripts/verify_app_icon.py --ipa AsterionVeyra-unsigned.ipa --asset-info-output app-icon-assets.json
       - uses: actions/upload-artifact@v4
         with:
           name: AsterionVeyra-unsigned-IPA
@@ -103,4 +103,5 @@ jobs:
             TestResults.xcresult
             xcode-tests.log
             test-screenshots
+            app-icon-assets.json
           if-no-files-found: ignore

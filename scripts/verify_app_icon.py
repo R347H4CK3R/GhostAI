@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Check source icons and, optionally, the compiled icon payload in an IPA.
 
-Uses only Python's standard library. Packaging checks are not a device-install test.
+Uses Python's standard library and Xcode's assetutil for compiled CAR inspection.
+Packaging checks are not a device-install test.
 """
 import argparse
 import json
@@ -9,7 +10,9 @@ from pathlib import Path
 import plistlib
 import re
 import struct
+import subprocess
 import sys
+import tempfile
 import zipfile
 import zlib
 
@@ -88,7 +91,34 @@ def verify_source(root):
     print(f'PASS source: {len(slots)} iPhone/iPad/marketing slots, {len(checked)} opaque RGB PNGs with correct dimensions')
 
 
-def verify_ipa(path):
+def inspect_catalog(data, output=None):
+    """Inspect the CAR bytes from this IPA, never an unrelated/stale inventory."""
+    with tempfile.TemporaryDirectory(prefix='app-icon-') as directory:
+        path = Path(directory) / 'Assets.car'
+        path.write_bytes(data)
+        try:
+            result = subprocess.run(['xcrun', '--sdk', 'iphoneos', 'assetutil', '--info', str(path)],
+                                    capture_output=True, text=True, timeout=120)
+        except (OSError, subprocess.TimeoutExpired) as error:
+            raise ValueError(f'Cannot verify the 180px icon in Assets.car: assetutil unavailable or timed out ({error})') from error
+    # Keep raw diagnostics even if the tool fails or produces malformed JSON.
+    if output is not None:
+        output.write_text(result.stdout)
+    require(result.returncode == 0, f'assetutil inspection failed: {result.stderr.strip()}')
+    try:
+        entries = json.loads(result.stdout)
+    except ValueError as error:
+        raise ValueError('assetutil returned invalid JSON') from error
+    require(isinstance(entries, list) and all(isinstance(e, dict) for e in entries),
+            'assetutil JSON must be an array of asset records')
+    for entry in entries:
+        if entry.get('Name') == 'AppIcon':
+            print('CAR AppIcon:', {key: entry.get(key) for key in
+                                  ('AssetType', 'Idiom', 'Scale', 'PixelWidth', 'PixelHeight')})
+    return entries
+
+
+def verify_ipa(path, asset_info_output=None):
     with zipfile.ZipFile(path) as archive:
         names = set(archive.namelist())
         plists = [n for n in names if re.fullmatch(r'Payload/[^/]+\.app/Info\.plist', n)]
@@ -112,14 +142,25 @@ def verify_ipa(path):
                 for match in matches:
                     width, height = png_metadata(archive.read(match), match)
                     require(width == height, f'{match}: packaged icon is not square')
-        # Universal unthinned archives must carry the iPhone 60pt icons at both scales.
+        # Xcode can keep the 3x rendition only in Assets.car. Inspect the actual
+        # catalog rather than treating the absence of a loose PNG as a lost icon.
+        catalog = None
+        if asset_info_output is not None:
+            catalog = inspect_catalog(archive.read(assets), asset_info_output)
         for suffix, pixels in [('@2x.png', 120), ('@3x.png', 180)]:
             candidates = [n for n in names if n.startswith(prefix + 'AppIcon') and n.endswith(suffix)]
-            require(any(png_metadata(archive.read(n), n) == (pixels, pixels) for n in candidates),
-                    f'IPA is missing the {pixels}px iPhone home-screen icon')
+            present = any(png_metadata(archive.read(n), n) == (pixels, pixels) for n in candidates)
+            if not present and pixels == 180:
+                if catalog is None:
+                    catalog = inspect_catalog(archive.read(assets))
+                present = any(e.get('Name') == 'AppIcon' and e.get('AssetType') == 'Icon Image'
+                              and e.get('Idiom') == 'phone' and e.get('Scale') == 3
+                              and e.get('PixelWidth') == 180 and e.get('PixelHeight') == 180
+                              for e in catalog)
+            require(present, f'IPA is missing the {pixels}px iPhone home-screen icon (PNG or verified AppIcon CAR rendition)')
         version = info.get('CFBundleShortVersionString', '?')
         build = info.get('CFBundleVersion', '?')
-        print(f'PASS IPA: {version} ({build}), compiled Assets.car, primary icon metadata and iPhone icon PNGs present')
+        print(f'PASS IPA: {version} ({build}), compiled Assets.car, primary icon metadata and 120px/180px iPhone icons present')
         print('This verifies archive packaging, not signing, installation or appearance on a physical device.')
 
 
@@ -128,13 +169,16 @@ def main():
     parser.add_argument('--source-root', type=Path, default=Path(__file__).resolve().parent.parent)
     parser.add_argument('--ipa', type=Path, help='Also inspect an unthinned universal device IPA')
     parser.add_argument('--ipa-only', action='store_true', help='Skip source checks, useful for older IPA diagnosis')
+    parser.add_argument('--asset-info-output', type=Path,
+                        help='Inspect the bundled CAR with Xcode assetutil and save its JSON inventory')
     args = parser.parse_args()
     try:
         require(not args.ipa_only or args.ipa, '--ipa-only requires --ipa')
+        require(not args.asset_info_output or args.ipa, '--asset-info-output requires --ipa')
         if not args.ipa_only:
             verify_source(args.source_root)
         if args.ipa:
-            verify_ipa(args.ipa)
+            verify_ipa(args.ipa, asset_info_output=args.asset_info_output)
     except (OSError, ValueError, KeyError, struct.error, zipfile.BadZipFile) as error:
         print(f'FAIL: {error}', file=sys.stderr)
         return 1

@@ -7,8 +7,10 @@ from pathlib import Path
 import plistlib
 import shutil
 import struct
+import subprocess
 import tempfile
 import unittest
+from unittest import mock
 import zipfile
 import zlib
 
@@ -112,8 +114,84 @@ class IconValidationTests(unittest.TestCase):
             check.verify_ipa(self.make_ipa(metadata=False))
 
     def test_ipa_rejects_missing_3x_home_screen_icon(self):
-        with self.assertRaisesRegex(ValueError, '180px'):
+        with self.fake_assetutil([]):
+            with self.assertRaisesRegex(ValueError, '180px'):
+                check.verify_ipa(self.make_ipa(high_resolution=False))
+
+    # Synthetic assetutil records, not a claim to have inspected a native build.
+    def catalog_entry(self, **changes):
+        entry = {'AssetType': 'Icon Image', 'Name': 'AppIcon', 'Idiom': 'phone',
+                 'PixelWidth': 180, 'PixelHeight': 180, 'Scale': 3,
+                 'RenditionName': 'AppIcon-180.png', 'Opaque': True,
+                 'SizeOnDisk': 500}
+        entry.update(changes)
+        return entry
+
+    def fake_assetutil(self, entries, returncode=0):
+        def run(command, **kwargs):
+            # The JSON evidence must come from the CAR inside this IPA, never
+            # another build's catalog or a caller-supplied inventory.
+            self.assertEqual(command[:-1], ['xcrun', '--sdk', 'iphoneos', 'assetutil', '--info'])
+            self.assertEqual(Path(command[-1]).read_bytes(), b'fixture-placeholder')
+            return subprocess.CompletedProcess(command, returncode,
+                                               stdout=json.dumps(entries), stderr='tool diagnostic')
+        return mock.patch('subprocess.run', side_effect=run)
+
+    def test_ipa_accepts_3x_home_screen_icon_in_exact_bundled_catalog(self):
+        report = self.path / 'asset-info.json'
+        entries = [{'SchemaVersion': 2}, self.catalog_entry()]
+        with self.fake_assetutil(entries), contextlib.redirect_stdout(io.StringIO()):
             check.verify_ipa(self.make_ipa(high_resolution=False))
+            check.verify_ipa(self.make_ipa(high_resolution=False), asset_info_output=report)
+        self.assertEqual(json.loads(report.read_text()), entries)
+
+    def test_catalog_rejects_wrong_icon_identity_dimensions_type_idiom_or_scale(self):
+        for change in [{'Name': 'AnotherIcon'}, {'Name': 'AppIcon-Other'},
+                       {'AssetType': 'Image'}, {'AssetType': 'MultiSized Image'},
+                       {'Idiom': 'pad'}, {'Idiom': 'marketing'},
+                       {'Scale': 2}, {'PixelWidth': 179}, {'PixelHeight': 179}]:
+            with self.subTest(change=change), self.fake_assetutil([self.catalog_entry(**change)]):
+                with self.assertRaisesRegex(ValueError, '180px'):
+                    check.verify_ipa(self.make_ipa(high_resolution=False))
+
+    def test_catalog_checks_do_not_replace_required_loose_120px_icon(self):
+        path = self.make_ipa(high_resolution=False)
+        # Retain metadata and an incorrectly sized PNG so the size gate must run.
+        with zipfile.ZipFile(path) as source:
+            contents = {n: source.read(n) for n in source.namelist()}
+        contents['Payload/Fixture.app/AppIcon60x60@2x.png'] = png(119)
+        with zipfile.ZipFile(path, 'w') as target:
+            for name, data in contents.items():
+                target.writestr(name, data)
+        with self.fake_assetutil([self.catalog_entry()]):
+            with self.assertRaisesRegex(ValueError, '120px'):
+                check.verify_ipa(path)
+
+    def test_catalog_tool_failure_is_not_accepted_even_with_valid_stdout(self):
+        report = self.path / 'asset-info.json'
+        entries = [self.catalog_entry()]
+        with self.fake_assetutil(entries, returncode=1):
+            with self.assertRaisesRegex(ValueError, 'assetutil.*failed'):
+                check.verify_ipa(self.make_ipa(high_resolution=False), asset_info_output=report)
+        self.assertEqual(json.loads(report.read_text()), entries)
+
+    def test_catalog_invalid_json_is_preserved_and_rejected(self):
+        report = self.path / 'asset-info.json'
+        with mock.patch('subprocess.run', return_value=subprocess.CompletedProcess([], 0, 'invalid', '')):
+            with self.assertRaisesRegex(ValueError, 'assetutil.*JSON'):
+                check.verify_ipa(self.make_ipa(high_resolution=False), asset_info_output=report)
+        self.assertEqual(report.read_text(), 'invalid')
+
+    def test_catalog_wrong_json_shape_is_rejected(self):
+        for value in [{'Name': 'AppIcon'}, [None], 'AppIcon', []]:
+            with self.subTest(value=value), self.fake_assetutil(value):
+                with self.assertRaises(ValueError):
+                    check.verify_ipa(self.make_ipa(high_resolution=False))
+
+    def test_catalog_unavailable_tool_fails_closed_with_useful_error(self):
+        with mock.patch('subprocess.run', side_effect=FileNotFoundError('xcrun')):
+            with self.assertRaisesRegex(ValueError, '180px.*assetutil'):
+                check.verify_ipa(self.make_ipa(high_resolution=False))
 
 
 if __name__ == '__main__':
