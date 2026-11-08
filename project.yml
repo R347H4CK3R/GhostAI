@@ -12,6 +12,8 @@ targets:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: Asterion Veyra
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSMicrophoneUsageDescription: Record your voice only during a conversation you start.
         NSSpeechRecognitionUsageDescription: Transcribe spoken messages using available on-device recognition.
         UIBackgroundModes: [audio]
