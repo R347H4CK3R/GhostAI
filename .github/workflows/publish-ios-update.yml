@@ -6,6 +6,11 @@ on:
         description: Successful iOS workflow run ID from feature/paired-execution-protocol
         required: true
         type: string
+      source_only:
+        description: Publish the source for an already published exact verified release (never replace release/tag)
+        required: false
+        default: false
+        type: boolean
 permissions:
   contents: read
 concurrency:
@@ -24,9 +29,17 @@ jobs:
         with:
           python-version: '3.12'
       - name: Verify publication policy
+        run: python -m unittest discover -s scripts/tests -p 'test_*source.py' -v
+      - name: Verify release publication policy
         run: python -m unittest discover -s scripts/tests -p 'test_publish_ios_update.py' -v
       - name: Publish existing verified IPA
+        if: ${{ !inputs.source_only }}
         env:
           GH_TOKEN: ${{ github.token }}
           UPDATE_RUN_ID: ${{ inputs.run_id }}
         run: python scripts/publish_ios_update.py
+      - name: Publish byte-verified SideStore source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPDATE_RUN_ID: ${{ inputs.run_id }}
+        run: python scripts/publish_sidestore_source.py
