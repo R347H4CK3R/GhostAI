@@ -185,7 +185,11 @@ final class GitHubAuthTests: XCTestCase {
         let store = GitHubCredentialStore(vault: TestGitHubVault(), onSessionEnded: {
             notifications += 1
             XCTAssertNil(observedStore?.connection)
-            XCTAssertThrowsError(try originalClient?.validateSession())
+            guard let client = originalClient else { XCTFail("Expected the original client"); return }
+            do {
+                try client.validateSession()
+                XCTFail("The owner callback must run after the old client is revoked")
+            } catch { /* Expected: no error escapes this nonthrowing lifecycle callback. */ }
         })
         observedStore = store
         let session = try store.begin(token: syntheticToken, directInstallationConfirmed: true)

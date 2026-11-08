@@ -69,7 +69,7 @@ struct ChatView: View {
                 }
                 if !store.attached.isEmpty {
                     HStack {
-                        Text("Source: \(store.attachmentSource)\nUses first 3,000 characters").font(.caption).lineLimit(3)
+                        Text("Source: \(store.attachmentSource)\nUses a bounded source excerpt").font(.caption).lineLimit(3)
                         Spacer()
                         Button("Clear") { store.attached = ""; store.attachmentSource = "" }
                     }
