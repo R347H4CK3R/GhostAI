@@ -72,12 +72,16 @@ import XCTest
         app.tabBars.buttons["Projects"].tap()
         let direct = app.switches["github-direct-install-toggle"]
         for _ in 0..<6 where !direct.isHittable { app.swipeUp() }
-        XCTAssertTrue(direct.waitForExistence(timeout: 10)); direct.tap()
+        XCTAssertTrue(direct.waitForExistence(timeout: 10))
+        // SwiftUI exposes the whole labeled row as a Switch; tap its actual thumb.
+        direct.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        XCTAssertEqual(direct.value as? String, "1", "The direct-install acknowledgment must be enabled")
         let token = app.secureTextFields["github-token-field"]
         for _ in 0..<4 where !token.isHittable { app.swipeUp() }
         token.tap(); app.typeText("github_pat_SYNTHETIC_TEST_ONLY_123")
         let connect = app.buttons["github-connect-button"]
         for _ in 0..<4 where !connect.isHittable { app.swipeUp() }
+        XCTAssertTrue(connect.isEnabled)
         connect.tap()
         let consent = app.alerts["Use this GitHub token?"]
         XCTAssertTrue(consent.waitForExistence(timeout: 10)); consent.buttons["Cancel"].tap()
