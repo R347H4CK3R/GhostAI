@@ -67,7 +67,7 @@ class WireTests(unittest.TestCase):
         for name in ('Café','设备','😀'*64):self.assertEqual(wire.device_name(name),name)
     def test_shared_fixture_signatures_and_exact_frames_match(self):
         import hmac
-        fixture=json.loads((Path(__file__).resolve().parents[2]/'Tests/Fixtures/paired-execution-v1.json').read_text())
+        fixture=json.loads((Path(__file__).resolve().parents[2]/'Tests/Fixtures/paired-execution-v1.json').read_text(encoding='utf-8'))
         body=dict(v=1,host_id=fixture['host_id'],invite_id=fixture['invite_id'],client_nonce=fixture['client_nonce'],device_name=fixture['device_name'],client_public_key=fixture['client_public_key'])
         frame=wire.pair_message(body);self.assertEqual(frame.decode(),fixture['pair_frame'])
         proof=wire.encode64(hmac.digest(wire.decode64(fixture['invite_secret'],32),frame,'sha256'));self.assertEqual(proof,fixture['proof'])
@@ -75,7 +75,7 @@ class WireTests(unittest.TestCase):
         wire.verify_signature(fixture['client_public_key'],fixture['pair_signature'],signed)
         request=wire.request_message(fixture['host_id'],fixture['device_id'],int(fixture['sequence']),fixture['request_id'],fixture['route'],fixture['request_body'].encode())
         self.assertEqual(request.decode(),fixture['request_frame']);wire.verify_signature(fixture['client_public_key'],fixture['request_signature'],request)
-        names=json.loads((Path(__file__).resolve().parents[2]/'Tests/Fixtures/paired-device-names-v1.json').read_text())
+        names=json.loads((Path(__file__).resolve().parents[2]/'Tests/Fixtures/paired-device-names-v1.json').read_text(encoding='utf-8'))
         for name in names['accepted']:self.assertEqual(wire.device_name(name),name)
         for name in names['rejected']:
             with self.assertRaises(ValueError):wire.device_name(name)

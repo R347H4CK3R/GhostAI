@@ -95,5 +95,8 @@ class IgnoreSafetyTests(unittest.TestCase):
         root=Path(__file__).resolve().parents[2]
         names=['identity-key.pem','identity-key-protection.bin','identity-cert.pem','identity.json','host-config.json','paired.sqlite','paired.sqlite-journal','paired.sqlite-wal','paired-audit.sqlite','paired-audit.sqlite-shm','paired-host.lock','paired-dispatch.lock']
         paths=['synthetic-private/'+name for name in names]
-        result=subprocess.run(['git','check-ignore','--no-index','--stdin'],input='\n'.join(paths+['companion/paired_identity.py'])+'\n',cwd=root,text=True,capture_output=True,check=False)
-        self.assertEqual(set(result.stdout.splitlines()),set(paths))
+        # Binary NUL framing avoids platform newline translation and Git's
+        # quoted-path output while preserving the exact protected filenames.
+        result=subprocess.run(['git','check-ignore','--no-index','--stdin','-z'],input=('\0'.join(paths+['companion/paired_identity.py'])+'\0').encode('utf-8'),cwd=root,capture_output=True,check=False)
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertEqual(set(result.stdout.decode('utf-8').split('\0')[:-1]),set(paths))
