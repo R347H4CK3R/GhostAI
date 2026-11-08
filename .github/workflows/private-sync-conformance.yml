@@ -1,0 +1,191 @@
+name: Private sync conformance seed (not release-ready)
+"on":
+  push:
+    branches: [feature/private-sync-conformance]
+permissions:
+  contents: read
+concurrency:
+  group: private-sync-conformance-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  python:
+    name: Python seed checks (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    env:
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@v4
+        id: checkout
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        id: python
+        with:
+          python-version: '3.12'
+      - name: Record exact source and tracked diff
+        run: python -m scripts.sync_conformance_ci provenance --expected-sha "$GITHUB_SHA" --output build/sync-conformance/provenance-start.json
+      - name: Install pinned test dependencies
+        id: dependencies
+        run: python -m pip install -r companion/requirements-pairing.txt
+      - name: Companion tests (seed only)
+        if: ${{ success() }}
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s companion/tests -v 2>&1 | tee build/sync-conformance/companion-tests.log
+      - name: Full POSIX script tests (pending golden is an explicit seed skip)
+        if: ${{ always() && steps.dependencies.outcome == 'success' && runner.os != 'Windows' }}
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s scripts/tests -v 2>&1 | tee build/sync-conformance/script-tests.log
+      - name: Portable Windows script conformance tests
+        if: ${{ always() && steps.dependencies.outcome == 'success' && runner.os == 'Windows' }}
+        run: |
+          set -euo pipefail
+          python -m unittest scripts.tests.test_private_memory_sync_reference scripts.tests.test_private_sync_interop scripts.tests.test_sync_conformance_ci -v 2>&1 | tee build/sync-conformance/script-tests.log
+      - name: Record final tracked source diff
+        if: ${{ always() && steps.checkout.outcome == 'success' && steps.python.outcome == 'success' }}
+        run: python -m scripts.sync_conformance_ci provenance --expected-sha "$GITHUB_SHA" --output build/sync-conformance/provenance-finish.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: private-sync-seed-python-${{ matrix.os }}-${{ github.sha }}
+          path: build/sync-conformance/
+          if-no-files-found: warn
+          retention-days: 14
+
+  android:
+    name: Android seed unit tests, lint and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        id: checkout
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        id: python
+        with:
+          python-version: '3.12'
+      - name: Record exact source and tracked diff
+        run: python -m scripts.sync_conformance_ci provenance --expected-sha "$GITHUB_SHA" --output build/sync-conformance/provenance-start.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          accept-android-sdk-licenses: false
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Test, lint and build without publishing an APK
+        working-directory: android
+        run: |
+          set -euo pipefail
+          gradle --no-daemon :app:testDebugUnitTest :app:lintDebug :app:assembleDebug 2>&1 | tee ../build/sync-conformance/android-checks.log
+      - name: Record final tracked source diff
+        if: ${{ always() && steps.checkout.outcome == 'success' && steps.python.outcome == 'success' }}
+        run: python -m scripts.sync_conformance_ci provenance --expected-sha "$GITHUB_SHA" --output build/sync-conformance/provenance-finish.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: private-sync-seed-android-${{ github.sha }}
+          path: |
+            build/sync-conformance/
+            android/app/build/reports/
+            android/app/build/test-results/
+          if-no-files-found: warn
+          retention-days: 14
+
+  native-seed:
+    name: Native golden export seed (not release-ready)
+    runs-on: macos-15
+    timeout-minutes: 50
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        id: checkout
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        id: python
+        with:
+          python-version: '3.12'
+      - name: Record exact source and tracked diff
+        run: python -m scripts.sync_conformance_ci provenance --expected-sha "$GITHUB_SHA" --output build/sync-conformance/provenance-start.json
+      - name: Select Xcode 26 and prepare synthetic export
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          XCODE=$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' | sort -V | tail -1)
+          test -n "$XCODE" || { echo 'Xcode 26 is required'; exit 1; }
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version | tee build/sync-conformance/xcode-version.txt
+          python --version | tee build/sync-conformance/python-version.txt
+          python -m pip install -r companion/requirements-sync.txt
+          brew install xcodegen
+          xcodegen generate
+      - name: Boot one owned iOS 26 simulator
+        timeout-minutes: 6
+        run: python scripts/ci_simulator.py boot --output build/sync-conformance/simulator --github-env "$GITHUB_ENV"
+      - name: Export actual synthetic native vectors (seed phase)
+        id: native-tests
+        timeout-minutes: 15
+        run: |
+          set -euo pipefail
+          xcodebuild test -project AsterionVeyra.xcodeproj -scheme AsterionVeyra \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -destination-timeout 120 \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 180 \
+            -only-testing:AsterionVeyraTests/PrivateMemorySyncInteropTests/testExportSyntheticNativeGoldenVectors \
+            -derivedDataPath build/SyncInteropDerivedData \
+            -resultBundlePath build/sync-conformance/SyncInterop.xcresult \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee build/sync-conformance/native-tests.log
+      - name: Export retained native attachment even after a test failure
+        id: export
+        if: ${{ always() && steps.native-tests.outcome != 'skipped' }}
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          test -d build/sync-conformance/SyncInterop.xcresult
+          xcrun xcresulttool export attachments --path build/sync-conformance/SyncInterop.xcresult \
+            --output-path build/sync-conformance/attachments
+      - name: Require one actual export and pass its primitive/convergence gate
+        if: ${{ always() && steps.export.outcome == 'success' }}
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          python -m scripts.sync_conformance_ci select-export \
+            --attachments build/sync-conformance/attachments \
+            --output build/sync-conformance/native-export.json | tee build/sync-conformance/selection.json
+          python -m scripts.private_sync_interop build/sync-conformance/native-export.json 2>&1 | tee build/sync-conformance/export-gate.log
+          echo 'Seed artifact verified. Committed goldens and no-skip full native/platform gates are still required; NOT release-ready.'
+      - name: Shut down only this job's owned simulator
+        if: ${{ always() && env.SIMULATOR_ID != '' }}
+        timeout-minutes: 2
+        run: python scripts/ci_simulator.py shutdown --output build/sync-conformance/simulator --simulator-id "$SIMULATOR_ID"
+      - name: Record final tracked source diff
+        if: ${{ always() && steps.checkout.outcome == 'success' && steps.python.outcome == 'success' }}
+        timeout-minutes: 1
+        run: python -m scripts.sync_conformance_ci provenance --expected-sha "$GITHUB_SHA" --output build/sync-conformance/provenance-finish.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: private-sync-native-seed-${{ github.sha }}
+          path: build/sync-conformance/
+          if-no-files-found: warn
+          retention-days: 14

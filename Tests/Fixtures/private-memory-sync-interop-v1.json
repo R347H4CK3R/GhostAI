@@ -1,0 +1,5 @@
+{
+  "format": "veyra-private-sync-interop-v1",
+  "status": "pending-native-export",
+  "reason": "No expected Foundation bytes are fabricated. Replace only with the synthetic XCTest attachment from Xcode 26, then rerun native comparison and portable checks. See docs/PRIVATE_MEMORY_SYNC_INTEROP.md."
+}
