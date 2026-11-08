@@ -160,6 +160,20 @@ handles and current-user DPAPI protecting the password for encrypted PKCS8. No
 plaintext temporary key file is created. This does not defend against malware
 running as the same local OS account; all private ancestry must remain trusted.
 
+The Windows candidate also rechecks the protected state directory and every direct
+state artifact before mutable operations, including registry/audit SQLite sidecars,
+checkpoints, temporary files and locks. Mutable files require current-user ownership
+and only current-user/SYSTEM full-control ACEs; inherited ACEs from the protected
+parent are allowed. Broad/null/unsupported DACLs, wrong owners, links and unexpected
+subdirectories are refused without repairing permissions or resetting state.
+A private parent alone is insufficient because Windows bypass-traverse privileges
+can expose a known child with its own permissive DACL. Mutable-file checks use
+metadata-only handles compatible with SQLite, byte-range locks and replacement;
+they do not weaken the stricter identity reader. Short storage operations are
+serialized, but model/tool execution does not hold the host lock, so cancellation
+and status requests remain available. Same-account hostile concurrent changes are
+still outside the protection boundary.
+
 ## Protocol and durable execution
 
 App-facing routes:
@@ -209,6 +223,13 @@ replay/revocation, durable jobs, actual bounded file reads, setup rejection and
 Git-location/private-storage guards. Use a temporary directory outside Git; this
 authoring runtime requires `TMPDIR=/dev/shm` because its normal temp/workspace roots
 contain `.git` markers. No marker is removed or masked for testing.
+
+Native mutable-storage regression tests are authored but must run on Windows:
+approved setup → enrollment/approval → bounded synthetic job → audit/checkpoint →
+close/reopen/result recovery, plus broad/null/wrong-owner/unsupported ACL cases for
+all artifact classes and directory weakening during execution. If a test token
+cannot assign a different owner, that skip is missing evidence, not a pass.
+The Windows release flag remains false pending that run and independent review.
 
 Required native evidence remains: Windows DACL/DPAPI and full setup, Swift compile
 and XCTest, actual Keychain/passcode/restore, TLS rejection before bytes, Host on

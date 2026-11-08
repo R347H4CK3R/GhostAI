@@ -97,5 +97,10 @@ with patch.object(os,'link',interrupted):
         result=subprocess.run([sys.executable,'-c',source,str(self.state),self.host.host_id,json.dumps(self.project)],cwd=Path(__file__).resolve().parents[2],capture_output=True,timeout=10)
         self.assertEqual(result.returncode,77,result.stderr.decode(errors='replace'))
         checkpoint=self.state/(job['job_id']+'.json');self.assertEqual(checkpoint.stat().st_nlink,2)
-        self.reopen();result=run_next(self.host,transport=lambda _:self.fail('uncertain checkpoint reexecuted'))
-        self.assertEqual(result['status'],'failed');self.assertEqual(result['error_code'],'checkpoint_unavailable')
+        if os.name=='nt':
+            # The Windows directory-wide guard rejects the unsafe hardlink before
+            # any registry mutation, rather than waiting for checkpoint recovery.
+            with self.assertRaises(ValueError):self.reopen()
+        else:
+            self.reopen();result=run_next(self.host,transport=lambda _:self.fail('uncertain checkpoint reexecuted'))
+            self.assertEqual(result['status'],'failed');self.assertEqual(result['error_code'],'checkpoint_unavailable')

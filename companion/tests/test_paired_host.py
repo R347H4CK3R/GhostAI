@@ -20,11 +20,17 @@ if SPEC:
 
 def encoded(value):return json.dumps(value,ensure_ascii=False,separators=(',',':')).encode()
 
+def private_state(path):
+    if os.name=='nt':
+        from companion.paired_windows import create_private_directory
+        create_private_directory(path)
+    else:path.mkdir(mode=0o700)
+
 class HostCase(unittest.TestCase):
     def setUp(self):
         self.assertIsNotNone(SPEC,'paired host must be reconstructed')
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
-        self.root=Path(self.temp.name).resolve();self.state=self.root/'state';self.state.mkdir(mode=0o700)
+        self.root=Path(self.temp.name).resolve();self.state=self.root/'state';private_state(self.state)
         self.work=self.root/'work';self.work.mkdir();(self.work/'input.txt').write_text('Synthetic observation.')
         self.project=dict(project_id=PROJECT,label='Synthetic',workspace=str(self.work),permission_revision=1,model='local-model',trust_local_model=True,limits=dict(DEFAULT_LIMITS))
         self.host=PairedHost(self.state,HOST,[self.project],create=True);self.addCleanup(lambda:self.host.close())

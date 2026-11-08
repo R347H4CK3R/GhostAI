@@ -44,7 +44,7 @@ class PairedHost:
             checked=self._validate_project(project)
             if checked['project_id'] in self._projects:raise wire.ProtocolError()
             self._projects[checked['project_id']]=checked
-        owner=_job_lock(self.state_dir/'paired-host.lock');owner.__enter__();self._owner_lock=owner
+        owner=_job_lock(self.state_dir/'paired-host.lock',storage_check=self._location);owner.__enter__();self._owner_lock=owner
         try:
             if create:
                 descriptor=os.open(self.path,os.O_WRONLY|os.O_CREAT|os.O_EXCL|getattr(os,'O_NOFOLLOW',0),0o600);os.close(descriptor);self._initialize()
@@ -57,9 +57,13 @@ class PairedHost:
                 db.execute("UPDATE devices SET state='expired' WHERE state='pending'")
         except BaseException:self.close();raise
     def _location(self):
-        from .paired_identity import require_non_repository_state
-        require_non_repository_state(self.state_dir);check_links(self.state_dir);info=self.state_dir.stat()
-        if not stat.S_ISDIR(info.st_mode) or (os.name!='nt' and (info.st_mode&0o077 or info.st_uid!=os.geteuid())):raise wire.ProtocolError('state_unavailable')
+        with self.lock:
+            from .paired_identity import require_non_repository_state
+            require_non_repository_state(self.state_dir);check_links(self.state_dir);info=self.state_dir.stat()
+            if not stat.S_ISDIR(info.st_mode) or (os.name!='nt' and (info.st_mode&0o077 or info.st_uid!=os.geteuid())):raise wire.ProtocolError('state_unavailable')
+            if os.name=='nt':
+                from .paired_windows import validate_mutable_state
+                validate_mutable_state(self.state_dir)
     def close(self):
         with self.lock:
             self.invites.clear()
@@ -85,13 +89,13 @@ CREATE TABLE jobs(job_id TEXT PRIMARY KEY,device_id TEXT NOT NULL REFERENCES dev
 CREATE TABLE cancellations(device_id TEXT NOT NULL,cancellation_id TEXT NOT NULL,job_id TEXT NOT NULL REFERENCES jobs(job_id),raw BLOB NOT NULL,PRIMARY KEY(device_id,cancellation_id));
 COMMIT;''')
             db.execute('BEGIN IMMEDIATE');db.executemany('INSERT INTO metadata VALUES (?,?)',[('schema','1'),('host_id',self.host_id)])
-            db.executemany('INSERT INTO projects VALUES (?,?)',[(key,dump(value)) for key,value in self._projects.items()]);db.commit()
+            db.executemany('INSERT INTO projects VALUES (?,?)',[(key,dump(value)) for key,value in self._projects.items()]);self._location();db.commit();self._location()
         finally:db.close()
     @contextmanager
     def transaction(self):
         with self.lock:
             db=self._connect()
-            try:db.execute('BEGIN IMMEDIATE');yield db;db.commit()
+            try:db.execute('BEGIN IMMEDIATE');yield db;self._location();db.commit();self._location()
             except BaseException:db.rollback();raise
             finally:db.close()
     def _validate_project(self,value):

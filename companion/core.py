@@ -1,4 +1,5 @@
 """Bounded, offline operations. No model, network client, or shell executor."""
+from contextlib import contextmanager
 import hashlib
 import json
 import os
@@ -36,18 +37,37 @@ def load_plan(raw):
 
 class Memory:
     """Local plaintext SQLite store. Explicit entries only, separated by project."""
-    def __init__(self, path):
+    def __init__(self, path, *, storage_check=None):
+        self.storage_check = storage_check
+        self._check_storage()
         self.db = sqlite3.connect(path)
-        self.db.row_factory = sqlite3.Row
-        self.db.executescript('''
-            PRAGMA secure_delete=ON;
-            CREATE TABLE IF NOT EXISTS memories (
-                id TEXT PRIMARY KEY, project TEXT NOT NULL, body TEXT NOT NULL,
-                source TEXT NOT NULL, created REAL NOT NULL);
-            CREATE TABLE IF NOT EXISTS tasks (
-                id TEXT PRIMARY KEY, status TEXT NOT NULL, steps INTEGER NOT NULL,
-                error TEXT, created REAL NOT NULL);
-        ''')
+        try:
+            self._check_storage()
+            self.db.row_factory = sqlite3.Row
+            self.db.executescript('''
+                PRAGMA secure_delete=ON;
+                CREATE TABLE IF NOT EXISTS memories (
+                    id TEXT PRIMARY KEY, project TEXT NOT NULL, body TEXT NOT NULL,
+                    source TEXT NOT NULL, created REAL NOT NULL);
+                CREATE TABLE IF NOT EXISTS tasks (
+                    id TEXT PRIMARY KEY, status TEXT NOT NULL, steps INTEGER NOT NULL,
+                    error TEXT, created REAL NOT NULL);
+            ''')
+            self._check_storage()
+        except BaseException:
+            self.db.close()
+            raise
+
+    def _check_storage(self):
+        if self.storage_check: self.storage_check()
+
+    @contextmanager
+    def _transaction(self):
+        self._check_storage()
+        with self.db:
+            yield
+            self._check_storage()
+        self._check_storage()
 
     def close(self):
         self.db.close()
@@ -60,25 +80,27 @@ class Memory:
         if any(credential.search(value) for value in (project, body, source)):
             raise ValueError('Possible credential rejected; do not store secrets in memory')
         ident = str(uuid.uuid4())
-        with self.db:
+        with self._transaction():
             self.db.execute('INSERT INTO memories VALUES (?,?,?,?,?)', (ident, project, body, source, time.time()))
         return ident
 
     def search(self, project, query):
+        self._check_storage()
         return [dict(row) for row in self.db.execute(
             'SELECT * FROM memories WHERE project=? AND instr(lower(body),lower(?))>0 ORDER BY created DESC LIMIT 100',
             (project, query))]
 
     def delete(self, ident):
-        with self.db:
+        with self._transaction():
             return self.db.execute('DELETE FROM memories WHERE id=?', (ident,)).rowcount > 0
 
     def audit(self, ident, status, steps, error):
-        with self.db:
+        with self._transaction():
             self.db.execute('INSERT OR REPLACE INTO tasks VALUES (?,?,?,?,?)',
                             (ident, status, steps, error, time.time()))
 
     def tasks(self):
+        self._check_storage()
         return [dict(row) for row in self.db.execute('SELECT * FROM tasks ORDER BY created DESC LIMIT 100')]
 
 

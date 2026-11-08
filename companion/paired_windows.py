@@ -1,8 +1,9 @@
 """Native DACL and user-bound DPAPI candidate, behind the identity release gate.
 
 No shell or plaintext fallback. Only fixed local drives; reparse ancestry and
-hardlinks are rejected. Checked handles deny file writes/deletes and ancestor
-renames. This code still requires actual Windows CI and independent review.
+hardlinks are rejected. Identity handles deny file writes/deletes and ancestor
+renames. Mutable state uses separate metadata-only checks, preserving SQLite and
+checkpoint writes. This code still requires actual Windows CI and independent review.
 """
 from contextlib import contextmanager, ExitStack
 import ctypes
@@ -127,7 +128,7 @@ class _API:
         finally:
             self.kernel.LocalFree(descriptor)
 
-    def verify_acl(self, handle, *, directory):
+    def verify_acl(self, handle, *, directory, mutable=False):
         owner, dacl, descriptor = ctypes.c_void_p(), ctypes.c_void_p(), ctypes.c_void_p()
         _require(self.advapi.GetSecurityInfo(handle, 1, 0x00000005, ctypes.byref(owner), None,
                     ctypes.byref(dacl), None, ctypes.byref(descriptor)) == 0)
@@ -135,7 +136,10 @@ class _API:
             _require(self._sid_text(owner) == self.sid and dacl.value)
             control, revision = wintypes.WORD(), wintypes.DWORD()
             _require(self.advapi.GetSecurityDescriptorControl(descriptor, ctypes.byref(control), ctypes.byref(revision)))
-            _require(control.value & 0x0004 and control.value & 0x1000)
+            _require(control.value & 0x0004)
+            # Identity and directory ACLs stay protected and exact. Mutable files
+            # are normally created by SQLite/Python and inherit the private DACL.
+            if not mutable: _require(control.value & 0x1000)
             acl = ctypes.cast(dacl, ctypes.POINTER(_ACL)).contents
             _require(1 <= acl.count <= 2 and acl.size >= ctypes.sizeof(_ACL))
             found = set()
@@ -144,7 +148,8 @@ class _API:
                 _require(self.advapi.GetAce(dacl, index, ctypes.byref(pointer)))
                 ace = ctypes.cast(pointer, ctypes.POINTER(_ACE)).contents
                 _require(ace.type == 0 and ace.size >= ctypes.sizeof(_ACE) + 8)
-                _require(ace.flags == (0x03 if directory else 0) and ace.mask == 0x001F01FF)
+                allowed_flags = (0, 0x10) if mutable and not directory else (0x03 if directory else 0,)
+                _require(ace.flags in allowed_flags and ace.mask == 0x001F01FF)
                 sid = ctypes.c_void_p(pointer.value + ctypes.sizeof(_ACE))
                 _require(self.advapi.IsValidSid(sid))
                 _require(ctypes.sizeof(_ACE) + self.advapi.GetLengthSid(sid) <= ace.size)
@@ -176,6 +181,19 @@ class _API:
             yield handle
             self.information(handle, directory=directory)
             if private: self.verify_acl(handle, directory=directory)
+        finally:
+            self.kernel.CloseHandle(handle)
+
+
+    def verify_mutable_file(self, path):
+        # READ_CONTROL only; SHARE_READ|WRITE|DELETE permits SQLite journals,
+        # held byte-range locks and atomic checkpoint replacement. Unlike the
+        # identity reader, this is a metadata check, not a lifetime write lock.
+        handle = self.kernel.CreateFileW(str(path), 0x00020000, 7, None, 3, 0x02200000, None)
+        _require(handle not in (None, ctypes.c_void_p(-1).value))
+        try:
+            self.information(handle, directory=False)
+            self.verify_acl(handle, directory=False, mutable=True)
         finally:
             self.kernel.CloseHandle(handle)
 
@@ -282,6 +300,19 @@ def private_directory(value):
             _guard(value)
     except (OSError, TypeError):
         raise WindowsStorageError() from None
+
+
+def validate_mutable_state(value):
+    """Refuse unsafe existing state, including sidecars, locks and temporary files.
+
+    The protected directory establishes safe inheritance for newly created files.
+    Check every direct child rather than relying on its parent ACL: Windows
+    bypass-traverse privileges can expose a known permissive child. No ACL is
+    repaired. Concurrent hostile changes by the same OS account are out of scope.
+    """
+    with private_directory(value) as directory:
+        for name in directory.names():
+            _api().verify_mutable_file(directory.path / name)
 
 
 def create_private_directory(value):

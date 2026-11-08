@@ -22,7 +22,7 @@ from companion.paired_host import PairedHost
 from companion import paired_protocol as wire
 from companion.autonomy import DEFAULT_LIMITS
 from companion.tests.test_paired_protocol import HOST,b64,public,sign
-from companion.tests.test_paired_host import PROJECT,encoded
+from companion.tests.test_paired_host import PROJECT,encoded,private_state
 from companion.tests.test_autonomy import plan,read,complete
 SPEC=importlib.util.find_spec('companion.paired_https')
 if SPEC:from companion.paired_https import PairedHTTPSService
@@ -39,7 +39,7 @@ class HTTPSIntegrationTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.assertIsNotNone(SPEC,'HTTPS adapter must be reconstructed')
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup);self.root=Path(self.temp.name).resolve()
-        self.state=self.root/'state';self.state.mkdir(mode=0o700);self.work=self.root/'work';self.work.mkdir();(self.work/'input.txt').write_text('Synthetic HTTPS observation.')
+        self.state=self.root/'state';private_state(self.state);self.work=self.root/'work';self.work.mkdir();(self.work/'input.txt').write_text('Synthetic HTTPS observation.')
         project=dict(project_id=PROJECT,label='Synthetic',workspace=str(self.work),permission_revision=1,model='local-model',trust_local_model=True,limits=dict(DEFAULT_LIMITS))
         self.host=PairedHost(self.state,HOST,[project],create=True);self.addCleanup(self.host.close)
         self.server_context,self.client_context,pin=synthetic_tls(self.root)

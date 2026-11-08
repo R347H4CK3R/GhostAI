@@ -9,7 +9,14 @@ from .paired_host import JOB_TERMINAL,QUEUE_TTL,counters,dump,regular
 from . import paired_protocol as wire
 
 class JobAudit(Memory):
+    def __init__(self,path,host):
+        self.host=host
+        with host.lock:super().__init__(path,storage_check=host._location)
     def search(self,project,query):return []  # Grants never imply access to old notes.
+    def audit(self,*args):
+        with self.host.lock:super().audit(*args)
+    def close(self):
+        with self.host.lock:super().close()
 
 class Cancellation:
     def __init__(self,host,job):self.host=host;self.job=job
@@ -20,12 +27,15 @@ class PairedJob(AutonomousJob):
         self.host=host;self.job_id=wire.identifier(row['job_id']);self.internal_id=row['internal_id']
         if self.internal_id is not None:wire.identifier(self.internal_id)
         project=snapshot['project']
-        super().__init__(project['workspace'],memory,host.state_dir/(self.job_id+'.json'),trust_local_model=True,write_paths=(),limits=snapshot['limits'],cancel=Cancellation(host,self.job_id),transport=transport)
+        super().__init__(project['workspace'],memory,host.state_dir/(self.job_id+'.json'),trust_local_model=True,write_paths=(),limits=snapshot['limits'],cancel=Cancellation(host,self.job_id),transport=transport,storage_check=host._location)
     def _save(self,*,create=False):
         wire.identifier(self.state['id'])
         if self.internal_id is not None and self.state['id']!=self.internal_id:raise wire.ProtocolError('checkpoint_unavailable')
-        super()._save(create=create)
-        self.publish()
+        # Serialize only local I/O, never a model/tool call. Directory scans must
+        # not observe our own short-lived hardlink or disappearing SQLite journal.
+        with self.host.lock:
+            super()._save(create=create)
+            self.publish()
     def publish(self):
         # A terminal checkpoint may outlive its final SQLite publication.
         # Republish its already validated state, never rerun a model or tool.
@@ -42,7 +52,7 @@ def finish(host,job,status,error=None):
 
 def run_next(host,*,transport=None):
     """Synthetic model injection is local trusted code only, never a wire field."""
-    with _job_lock(host.state_dir/'paired-dispatch.lock'):
+    with _job_lock(host.state_dir/'paired-dispatch.lock',storage_check=host._location):
         with host.transaction() as db:
             row=db.execute("SELECT * FROM jobs WHERE status IN ('starting','running','queued') ORDER BY CASE WHEN status='queued' THEN 1 ELSE 0 END,created,job_id LIMIT 1").fetchone()
             if row is None:return None
@@ -73,7 +83,7 @@ def run_next(host,*,transport=None):
         path=host.state_dir/(job_id+'.json');resume=row['status']!='queued'
         if resume:
             try:
-                checkpoint=read_job(path)
+                checkpoint=read_job(path,storage_check=host._location)
                 wire.identifier(checkpoint['id'])
                 if row['internal_id'] is not None and checkpoint['id']!=row['internal_id']:raise wire.ProtocolError()
             except (ValueError,OSError):return finish(host,job_id,'failed','checkpoint_unavailable')
@@ -85,7 +95,7 @@ def run_next(host,*,transport=None):
             if audit.exists() or audit.is_symlink():regular(audit)
             else:
                 descriptor=os.open(audit,os.O_WRONLY|os.O_CREAT|os.O_EXCL|getattr(os,'O_NOFOLLOW',0),0o600);os.close(descriptor)
-            memory=JobAudit(audit)
+            memory=JobAudit(audit,host)
             runner=PairedJob(host,row,snapshot,memory,transport)
             result=runner.run(snapshot['goal'],row['project_id'],project['model'],resume=resume)
             if result['status'] not in JOB_TERMINAL:raise wire.ProtocolError('checkpoint_unavailable')

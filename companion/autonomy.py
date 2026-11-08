@@ -82,16 +82,19 @@ def _regular(path):
         raise PlanError('Job files must be regular, non-hardlinked files')
 
 
-def read_job(path):
+def read_job(path, *, storage_check=None):
     """Read a bounded checkpoint without contacting a model or executing tools."""
     path = Path(os.path.abspath(path))
+    if storage_check: storage_check()
     _regular(path)
     flags = os.O_RDONLY | getattr(os, 'O_BINARY', 0) | getattr(os, 'O_NOFOLLOW', 0)
     with os.fdopen(os.open(path, flags), 'rb') as handle:
         info = os.fstat(handle.fileno())
         if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
             raise PlanError('Invalid job file')
+        if storage_check: storage_check()
         raw = handle.read(MAX_STATE_BYTES + 1)
+    if storage_check: storage_check()
     if len(raw) > MAX_STATE_BYTES:
         raise PlanError('Job checkpoint exceeds size limit')
     # load_plan supplies strict duplicate-key and non-finite rejection; its 1 MiB
@@ -175,13 +178,15 @@ def read_job(path):
 
 
 @contextmanager
-def _job_lock(path):
+def _job_lock(path, *, storage_check=None):
     """OS lock survives atomic checkpoint replacement, releases on process exit."""
+    if storage_check: storage_check()
     check_links(path.parent)
     if path.exists() or path.is_symlink():
         _regular(path)
     flags = os.O_RDWR | os.O_CREAT | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_BINARY', 0)
     with os.fdopen(os.open(path, flags, 0o600), 'r+b', buffering=0) as handle:
+        if storage_check: storage_check()
         info = os.fstat(handle.fileno())
         if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
             raise PlanError('Invalid job lock')
@@ -198,6 +203,7 @@ def _job_lock(path):
         except OSError as error:
             raise PlanError('Job is already running; do not start a second writer') from error
         try:
+            if storage_check: storage_check()
             yield
         finally:
             if os.name == 'nt':
@@ -221,9 +227,11 @@ class _JobRunner(Runner):
 class AutonomousJob:
     """Foreground finite loop; injected byte transport is for trusted tests only."""
     def __init__(self, workspace, memory, state_path, *, trust_local_model=False,
-                 write_paths=(), limits=None, cancel=None, transport=None):
+                 write_paths=(), limits=None, cancel=None, transport=None, storage_check=None):
         if trust_local_model is not True:
             raise PlanError('Autonomy requires explicit --trust-local-model')
+        self.storage_check = storage_check
+        self._check_storage()
         self.cancel = cancel if cancel is not None else threading.Event()
         self.runner = _JobRunner(workspace, memory, allow_writes=bool(write_paths),
                                  cancel=self.cancel, job_checkpoint=self._checkpoint)
@@ -242,7 +250,11 @@ class AutonomousJob:
         self.limits = _limits(limits)
         self.transport = transport
 
+    def _check_storage(self):
+        if self.storage_check: self.storage_check()
+
     def _save(self, *, create=False):
+        self._check_storage()
         raw = _json(self.state)
         if len(raw) > MAX_STATE_BYTES:
             raise PlanError('Checkpoint size budget exceeded')
@@ -252,9 +264,11 @@ class AutonomousJob:
         fd, temporary = tempfile.mkstemp(prefix='.veyra-job-', dir=self.path.parent)
         try:
             with os.fdopen(fd, 'wb') as handle:
+                self._check_storage()
                 handle.write(raw)
                 handle.flush()
                 os.fsync(handle.fileno())
+            self._check_storage()
             if create:
                 os.link(temporary, self.path)
             else:
@@ -270,11 +284,13 @@ class AutonomousJob:
         finally:
             if os.path.exists(temporary):
                 os.unlink(temporary)
+        self._check_storage()
 
     def _remaining(self):
         return min(self.state['deadline'] - time.time(), self.deadline - time.monotonic())
 
     def _checkpoint(self):
+        self._check_storage()
         if self.cancel.is_set():
             raise InterruptedError('Cancelled')
         if self._remaining() <= 0:
@@ -435,9 +451,9 @@ class AutonomousJob:
         config = {'workspace': str(self.runner.root), 'goal': goal, 'project': project,
                   'model': model, 'endpoint': LOCAL_ENDPOINT,
                   'write_paths': self.write_paths, 'limits': self.limits}
-        with _job_lock(self.path.with_name(self.path.name + '.lock')):
+        with _job_lock(self.path.with_name(self.path.name + '.lock'), storage_check=self._check_storage):
             if resume:
-                self.state = read_job(self.path)
+                self.state = read_job(self.path, storage_check=self._check_storage)
                 if self.state['configuration'] != config:
                     raise PlanError('Resume requires the same goal, workspace, project, model, write scope and limits')
                 if self.state['status'] in TERMINAL:
