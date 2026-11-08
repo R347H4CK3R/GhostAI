@@ -283,7 +283,8 @@ import Combine
                 verifiedImportHistory = merged
                 try await save(queue, passphrase: stored.passphrase, id: id); try check(id)
                 let raw = try merged.encoded()
-                if fetched.encrypted == nil || raw != (try remote.encoded()) {
+                let remoteRaw = try remote.encoded()
+                if fetched.encrypted == nil || raw != remoteRaw {
                     let encrypted = try await Task.detached(priority: .utility) { try EncryptedMemoryTransfer.encryptSyncPayload(raw, passphrase: stored.passphrase) }.value
                     try check(id)
                     let committed = try await client.put(encrypted, configuration: config, expectedSHA: fetched.sha)
