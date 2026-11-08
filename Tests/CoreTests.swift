@@ -84,3 +84,17 @@ final class BackupRecoveryTests: XCTestCase {
         XCTAssertEqual(try String(contentsOf: XCTUnwrap(preserved), encoding: .utf8), "broken")
     }
 }
+
+final class ProjectMemoryToolTests: XCTestCase {
+    func testToolCannotReadAnotherProject() async throws {
+        let tool = ProjectMemoryTool(notes: [MemoryNote(project: "a/b", text: "Use SwiftUI", source: "manual"), MemoryNote(project: "c/d", text: "Other private project", source: "manual")], project: "a/b")
+        let output = try await tool.call(arguments: .init(query: "private"))
+        XCTAssertTrue(output.contains("Use SwiftUI"))
+        XCTAssertFalse(output.contains("Other private project"))
+    }
+    func testEmptyProjectReportsNoEvidence() async throws {
+        let tool = ProjectMemoryTool(notes: [], project: "a/b")
+        let output = try await tool.call(arguments: .init(query: "anything"))
+        XCTAssertEqual(output, "No saved notes exist for this project.")
+    }
+}

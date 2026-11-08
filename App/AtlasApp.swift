@@ -151,6 +151,7 @@ struct MemoryView: View {
     }
 }
 struct AboutView: View {
+    @EnvironmentObject var store: AssistantStore
     var body: some View {
         NavigationStack {
             List {
@@ -158,6 +159,12 @@ struct AboutView: View {
                 Section("Works offline") { Text("Saved notes, chat history, retrieved project context and available Apple on-device inference. GitHub discovery and fresh source need internet. No cloud AI requests are made.") }
                 Section("Current scope") { Text("Public GitHub repositories; source explanation and proposed edits; local note search. Private repositories, GitHub writes, voice, hosted models, cross-device sync and autonomous execution are not implemented.") }
                 Section("Real limits") { Text("Requires iOS 26 and available Apple Intelligence. Context, storage, battery and background execution are finite. The app cannot control arbitrary installed apps or run Xcode. No guarantee of unlimited knowledge or perfect recall.") }
+                Section("Runtime diagnostics") {
+                    Text(ProcessInfo.processInfo.operatingSystemVersionString)
+                    Text("App bundle: " + (Bundle.main.bundleIdentifier ?? "Unknown"))
+                    Text(store.modelStatus)
+                    Text("A container may change the apparent bundle identity. Availability is not proof of successful generation. Test a harmless question and note persistence before relying on this installation.").font(.caption)
+                }
                 Section("Privacy") { Text("GitHub receives requested usernames, repositories and file paths. Saved data uses iOS file protection and stays in Application Support. Device backups may include it. Uninstalling can delete it. Export important notes before changing devices. Pattern-based secret detection is incomplete.") }
             }.navigationTitle("Capabilities")
         }

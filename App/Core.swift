@@ -1,6 +1,6 @@
 import Foundation
 
-struct MemoryNote: Identifiable, Codable, Equatable {
+struct MemoryNote: Identifiable, Codable, Equatable, Sendable {
     var id = UUID()
     var project: String
     var text: String

@@ -10,9 +10,10 @@ A personal assistant project with a native iPhone coding client, Android offline
 - Apple Foundation Models chat when the system model is available, explicit cancellation and project-scoped context.
 - Persisted chat and notes in Application Support using atomic writes and iOS complete file protection.
 - Offline keyword-ranked retrieval of saved notes. Save selected source excerpts with repository/path/commit provenance. A saved excerpt remains available offline; browsing uncached source still needs network.
+- Model-callable, read-only offline memory search constrained to the selected project.
 - Reviewable suggestions and answer/note export. No automatic execution or remote writes.
 - Read-only anonymous GitHub requests, redirect rejection, streamed response limits, and text-file size checks.
-- Twelve XCTest cases for scope/budget, validation, secret warnings, persistence and corruption behavior, backup validation and import deduplication.
+- Fourteen XCTest cases for scope/budget, validation, secret warnings, persistence and corruption behavior, backup validation and import deduplication.
 
 ## Requirements
 An Apple Intelligence-capable iPhone or iPad, iOS/iPadOS 26+, and Apple Intelligence enabled with the system model available. Local inference availability depends on device settings, language, region and downloaded assets. The app displays unavailable states instead of pretending it generated an answer.
@@ -61,3 +62,7 @@ Private GitHub authentication, GitHub modifications, automatic plan/act/replan l
 
 ## Verification in the authoring environment
 The authoring Linux environment has neither Swift nor Xcode; native verification runs separately in GitHub Actions. XCTest was authored before implementation but could not execute; there is no red/green execution claim. Static checks for project references, workflow structure and secret literals can run here; they cannot establish type correctness, UI quality, runtime safety or installability. Device testing remains required.
+
+## Strata
+
+See [Strata packaging and runtime validation](docs/STRATA.md). The normal unsigned IPA shape matches the documented importer, but Apple-model operation in a guest must be tested on-device.

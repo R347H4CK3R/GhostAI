@@ -55,10 +55,11 @@ jobs:
       - run: brew install xcodegen
       - run: xcodegen generate
       - name: Unit tests
+        timeout-minutes: 20
         run: |
           set -euo pipefail
           DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; ds=json.load(sys.stdin)["devices"]; print(next(d["udid"] for key,values in ds.items() if "iOS-26" in key for d in values if "iPhone" in d["name"]))')
-          xcodebuild -project AsterionVeyra.xcodeproj -scheme AsterionVeyra -destination "platform=iOS Simulator,id=$DEVICE" CODE_SIGNING_ALLOWED=NO test
+          xcodebuild -project AsterionVeyra.xcodeproj -scheme AsterionVeyra -destination "platform=iOS Simulator,id=$DEVICE" -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO test
       - name: Compile unsigned device app
         run: |
           set -euo pipefail
