@@ -53,6 +53,10 @@ jobs:
           sudo xcode-select -s "$XCODE/Contents/Developer"
           xcodebuild -version
       - run: brew install xcodegen
+      - name: Verify app icon source
+        run: |
+          python3 scripts/verify_app_icon.py
+          python3 -m unittest discover -s scripts/tests -v
       - run: xcodegen generate
       - name: Boot test simulator
         timeout-minutes: 6
@@ -86,6 +90,7 @@ jobs:
           cp -R build/Build/Products/Release-iphoneos/AsterionVeyra.app Payload/
           zip -qr AsterionVeyra-unsigned.ipa Payload
           unzip -t AsterionVeyra-unsigned.ipa
+          python3 scripts/verify_app_icon.py --ipa AsterionVeyra-unsigned.ipa
       - uses: actions/upload-artifact@v4
         with:
           name: AsterionVeyra-unsigned-IPA

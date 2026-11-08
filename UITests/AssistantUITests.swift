@@ -3,6 +3,146 @@ import XCTest
 @MainActor final class AssistantUITests: XCTestCase {
     override func setUpWithError() throws { continueAfterFailure = false }
 
+    func testLongChatRemainsVisibleWhileTypingAndSwipeDownDismissesKeyboard() {
+        let app = launchChatFixture("success")
+        let field = composer(in: app)
+        field.tap(); app.typeText("A draft that must survive keyboard dismissal")
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        let transcript = app.scrollViews["chatTranscript"]
+        XCTAssertTrue(transcript.isHittable)
+        XCTAssertGreaterThan(transcript.frame.height, 120, "Keyboard must not squeeze the transcript away")
+        let latest = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Synthetic project answer 12.")).firstMatch
+        expectation(for: NSPredicate(format: "hittable == true"), evaluatedWith: latest)
+        waitForExpectations(timeout: 5)
+        saveScreenshot(app, name: "Visible latest message while keyboard is open")
+        XCTAssertLessThanOrEqual(field.frame.maxY, app.keyboards.firstMatch.frame.minY + 1)
+        // Drag downward inside the transcript, not a global gesture layered over text selection.
+        let start = transcript.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
+        let finish = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.88))
+        start.press(forDuration: 0.05, thenDragTo: finish)
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
+        XCTAssertEqual(field.value as? String, "A draft that must survive keyboard dismissal")
+        field.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        app.buttons["chatKeyboardDone"].tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
+        saveScreenshot(app, name: "Long chat after interactive keyboard dismissal")
+    }
+
+    func testAcceptedSendClearsDraftDismissesKeyboardAndShowsReply() {
+        let app = launchChatFixture("success")
+        let field = composer(in: app)
+        field.tap(); app.typeText("Show my latest reply")
+        app.buttons["chatSend"].tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
+        XCTAssertEqual(field.value as? String, "Message Asterion")
+        let reply = app.staticTexts["Synthetic reply: Show my latest reply"]
+        XCTAssertTrue(reply.waitForExistence(timeout: 10))
+        XCTAssertTrue(reply.isHittable, "A new answer must be scrolled into view")
+        saveScreenshot(app, name: "Visible latest answer and bottom composer")
+    }
+
+    func testPendingReplyIsVisibleWhileTypingAndStopPreservesNextDraft() {
+        let app = launchChatFixture("pending")
+        let field = composer(in: app)
+        field.tap(); app.typeText("A request awaiting a response")
+        app.buttons["chatSend"].tap()
+        let pending = app.staticTexts["chatPendingStatus"]
+        XCTAssertTrue(pending.waitForExistence(timeout: 5))
+        field.tap(); app.typeText("Draft for later")
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(pending.isHittable)
+        XCTAssertGreaterThan(app.scrollViews["chatTranscript"].frame.height, 120)
+        saveScreenshot(app, name: "Pending response with keyboard open")
+        app.buttons["chatStop"].tap()
+        XCTAssertTrue(pending.waitForNonExistence(timeout: 5))
+        XCTAssertEqual(field.value as? String, "Draft for later")
+    }
+
+    func testRejectedSendKeepsDraftAndShowsInlineErrorAfterAlertDismissal() {
+        let app = launchChatFixture("success")
+        let field = composer(in: app)
+        field.tap(); app.typeText("password = synthetic-only")
+        app.buttons["chatSend"].tap()
+        let alert = app.alerts["Asterion"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 5)); alert.buttons["OK"].tap()
+        XCTAssertEqual(field.value as? String, "password = synthetic-only")
+        let error = app.staticTexts["chatInlineError"]
+        XCTAssertTrue(error.waitForExistence(timeout: 5))
+        XCTAssertTrue(error.isHittable)
+        XCTAssertFalse(app.buttons["chatStop"].exists)
+    }
+
+    func testEmptyModelReplyShowsRecoverableErrorInsteadOfAnEmptyBubble() {
+        let app = launchChatFixture("empty")
+        let field = composer(in: app)
+        field.tap(); app.typeText("Request an answer")
+        app.buttons["chatSend"].tap()
+        let alert = app.alerts["Asterion"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 10)); alert.buttons["OK"].tap()
+        let error = app.staticTexts["chatInlineError"]
+        XCTAssertTrue(error.waitForExistence(timeout: 5))
+        XCTAssertTrue(error.label.contains("empty answer"))
+        XCTAssertTrue(error.isHittable)
+        XCTAssertTrue(app.buttons["chatRestoreDraft"].exists)
+        app.buttons["chatRestoreDraft"].tap()
+        XCTAssertEqual(field.value as? String, "Request an answer")
+    }
+
+    func testUnsentDraftSurvivesVoiceSheetAndTabNavigation() {
+        let app = launchChatFixture("success")
+        let field = composer(in: app)
+        field.tap(); app.typeText("Keep this unfinished thought")
+        app.buttons["chatVoiceSettings"].tap()
+        XCTAssertTrue(app.buttons["chatStartVoiceCall"].waitForExistence(timeout: 5))
+        app.buttons["voiceSettingsDone"].tap()
+        XCTAssertEqual(field.value as? String, "Keep this unfinished thought")
+        app.tabBars.buttons["Memory"].tap()
+        app.tabBars.buttons["Assistant"].tap()
+        XCTAssertEqual(field.value as? String, "Keep this unfinished thought")
+    }
+
+    func testDraftsCannotLeakIntoAnotherProject() {
+        let app = launchChatFixture("success")
+        let field = composer(in: app)
+        field.tap(); app.typeText("General project draft")
+        app.buttons["chatKeyboardDone"].tap()
+        app.tabBars.buttons["Projects"].tap()
+        let otherProject = app.buttons["Synthetic second project"]
+        for _ in 0..<8 where !otherProject.isHittable { app.swipeUp() }
+        XCTAssertTrue(otherProject.isHittable); otherProject.tap()
+        app.tabBars.buttons["Assistant"].tap()
+        XCTAssertEqual(field.value as? String, "Message Asterion")
+        XCTAssertFalse(app.buttons["chatSend"].isEnabled)
+        field.tap(); app.typeText("Second project draft")
+        app.buttons["chatKeyboardDone"].tap()
+        app.tabBars.buttons["Projects"].tap()
+        let general = app.buttons["General"]
+        for _ in 0..<8 where !general.isHittable { app.swipeUp() }
+        XCTAssertTrue(general.isHittable); general.tap()
+        app.tabBars.buttons["Assistant"].tap()
+        XCTAssertEqual(field.value as? String, "General project draft")
+    }
+
+    private func launchChatFixture(_ scenario: String) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest-chat", scenario]
+        app.launch()
+        XCTAssertTrue(app.buttons["chatSend"].waitForExistence(timeout: 15))
+        return app
+    }
+
+    private func composer(in app: XCUIApplication) -> XCUIElement {
+        let field = app.descendants(matching: .any).matching(identifier: "chatComposer").firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 10))
+        return field
+    }
+
+    private func saveScreenshot(_ app: XCUIApplication, name: String) {
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
+    }
+
     func testLaunchMemoryPersistenceAndDeletion() {
         let app = XCUIApplication()
         app.launch()
@@ -38,8 +178,11 @@ import XCTest
 
     func testCapabilitiesAndVoiceControlsAreVisible() {
         let app = XCUIApplication(); app.launch()
-        XCTAssertTrue(app.buttons["Voice conversation"].waitForExistence(timeout: 15))
+        let voice = app.buttons["chatVoiceSettings"]
+        XCTAssertTrue(voice.waitForExistence(timeout: 15)); voice.tap()
+        XCTAssertTrue(app.buttons["chatStartVoiceCall"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.switches["Continue active voice in background"].exists)
+        app.buttons["voiceSettingsDone"].tap()
         app.tabBars.buttons["About"].tap()
         let title = app.navigationBars["Capabilities"]
         XCTAssertTrue(title.waitForExistence(timeout: 10))

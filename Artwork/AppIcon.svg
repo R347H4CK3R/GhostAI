@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>Asterion Veyra</title>
+  <desc>A faceted cyan and violet guiding star within an orbital arc, on an opaque midnight-blue field.</desc>
+  <defs>
+    <linearGradient id="field" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#112B49"/>
+      <stop offset="0.54" stop-color="#101C36"/>
+      <stop offset="1" stop-color="#23143D"/>
+    </linearGradient>
+    <radialGradient id="aura">
+      <stop offset="0" stop-color="#297F9E" stop-opacity="0.38"/>
+      <stop offset="1" stop-color="#18394F" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="orbit" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#71EDFF"/>
+      <stop offset="0.49" stop-color="#46BEDF"/>
+      <stop offset="1" stop-color="#B17AF3"/>
+    </linearGradient>
+    <linearGradient id="star" x1="0.12" y1="0" x2="0.86" y2="1">
+      <stop offset="0" stop-color="#DAFEFF"/>
+      <stop offset="0.42" stop-color="#7BEAFF"/>
+      <stop offset="0.76" stop-color="#80B7FB"/>
+      <stop offset="1" stop-color="#B18AFF"/>
+    </linearGradient>
+    <linearGradient id="facet" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#34BCD9"/>
+      <stop offset="1" stop-color="#8870E3"/>
+    </linearGradient>
+  </defs>
+  <!-- iOS applies its own rounded mask. The artwork remains fully square/opaque. -->
+  <rect width="1024" height="1024" fill="url(#field)"/>
+  <circle cx="460" cy="450" r="510" fill="url(#aura)"/>
+  <!-- Broken orbital arc stays distinct at home-screen and notification sizes. -->
+  <path d="M 690,229 A 333,333 0 1 0 811,612" fill="none" stroke="url(#orbit)" stroke-width="27" stroke-linecap="round"/>
+  <path d="M 512,197 C 549,387 569,416 783,492 C 569,547 549,587 512,797 C 471,587 450,547 241,492 C 450,416 471,387 512,197 Z" fill="url(#star)"/>
+  <!-- Two planes make a single recognizable four-point star, not tiny detail. -->
+  <path d="M 512,197 L 512,492 L 783,492 C 569,416 549,387 512,197 Z" fill="#D2FAFF" fill-opacity="0.65"/>
+  <path d="M 512,492 L 512,797 C 549,587 569,547 783,492 Z" fill="url(#facet)"/>
+  <path d="M 512,492 L 241,492 C 450,547 471,587 512,797 Z" fill="#91CFFF" fill-opacity="0.38"/>
+  <!-- A single satellite spark balances the open arc. -->
+  <path d="M 788,206 Q 798,251 837,263 Q 798,275 788,320 Q 778,275 739,263 Q 778,251 788,206 Z" fill="#A6EFFF"/>
+</svg>
