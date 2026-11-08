@@ -178,14 +178,15 @@ def read_job(path, *, storage_check=None):
 
 
 @contextmanager
-def _job_lock(path, *, storage_check=None):
+def _job_lock(path, *, storage_check=None, file_opener=None):
     """OS lock survives atomic checkpoint replacement, releases on process exit."""
     if storage_check: storage_check()
     check_links(path.parent)
     if path.exists() or path.is_symlink():
         _regular(path)
     flags = os.O_RDWR | os.O_CREAT | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_BINARY', 0)
-    with os.fdopen(os.open(path, flags, 0o600), 'r+b', buffering=0) as handle:
+    descriptor = file_opener(path) if file_opener else os.open(path, flags, 0o600)
+    with os.fdopen(descriptor, 'r+b', buffering=0) as handle:
         if storage_check: storage_check()
         info = os.fstat(handle.fileno())
         if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
@@ -253,6 +254,12 @@ class AutonomousJob:
     def _check_storage(self):
         if self.storage_check: self.storage_check()
 
+    def _temporary_file(self):
+        return tempfile.mkstemp(prefix='.veyra-job-', dir=self.path.parent)
+
+    def _lock_file(self, path):
+        return os.open(path, os.O_RDWR | os.O_CREAT | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_BINARY', 0), 0o600)
+
     def _save(self, *, create=False):
         self._check_storage()
         raw = _json(self.state)
@@ -261,7 +268,7 @@ class AutonomousJob:
         check_links(self.path.parent)
         if self.path.exists() or self.path.is_symlink():
             _regular(self.path)
-        fd, temporary = tempfile.mkstemp(prefix='.veyra-job-', dir=self.path.parent)
+        fd, temporary = self._temporary_file()
         try:
             with os.fdopen(fd, 'wb') as handle:
                 self._check_storage()
@@ -451,7 +458,7 @@ class AutonomousJob:
         config = {'workspace': str(self.runner.root), 'goal': goal, 'project': project,
                   'model': model, 'endpoint': LOCAL_ENDPOINT,
                   'write_paths': self.write_paths, 'limits': self.limits}
-        with _job_lock(self.path.with_name(self.path.name + '.lock'), storage_check=self._check_storage):
+        with _job_lock(self.path.with_name(self.path.name + '.lock'), storage_check=self._check_storage, file_opener=self._lock_file):
             if resume:
                 self.state = read_job(self.path, storage_check=self._check_storage)
                 if self.state['configuration'] != config:

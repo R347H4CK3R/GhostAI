@@ -302,6 +302,34 @@ def private_directory(value):
         raise WindowsStorageError() from None
 
 
+def create_mutable_file(value):
+    """Atomically create an empty current-user-owned file; never adopt an old one.
+
+    Windows token default ownership may be Administrators even inside a private
+    directory. Supplying an explicit owner/DACL avoids changing token policy or
+    repairing a file after creation. The caller owns the returned CRT descriptor.
+    """
+    path, api = _path(value), _api()
+    import msvcrt
+    fd = None
+    try:
+        with private_directory(path.parent), api.security_descriptor(api.sddl(directory=False)) as descriptor:
+            attrs = _Attributes(ctypes.sizeof(_Attributes), descriptor, False)
+            handle = api.kernel.CreateFileW(str(path), 0xC0000000, 3, ctypes.byref(attrs), 1, 0x80200080, None)
+            _require(handle not in (None, ctypes.c_void_p(-1).value))
+            try:
+                api.information(handle, directory=False)
+                api.verify_acl(handle, directory=False)
+                fd = msvcrt.open_osfhandle(handle, os.O_RDWR | os.O_BINARY | os.O_NOINHERIT)
+                handle = None  # open_osfhandle transfers ownership to the CRT.
+            finally:
+                if handle is not None: api.kernel.CloseHandle(handle)
+        return fd
+    except BaseException:
+        if fd is not None: os.close(fd)
+        raise
+
+
 def validate_mutable_state(value):
     """Refuse unsafe existing state, including sidecars, locks and temporary files.
 

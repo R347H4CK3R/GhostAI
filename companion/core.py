@@ -37,10 +37,10 @@ def load_plan(raw):
 
 class Memory:
     """Local plaintext SQLite store. Explicit entries only, separated by project."""
-    def __init__(self, path, *, storage_check=None):
+    def __init__(self, path, *, storage_check=None, connection_factory=None):
         self.storage_check = storage_check
         self._check_storage()
-        self.db = sqlite3.connect(path)
+        self.db = (connection_factory or sqlite3.connect)(path)
         try:
             self._check_storage()
             self.db.row_factory = sqlite3.Row

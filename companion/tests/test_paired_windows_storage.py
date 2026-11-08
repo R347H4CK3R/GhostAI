@@ -15,7 +15,7 @@ import unittest
 from unittest.mock import patch
 import uuid
 from cryptography.hazmat.primitives.asymmetric import ec
-from companion import paired_identity, paired_protocol as wire, paired_server, paired_windows as windows
+from companion import paired_identity, paired_protocol as wire, paired_server, paired_windows as windows, paired_storage
 from companion.paired_jobs import run_next
 from companion.tests.test_autonomy import plan, read, complete
 from companion.tests.test_paired_host import encoded
@@ -80,7 +80,8 @@ class NativeMutableStorageTests(unittest.TestCase):
         sddl = {'private': api.sddl(directory=path.is_dir()),
                 'broad': f'O:{api.sid}D:P(A;{flags};FA;;;WD)',
                 'unsupported': f'O:{api.sid}D:P(A;{flags};FR;;;{api.sid})',
-                'wrong-owner': f'O:BAD:P(A;{flags};FA;;;{api.sid})(A;{flags};FA;;;SY)'}[kind]
+                'wrong-owner': f'O:BAD:P(A;{flags};FA;;;{api.sid})(A;{flags};FA;;;SY)',
+                'owner-only': api.sddl(directory=path.is_dir())}[kind]
         get_dacl = api.advapi.GetSecurityDescriptorDacl
         get_dacl.argtypes = [ctypes.c_void_p, ctypes.POINTER(wintypes.BOOL),
                             ctypes.POINTER(ctypes.c_void_p), ctypes.POINTER(wintypes.BOOL)]
@@ -94,8 +95,8 @@ class NativeMutableStorageTests(unittest.TestCase):
             self.assertTrue(get_dacl(descriptor, ctypes.byref(present), ctypes.byref(dacl), ctypes.byref(defaulted)))
             self.assertTrue(get_owner(descriptor, ctypes.byref(owner), ctypes.byref(defaulted)))
             # Only this disposable synthetic object. No account/privilege changes.
-            information = 0x80000005 if kind == 'wrong-owner' else 0x80000004
-            result = setter(str(path), 1, information, owner if kind == 'wrong-owner' else None, None, dacl, None)
+            information = 1 if kind == 'owner-only' else 0x80000005 if kind == 'wrong-owner' else 0x80000004
+            result = setter(str(path), 1, information, owner if kind in ('wrong-owner', 'owner-only') else None, None, None if kind == 'owner-only' else dacl, None)
             if kind == 'wrong-owner' and result == 1307:
                 self.skipTest('Token cannot assign Administrators as an owner; native wrong-owner evidence remains required')
             self.assertEqual(result, 0)
@@ -104,9 +105,9 @@ class NativeMutableStorageTests(unittest.TestCase):
                 # WRITE_OWNER until the test restores its full-control ACE.
                 self.assertEqual(setter(str(path), 1, 1, owner, None, None, None), 0)
 
-    def assert_inherited_private_acl(self, path):
+    def assert_private_acl(self, path, *, inherited):
         # Inspect the native security descriptor independently of the production
-        # validator: generated mutable children must actually inherit safe ACEs.
+        # validator: check exact owners and ACEs of protected or inherited files.
         api = windows._api(); pointer = ctypes.c_void_p
         getter = api.advapi.GetNamedSecurityInfoW
         getter.argtypes = [wintypes.LPWSTR, wintypes.DWORD, wintypes.DWORD,
@@ -125,9 +126,10 @@ class NativeMutableStorageTests(unittest.TestCase):
             self.assertTrue(dacl.value)
             self.assertTrue(convert(descriptor, 1, 4, ctypes.byref(text), None))
             sddl = ctypes.wstring_at(text)
+            flags = 'ID' if inherited else ''
             self.assertEqual(set(re.findall(r'\([^)]*\)', sddl)),
-                             {f'(A;ID;FA;;;{api.sid})', '(A;ID;FA;;;SY)'})
-            self.assertNotIn('P', sddl.split('(', 1)[0], 'generated mutable file should inherit its DACL')
+                             {f'(A;{flags};FA;;;{api.sid})', f'(A;{flags};FA;;;SY)'})
+            self.assertEqual('P' in sddl.split('(', 1)[0], not inherited)
         finally:
             if text.value: api.kernel.LocalFree(text)
             api.kernel.LocalFree(descriptor)
@@ -152,9 +154,9 @@ class NativeMutableStorageTests(unittest.TestCase):
         self.assertIn(job['job_id'] + '.json', before)
         self.assertIn(job['job_id'] + '.json.lock', before)
         self.assertIn('paired-dispatch.lock', before)
-        for name in ('paired.sqlite', 'paired-audit.sqlite', 'paired-host.lock',
+        for name in ('paired.sqlite', 'paired.sqlite-journal', 'paired-audit.sqlite', 'paired-audit.sqlite-journal', 'paired-host.lock',
                      'paired-dispatch.lock', job['job_id'] + '.json', job['job_id'] + '.json.lock'):
-            with self.subTest(artifact=name): self.assert_inherited_private_acl(self.state / name)
+            with self.subTest(artifact=name): self.assert_private_acl(self.state / name, inherited=False)
         windows.validate_mutable_state(self.state)
         self.open()
         recovered = run_next(self.host, transport=lambda _: self.fail('terminal checkpoint replayed'))
@@ -205,12 +207,21 @@ class NativeMutableStorageTests(unittest.TestCase):
                     load = lambda: paired_identity.read_private_file(self.state, name, 65536)
                     self.assertEqual(load(), before)
                 path.unlink(); path.write_bytes(before)
+                self.set_security(path, 'owner-only')  # Test only: isolate inheritance from token default ownership.
                 try:
-                    self.assert_inherited_private_acl(path)
+                    self.assert_private_acl(path, inherited=True)
                     windows.validate_mutable_state(self.state)
                     with self.assertRaises(paired_identity.IdentityError): load()
                     self.assertEqual(path.read_bytes(), before)
                 finally: self.set_security(path, 'private')
+
+    def test_safe_current_user_owned_inherited_mutable_acl_is_still_accepted(self):
+        path = self.state / 'inherited.lock'; path.write_bytes(b'Synthetic')
+        self.set_security(path, 'owner-only')
+        self.assert_private_acl(path, inherited=True)
+        windows.validate_mutable_state(self.state)
+        self.open(); self.host.close()
+        self.assertEqual(path.read_bytes(), b'Synthetic')
 
     def reject_artifacts(self, kind):
         names = ['paired.sqlite', 'paired.sqlite-journal', 'paired.sqlite-wal', 'paired.sqlite-shm',
@@ -220,8 +231,10 @@ class NativeMutableStorageTests(unittest.TestCase):
         for name in names:
             with self.subTest(kind=kind, artifact=name):
                 path = self.state / name; created = not path.exists()
-                if created: path.write_bytes(b'Synthetic existing artifact')
+                if created:
+                    os.close(paired_storage.create_file(path)); path.write_bytes(b'Synthetic existing artifact')
                 try:
+                    self.assert_private_acl(path, inherited=False)
                     self.set_security(path, kind); before = self.snapshot()
                     with self.assertRaises(ValueError):
                         host, _ = paired_server.open_host(self.state)
@@ -240,7 +253,8 @@ class NativeMutableStorageTests(unittest.TestCase):
 
     def test_existing_audit_sidecar_is_refused_before_accepting_a_submission(self):
         self.open(); self.enroll()
-        sidecar = self.state / 'paired-audit.sqlite-journal'; sidecar.write_bytes(b'Synthetic sidecar')
+        sidecar = self.state / 'paired-audit.sqlite-journal'
+        os.close(paired_storage.create_file(sidecar)); sidecar.write_bytes(b'Synthetic sidecar')
         before = (self.state / 'paired.sqlite').read_bytes(); self.set_security(sidecar, 'broad')
         try:
             self.assertEqual(self.request('/v1/jobs/submit', self.submission())[0], 503)
@@ -264,7 +278,7 @@ class NativeMutableStorageTests(unittest.TestCase):
     def test_new_checkpoint_temporary_acl_is_checked_before_sensitive_write(self):
         self.open(); self.enroll()
         self.assertEqual(self.request('/v1/jobs/submit', self.submission())[0], 202)
-        original_create, original_unlink = tempfile.mkstemp, os.unlink
+        original_create, original_unlink = paired_storage.temporary_file, os.unlink
         discarded = []
         def create(*args, **kwargs):
             fd, name = original_create(*args, **kwargs)
@@ -273,7 +287,7 @@ class NativeMutableStorageTests(unittest.TestCase):
         def unlink(name, *args, **kwargs):
             if Path(name).name.startswith('.veyra-job-'): discarded.append(Path(name).read_bytes())
             return original_unlink(name, *args, **kwargs)
-        with patch.object(tempfile, 'mkstemp', create), patch.object(os, 'unlink', unlink):
+        with patch.object(paired_storage, 'temporary_file', create), patch.object(os, 'unlink', unlink):
             result = run_next(self.host, transport=lambda _: self.fail('unsafe storage executed'))
         self.assertEqual(result['status'], 'failed')
         self.assertEqual(discarded, [b''], 'no checkpoint contents may reach a permissive temporary file')

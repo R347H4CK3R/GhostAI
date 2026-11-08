@@ -15,6 +15,7 @@ import uuid
 from .autonomy import DEFAULT_LIMITS,CEILINGS,_job_lock
 from .core import check_links
 from . import paired_protocol as wire
+from . import paired_storage as storage
 
 MAX_DATABASE_BYTES=32*1024*1024
 MAX_DEVICES=64
@@ -44,10 +45,10 @@ class PairedHost:
             checked=self._validate_project(project)
             if checked['project_id'] in self._projects:raise wire.ProtocolError()
             self._projects[checked['project_id']]=checked
-        owner=_job_lock(self.state_dir/'paired-host.lock',storage_check=self._location);owner.__enter__();self._owner_lock=owner
+        owner=_job_lock(self.state_dir/'paired-host.lock',storage_check=self._location,file_opener=storage.open_lock);owner.__enter__();self._owner_lock=owner
         try:
             if create:
-                descriptor=os.open(self.path,os.O_WRONLY|os.O_CREAT|os.O_EXCL|getattr(os,'O_NOFOLLOW',0),0o600);os.close(descriptor);self._initialize()
+                descriptor=storage.create_file(self.path);os.close(descriptor);self._initialize()
             elif not self.path.exists():raise wire.ProtocolError('state_unavailable')
             with self.transaction() as db:
                 if db.execute('PRAGMA quick_check').fetchone()[0]!='ok':raise wire.ProtocolError('state_unavailable')
@@ -75,7 +76,7 @@ class PairedHost:
         for suffix in ('-journal','-wal','-shm'):
             path=Path(str(self.path)+suffix)
             if path.exists() or path.is_symlink():regular(path)
-        db=sqlite3.connect(self.path,timeout=2,isolation_level=None);db.row_factory=sqlite3.Row
+        db=storage.connect(self.path,storage_check=self._location);db.row_factory=sqlite3.Row
         db.execute('PRAGMA foreign_keys=ON');db.execute('PRAGMA synchronous=FULL');db.execute('PRAGMA max_page_count=8192')
         return db
     def _initialize(self):

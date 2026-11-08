@@ -7,11 +7,12 @@ from .autonomy import AutonomousJob,read_job,_job_lock
 from .core import Memory
 from .paired_host import JOB_TERMINAL,QUEUE_TTL,counters,dump,regular
 from . import paired_protocol as wire
+from . import paired_storage as storage
 
 class JobAudit(Memory):
     def __init__(self,path,host):
         self.host=host
-        with host.lock:super().__init__(path,storage_check=host._location)
+        with host.lock:super().__init__(path,storage_check=host._location,connection_factory=lambda path:storage.connect(path,storage_check=host._location,isolation_level=''))
     def search(self,project,query):return []  # Grants never imply access to old notes.
     def audit(self,*args):
         with self.host.lock:super().audit(*args)
@@ -28,6 +29,8 @@ class PairedJob(AutonomousJob):
         if self.internal_id is not None:wire.identifier(self.internal_id)
         project=snapshot['project']
         super().__init__(project['workspace'],memory,host.state_dir/(self.job_id+'.json'),trust_local_model=True,write_paths=(),limits=snapshot['limits'],cancel=Cancellation(host,self.job_id),transport=transport,storage_check=host._location)
+    def _temporary_file(self):return storage.temporary_file(self.path.parent)
+    def _lock_file(self,path):return storage.open_lock(path)
     def _save(self,*,create=False):
         wire.identifier(self.state['id'])
         if self.internal_id is not None and self.state['id']!=self.internal_id:raise wire.ProtocolError('checkpoint_unavailable')
@@ -52,7 +55,7 @@ def finish(host,job,status,error=None):
 
 def run_next(host,*,transport=None):
     """Synthetic model injection is local trusted code only, never a wire field."""
-    with _job_lock(host.state_dir/'paired-dispatch.lock',storage_check=host._location):
+    with _job_lock(host.state_dir/'paired-dispatch.lock',storage_check=host._location,file_opener=storage.open_lock):
         with host.transaction() as db:
             row=db.execute("SELECT * FROM jobs WHERE status IN ('starting','running','queued') ORDER BY CASE WHEN status='queued' THEN 1 ELSE 0 END,created,job_id LIMIT 1").fetchone()
             if row is None:return None
@@ -94,7 +97,7 @@ def run_next(host,*,transport=None):
             audit=host.state_dir/'paired-audit.sqlite'
             if audit.exists() or audit.is_symlink():regular(audit)
             else:
-                descriptor=os.open(audit,os.O_WRONLY|os.O_CREAT|os.O_EXCL|getattr(os,'O_NOFOLLOW',0),0o600);os.close(descriptor)
+                descriptor=storage.create_file(audit);os.close(descriptor)
             memory=JobAudit(audit,host)
             runner=PairedJob(host,row,snapshot,memory,transport)
             result=runner.run(snapshot['goal'],row['project_id'],project['model'],resume=resume)

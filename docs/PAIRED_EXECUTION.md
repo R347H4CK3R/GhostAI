@@ -163,8 +163,14 @@ running as the same local OS account; all private ancestry must remain trusted.
 The Windows candidate also rechecks the protected state directory and every direct
 state artifact before mutable operations, including registry/audit SQLite sidecars,
 checkpoints, temporary files and locks. Mutable files require current-user ownership
-and only current-user/SYSTEM full-control ACEs; inherited ACEs from the protected
-parent are allowed. Broad/null/unsupported DACLs, wrong owners, links and unexpected
+and only current-user/SYSTEM full-control ACEs. New files have an explicit owner
+and protected DACL from creation; inherited ACEs on safe existing files are also
+allowed. Directory ACL inheritance alone does not inherit ownership: native CI
+confirmed that an elevated token can otherwise create Administrators-owned locks,
+temporary files, databases and journals. No token policy or privilege is changed.
+Paired databases use explicitly precreated rollback journals and TRUNCATE mode,
+which retains the owned journal file on commit/rollback. WAL database headers are
+refused before SQLite can create shared-memory sidecars. Broad/null/unsupported DACLs, wrong owners, links and unexpected
 subdirectories are refused without repairing permissions or resetting state.
 A private parent alone is insufficient because Windows bypass-traverse privileges
 can expose a known child with its own permissive DACL. Mutable-file checks use
