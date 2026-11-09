@@ -180,6 +180,37 @@ real native fixture, run `testCommittedNativeGoldenVectorsMatchThisRuntime` and
 the full native/platform suites with no missing golden skips, and resolve every
 convergence blocker before any writer work is enabled.
 
+## Unwired knowledge-join foundation validation
+
+`App/KnowledgeSyncJoin.swift` is an unused, pure remove-wins helper for a future
+reviewed protocol. Existing app/cache/merge call sites do not call it. Its 14
+native tests cover normalization, operand/grouping laws within compatible bounded
+states, exact UTF-8 and binary64 ties, source/scope validation, and fail-closed
+capacity limits. This is not a document-v2 implementation or a migration.
+
+The native seed job now runs `KnowledgeSyncJoinTests` in its own bounded
+`xcodebuild test` invocation before exporting unchanged legacy vectors. Evidence
+is independent beneath `build/sync-conformance/`:
+- `KnowledgeJoin.xcresult` and `foundation-tests.log`: actual native helper results.
+- `foundation-summary.json`: raw `xcresulttool get test-results summary` output.
+- `foundation-check.json`: exactly 14 passed, zero failed and zero skipped tests
+  are required. Missing or malformed counts fail; a success still records
+  `release_ready: false`.
+- Existing `SyncInterop.xcresult`, `native-export.json` and `export-gate.log` retain
+  the separate legacy results, including all seven native-proven divergences.
+
+The legacy exporter runs after a successful owned-simulator boot even if the
+foundation test or its evidence check fails. Its convergence gate remains a real
+failure, not an allowed failure or expected-success substitution. Consequently,
+the overall job is expected to remain red until the existing protocol is corrected;
+inspect the independent foundation steps/artifacts to determine that helper's
+outcome. No failing export replaces the pending golden fixture.
+
+The job budget is 70 minutes to cover the added bounded invocation and leave time
+for evidence retention and owned-simulator cleanup. Individual native invocations
+remain bounded at 15 minutes, with per-test timeouts. This change has not yet run
+natively; local Python tests cannot establish Swift compilation or native success.
+
 ## Equivalent manual native export and later golden verification
 
 Run on an isolated exact-commit checkout using the same Xcode 26 version as release

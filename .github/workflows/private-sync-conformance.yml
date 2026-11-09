@@ -110,9 +110,9 @@ jobs:
           retention-days: 14
 
   native-seed:
-    name: Native golden export seed (not release-ready)
+    name: Native foundation plus legacy gate (not release-ready)
     runs-on: macos-15
-    timeout-minutes: 50
+    timeout-minutes: 70
     defaults:
       run:
         shell: bash
@@ -140,10 +140,37 @@ jobs:
           brew install xcodegen
           xcodegen generate
       - name: Boot one owned iOS 26 simulator
+        id: simulator
         timeout-minutes: 6
         run: python scripts/ci_simulator.py boot --output build/sync-conformance/simulator --github-env "$GITHUB_ENV"
-      - name: Export actual synthetic native vectors (seed phase)
+      - name: Run unwired knowledge join foundation (14 native tests)
+        id: foundation-tests
+        timeout-minutes: 15
+        run: |
+          set -euo pipefail
+          xcodebuild test -project AsterionVeyra.xcodeproj -scheme AsterionVeyra \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -destination-timeout 120 \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 180 \
+            -only-testing:AsterionVeyraTests/KnowledgeSyncJoinTests \
+            -derivedDataPath build/SyncInteropDerivedData \
+            -resultBundlePath build/sync-conformance/KnowledgeJoin.xcresult \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee build/sync-conformance/foundation-tests.log
+      - name: Retain and verify independent foundation result (zero skips)
+        id: foundation-result
+        if: ${{ always() && steps.foundation-tests.outcome != 'skipped' }}
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          test -d build/sync-conformance/KnowledgeJoin.xcresult
+          xcrun xcresulttool get test-results summary --path build/sync-conformance/KnowledgeJoin.xcresult \
+            > build/sync-conformance/foundation-summary.json
+          python -m scripts.sync_conformance_ci check-foundation \
+            --summary build/sync-conformance/foundation-summary.json \
+            --output build/sync-conformance/foundation-check.json
+      - name: Export unchanged legacy synthetic vectors (seed phase)
         id: native-tests
+        if: ${{ always() && steps.simulator.outcome == 'success' }}
         timeout-minutes: 15
         run: |
           set -euo pipefail
@@ -164,7 +191,7 @@ jobs:
           test -d build/sync-conformance/SyncInterop.xcresult
           xcrun xcresulttool export attachments --path build/sync-conformance/SyncInterop.xcresult \
             --output-path build/sync-conformance/attachments
-      - name: Require one actual export and pass its primitive/convergence gate
+      - name: Require legacy convergence (seven known divergences still block writers)
         if: ${{ always() && steps.export.outcome == 'success' }}
         timeout-minutes: 2
         run: |

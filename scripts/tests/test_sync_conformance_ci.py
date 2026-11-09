@@ -60,6 +60,87 @@ class ExportSelectionTests(unittest.TestCase):
         self.assertFalse(self.output.exists())
 
 
+class FoundationEvidenceTests(unittest.TestCase):
+    def test_foundation_requires_fourteen_passes_without_skips_or_failures(self):
+        check = getattr(ci, 'foundation_result', None)
+        self.assertTrue(callable(check), 'An independent native foundation result is required')
+        good = dict(result='Passed', passedTests=14, totalTestCount=14, failedTests=0, skippedTests=0)
+        result = check(good)
+        self.assertTrue(result['passed'])
+        self.assertFalse(result['release_ready'])
+        self.assertEqual(result['suite'], 'KnowledgeSyncJoinTests')
+        invalid = [None, {}, dict(good, result='Failed'), dict(good, passedTests=13),
+                   dict(good, totalTestCount=15), dict(good, failedTests=1), dict(good, skippedTests=1)]
+        for field in ('passedTests', 'totalTestCount', 'failedTests', 'skippedTests'):
+            invalid += [dict(good, **{field: True}), dict(good, **{field: False}),
+                        dict(good, **{field: float(good[field])}), dict(good, **{field: str(good[field])})]
+        for summary in invalid:
+            with self.subTest(summary=summary):
+                self.assertFalse(check(summary)['passed'])
+
+    def test_foundation_cli_retains_a_failed_independent_result(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); source = root / 'summary.json'; output = root / 'check.json'
+            source.write_text(json.dumps(dict(result='Passed', passedTests=13, totalTestCount=14,
+                                             failedTests=0, skippedTests=1)))
+            result = subprocess.run([sys.executable, '-m', 'scripts.sync_conformance_ci',
+                                     'check-foundation', '--summary', str(source), '--output', str(output)],
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 1)
+            self.assertTrue(output.is_file(), 'Failed foundation evidence must be retained')
+            report = json.loads(output.read_text())
+            self.assertFalse(report['passed'])
+            self.assertFalse(report['release_ready'])
+            self.assertEqual(report['counts']['skippedTests'], 1)
+
+    def test_foundation_cli_success_is_still_not_release_approval(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); source = root / 'summary.json'; output = root / 'check.json'
+            source.write_text(json.dumps(dict(result='Passed', passedTests=14, totalTestCount=14,
+                                             failedTests=0, skippedTests=0)))
+            result = subprocess.run([sys.executable, '-m', 'scripts.sync_conformance_ci',
+                                     'check-foundation', '--summary', str(source), '--output', str(output)],
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0)
+            report = json.loads(output.read_text())
+            self.assertTrue(report['passed'])
+            self.assertFalse(report['release_ready'])
+            self.assertIn('blocked', report['legacy_convergence'])
+
+    def test_workflow_keeps_foundation_and_legacy_results_independent(self):
+        # Standard-library-only invariant, also executed in the Windows portable suite.
+        root = Path(__file__).resolve().parents[2]
+        workflow = (root / '.github/workflows/private-sync-conformance.yml').read_text()
+        foundation = '-only-testing:AsterionVeyraTests/KnowledgeSyncJoinTests'
+        self.assertIn(foundation, workflow)
+        self.assertEqual(workflow.count(foundation), 1)
+        self.assertIn('-only-testing:AsterionVeyraTests/PrivateMemorySyncInteropTests/testExportSyntheticNativeGoldenVectors', workflow)
+        self.assertIn('-resultBundlePath build/sync-conformance/KnowledgeJoin.xcresult', workflow)
+        self.assertIn('-resultBundlePath build/sync-conformance/SyncInterop.xcresult', workflow)
+        self.assertIn('get test-results summary --path build/sync-conformance/KnowledgeJoin.xcresult', workflow)
+        self.assertIn('check-foundation', workflow)
+        self.assertIn("always() && steps.simulator.outcome == 'success'", workflow)
+        self.assertIn("always() && steps.foundation-tests.outcome != 'skipped'", workflow)
+        self.assertIn('seven known divergences', workflow)
+        self.assertNotIn('continue-on-error', workflow)
+        self.assertNotIn('|| true', workflow)
+        self.assertEqual(workflow.count('CODE_SIGNING_ALLOWED=NO'), 2)
+        steps = workflow.split('      - name: ')
+        foundation_step = next(step for step in steps if '\n        id: foundation-tests\n' in step)
+        result_step = next(step for step in steps if '\n        id: foundation-result\n' in step)
+        legacy_step = next(step for step in steps if '\n        id: native-tests\n' in step)
+        self.assertIn(foundation, foundation_step)
+        self.assertNotIn('PrivateMemorySyncInteropTests', foundation_step)
+        self.assertIn('KnowledgeJoin.xcresult', foundation_step)
+        self.assertIn("always() && steps.foundation-tests.outcome != 'skipped'", result_step)
+        self.assertIn('check-foundation', result_step)
+        self.assertIn("always() && steps.simulator.outcome == 'success'", legacy_step)
+        self.assertNotIn('KnowledgeSyncJoinTests', legacy_step)
+        self.assertIn('SyncInterop.xcresult', legacy_step)
+        self.assertEqual(len(__import__('re').findall(r'func test\w+\(',
+                            (root / 'Tests/KnowledgeSyncJoinTests.swift').read_text())), 14)
+
+
 class ProvenanceTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()

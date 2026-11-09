@@ -81,6 +81,17 @@ def provenance(root: Path, expected_sha: str) -> dict:
     }
 
 
+def foundation_result(summary) -> dict:
+    """Check only the isolated native helper suite, never overall sync readiness."""
+    expected = {'passedTests': 14, 'totalTestCount': 14, 'failedTests': 0, 'skippedTests': 0}
+    summary = summary if isinstance(summary, dict) else {}
+    passed = summary.get('result') == 'Passed' and all(
+        type(summary.get(field)) is int and summary[field] == count for field, count in expected.items())
+    return {'phase': 'unwired-foundation', 'suite': 'KnowledgeSyncJoinTests', 'passed': passed,
+            'counts': {field: summary.get(field) for field in expected}, 'release_ready': False,
+            'legacy_convergence': 'blocked by seven known divergences; checked separately'}
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest='command', required=True)
@@ -91,6 +102,9 @@ def main(argv=None):
     select = commands.add_parser('select-export')
     select.add_argument('--attachments', type=Path, required=True)
     select.add_argument('--output', type=Path, required=True)
+    foundation = commands.add_parser('check-foundation')
+    foundation.add_argument('--summary', type=Path, required=True)
+    foundation.add_argument('--output', type=Path, required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == 'provenance':
@@ -100,6 +114,15 @@ def main(argv=None):
                 json.dump(result, stream, indent=2); stream.write('\n')
             print(json.dumps(result, indent=2))
             return 0 if result['source_verified'] else 1
+        if args.command == 'check-foundation':
+            with args.summary.open('rb') as stream:
+                summary = strict_json(stream.read(MAXIMUM_DOCUMENT_BYTES + 1))
+            result = foundation_result(summary)
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            with args.output.open('x') as stream:
+                json.dump(result, stream, indent=2); stream.write('\n')
+            print(json.dumps(result, indent=2))
+            return 0 if result['passed'] else 1
         result = select_export(args.attachments, args.output)
         print(json.dumps(result, indent=2))
         return 0
