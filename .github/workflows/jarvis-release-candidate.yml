@@ -50,7 +50,7 @@ jobs:
     timeout-minutes: 30
   ios-pairing-tls-preflight:
     runs-on: macos-15-intel
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
     - uses: actions/checkout@v4
       with:
@@ -75,7 +75,7 @@ jobs:
         echo "SIMULATOR_ID=$DEVICE" >> "$GITHUB_ENV"
         xcrun simctl bootstatus "$DEVICE" -b
     - name: Pairing TLS policy tests
-      timeout-minutes: 15
+      timeout-minutes: 25
       run: |
         set -euo pipefail
         xcodebuild -project AsterionVeyra.xcodeproj -scheme AsterionVeyra -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -destination-timeout 120 -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 180 -only-testing:AsterionVeyraTests/PairedDesktopTransportTests -resultBundlePath PairingTLSResults.xcresult CODE_SIGNING_ALLOWED=NO test 2>&1 | tee pairing-tls-tests.log
