@@ -6,7 +6,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'scripts'))
@@ -151,6 +151,48 @@ class CISimulatorTests(unittest.TestCase):
         self.assertLessEqual(calls[-1][1]['timeout'], 330)
         self.assertGreater(calls[-1][1]['timeout'], 180)
         self.assertFalse(any(args[2] in ['delete', 'shutdown'] for args, _ in calls))
+
+    def test_cold_runtime_query_has_one_bounded_allowance_before_any_mutation(self):
+        output = self.root / 'cold'; output.mkdir()
+        runner = self.check.Runner(output, 330)
+        env = self.root / 'github-env'
+        calls = []
+        def timed_out(args, **options):
+            calls.append((args, options))
+            raise subprocess.TimeoutExpired(args, options.get('timeout', 60))
+        with patch.object(runner, 'run', side_effect=timed_out), self.assertRaises(subprocess.TimeoutExpired):
+            self.check.create_and_boot(runner, env)
+        self.assertEqual(calls, [(['xcrun', 'simctl', 'list', 'runtimes', '-j'], {'timeout': 120})])
+        self.assertFalse(env.exists())
+        self.assertFalse((output / 'ownership.json').exists())
+
+    def test_cold_query_keeps_total_helper_and_workflow_budgets(self):
+        output = self.root / 'budget'
+        env = self.root / 'github-env'
+        with patch.object(self.check, 'Runner') as factory:
+            factory.return_value.steps = []
+            factory.return_value.json.side_effect = subprocess.TimeoutExpired(['xcrun'], 120)
+            self.assertEqual(self.check.main(['boot', '--output', str(output), '--github-env', str(env)]), 1)
+        factory.assert_called_once_with(output, 330)
+        workflow = (ROOT / '.github/workflows/private-sync-conformance.yml').read_text()
+        boot = next(s for s in workflow.split('      - name: ') if '\n        id: simulator\n' in s)
+        self.assertIn('timeout-minutes: 6', boot)
+
+    def test_runtime_allowance_cannot_extend_remaining_total_budget(self):
+        # Replace only process/time boundaries: Runner calculates the actual limit.
+        process = Mock()
+        process.wait.return_value = 0
+        process.poll.return_value = 0
+        with patch('verify_simulator_upgrade.time.monotonic', side_effect=[0, 230, 230, 230]):
+            runner = self.check.Runner(self.root, 330)
+            with patch('verify_simulator_upgrade.subprocess.Popen', return_value=process):
+                runner.run(['xcrun', 'simctl', 'list', 'runtimes', '-j'], timeout=120)
+        process.wait.assert_called_once_with(timeout=100)
+
+        runner.deadline = 0
+        with patch('verify_simulator_upgrade.subprocess.Popen') as launch, self.assertRaises(TimeoutError):
+            runner.run(['xcrun', 'simctl', 'list', 'runtimes', '-j'], timeout=120)
+        launch.assert_not_called()
 
 
 if __name__ == '__main__':

@@ -16,7 +16,8 @@ from scripts.private_sync_interop import FORMAT
 
 
 CHAT_FORMAT = 'veyra-chat-state-v2-projection-evidence-v1'
-FOUNDATION_COUNTS = {'KnowledgeSyncJoinTests': 17, 'ChatStateV2Tests': 18}
+FOUNDATION_COUNTS = {'KnowledgeSyncJoinTests': 17, 'ChatStateV2Tests': 18,
+                     'ImmutableNoteStateV2Tests': 22}
 
 
 def select_export(attachments: Path, output: Path, expected_format: str = FORMAT) -> dict:

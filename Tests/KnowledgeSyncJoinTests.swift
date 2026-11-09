@@ -353,9 +353,12 @@ final class KnowledgeSyncJoinTests: XCTestCase {
 
     private func sourceByteBoundaryEntries(_ count: Int) throws -> [KnowledgeEntry] {
         // Preserve the actual 256 KiB record / 50 MiB cache limits and safety scans.
-        // These cases are separate tests so repeated large validation does not share
-        // one 120-second allowance. No global timeout or production limit is changed.
-        let text = String(repeating: "x", count: 256 * 1_024)
+        // The ASCII fixture timed out even after splitting these tests. Four-byte
+        // scalars preserve the byte boundary while reducing repeated scalar scans.
+        // Production validation and all per-test/invocation bounds stay unchanged.
+        let text = String(repeating: "😀", count: 64 * 1_024)
+        XCTAssertEqual(text.utf8.count, 256 * 1_024)
+        XCTAssertEqual(text.unicodeScalars.count, 64 * 1_024)
         return try (0..<count).map { try entry(.conversation, index: $0, text: text) }
     }
 

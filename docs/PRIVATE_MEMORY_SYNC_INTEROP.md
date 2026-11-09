@@ -206,13 +206,21 @@ the overall job is expected to remain red until the existing protocol is correct
 inspect the independent foundation steps/artifacts to determine that helper's
 outcome. No failing export replaces the pending golden fixture.
 
-The job budget is 90 minutes to cover the separate bounded native invocations and leave time
+The job budget is 110 minutes to cover the separate bounded native invocations and leave time
 for evidence retention and owned-simulator cleanup. Individual native invocations
-remain bounded at 15 minutes, with per-test timeouts. The original 14-test run compiled: 13 methods passed and the combined capacity
-method exceeded its 120-second allowance. The count boundary, exact 50 MiB union,
-union overflow and suppressed invalid input are now four separate tests, retaining
-all limits and assertions. These 17 methods have not yet run natively; splitting
-is not a claim that the large cases finish within their unchanged allowances.
+remain bounded at 15 minutes, with per-test timeouts. The original 14-test run compiled:
+13 methods passed and the combined capacity method exceeded its 120-second allowance.
+After splitting the four boundary cases, run 42543836823 attempt 2 recorded 14 passed
+methods and three 120-second timeouts in the source-byte cases. The 15-minute invocation
+bound then interrupted result-bundle finalization; there is no valid complete knowledge
+summary from that run. Its source was `8e32980a745a24b9df91bed38c55a63a7c51ff1a`.
+
+The three byte-capacity tests now use 65,536 four-byte emoji scalars per record rather
+than 262,144 ASCII scalars. Explicit assertions retain exactly 256 KiB per record and
+the actual 50 MiB boundary/overflow totals. Every count, suppression, overflow and
+production validation check remains intact; only the synthetic fixture's scalar density
+changes. This reduces the number of scalar checks, not the byte limits or test scope.
+Native completion within the unchanged allowances is still unproven and must be measured.
 
 ## Independent chat foundation and cross-language projection gate
 
@@ -244,10 +252,38 @@ attachments are failures, never skips or permission to synthesize an expected fi
 
 `chat-selection.json` and `chat-cross-language-gate.log` are retained with the
 native artifact. Artifact names include the run attempt and SHA so rerun evidence
-is unambiguous without overwriting earlier artifacts. Until this exact code runs on
-Xcode and the actual exported vectors pass the independent comparator, cross-language
-parity remains unproven. Even a passing synthetic projection gate is not a complete
-wire codec, migration, Android parity, new writer or release approval.
+is unambiguous without overwriting earlier artifacts. Run 42543836823 attempt 2,
+source `8e32980a745a24b9df91bed38c55a63a7c51ff1a`, passed all 18 native chat tests
+with no skips and all 44 actual native projections matched Python. The exported
+corpus SHA-256 is `e799774a7f823224779cb7fadefa1a3952563a36369e23f15c0210a859f768ca`.
+This synthetic projection evidence is not a complete wire codec, migration, Android
+parity, new writer or release approval. All seven legacy divergences still failed.
+
+## Independent immutable-note foundation gate
+
+The unused `ImmutableNoteStateV2Tests` suite runs separately after the chat evidence
+steps, requiring exactly 22 passes and zero failed/skipped methods. The owned simulator
+must have booted successfully, but prior knowledge/chat gate failures do not suppress
+this invocation or the later legacy exporter. Native note execution is still pending.
+Evidence remains beneath `build/sync-conformance/`:
+- `ImmutableNotesV2.xcresult` and `note-foundation-tests.log`.
+- `note-foundation-summary.json`, the raw native summary.
+- `note-foundation-check.json`, a strict count result that never grants release approval.
+
+The same 15-minute invocation and 120/180-second per-test bounds remain. Explicit
+sequential step limits now total 93 minutes, including owned cleanup. The job ceiling
+is 110 minutes solely to reserve setup/provenance/artifact time after failures, with
+at least 15 minutes of headroom enforced by a regression test. Passing criteria are
+unchanged. Notes currently have no exported cross-language
+corpus gate; separate Python and Swift test passes would not establish note parity.
+The Android job now includes 28 additional unused chat-helper tests, so its next actual
+unit report is expected to contain 58 tests; Gradle unit/lint/build execution is pending.
+
+The initial read-only runtime discovery query now has one 120-second allowance after
+two hosted-runner cold queries timed out at 60 seconds before any simulator existed.
+It remains inside the unchanged 330-second helper and six-minute workflow step budget.
+There are no query/mutation retries or broader cleanup permissions. This is a startup
+allowance, not a relaxation of any native test limit; effectiveness remains unmeasured.
 
 ## Equivalent manual native export and later golden verification
 

@@ -33,8 +33,11 @@ def owned_device(runner, ownership, identifier):
 
 
 def create_and_boot(runner, github_env):
+    # Cold CoreSimulator discovery exceeded 60s on two hosted runners before
+    # any device existed. Allow one read-only query more time, still inside
+    # Runner's unchanged 330s total budget. Never retry simulator mutations.
     runtime, device_type = select_simulator(
-        runner.json(['xcrun', 'simctl', 'list', 'runtimes', '-j']),
+        runner.json(['xcrun', 'simctl', 'list', 'runtimes', '-j'], timeout=120),
         runner.json(['xcrun', 'simctl', 'list', 'devicetypes', '-j']))
     name = 'Asterion CI ' + uuid.uuid4().hex
     identifier = runner.run(['xcrun', 'simctl', 'create', name, device_type, runtime])[0].strip()

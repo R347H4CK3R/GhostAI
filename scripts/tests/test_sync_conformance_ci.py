@@ -138,7 +138,7 @@ class FoundationEvidenceTests(unittest.TestCase):
         self.assertIn('seven known divergences', workflow)
         self.assertNotIn('continue-on-error', workflow)
         self.assertNotIn('|| true', workflow)
-        self.assertEqual(workflow.count('CODE_SIGNING_ALLOWED=NO'), 3)
+        self.assertEqual(workflow.count('CODE_SIGNING_ALLOWED=NO'), 4)
         steps = workflow.split('      - name: ')
         foundation_step = next(step for step in steps if '\n        id: foundation-tests\n' in step)
         result_step = next(step for step in steps if '\n        id: foundation-result\n' in step)

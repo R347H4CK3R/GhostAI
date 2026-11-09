@@ -1,0 +1,4296 @@
+{
+  "format" : "veyra-chat-state-v2-projection-evidence-v1",
+  "producer" : "ChatStateV2Tests",
+  "scenarios" : [
+    {
+      "inputs" : [
+        {
+          "chatTombstones" : [
+
+          ],
+          "families" : [
+            {
+              "anchorContentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+              "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+              "orderKey" : {
+                "batchID" : "00000000-0000-4000-8000-000000000001",
+                "counter" : "1",
+                "originID" : "00000000-0000-4000-8000-000000000002",
+                "sequence" : "9"
+              },
+              "variants" : [
+                {
+                  "contentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                  "dateBits" : "8000000000000000",
+                  "payload" : {
+                    "projectUTF8" : "47656e6572616c",
+                    "roleUTF8" : "617373697374616e74",
+                    "textUTF8" : "636166c3a9"
+                  }
+                }
+              ]
+            }
+          ],
+          "familyDeletes" : [
+
+          ],
+          "format" : "veyra-chat-families-v2",
+          "identityScheme" : "chat-content-v2",
+          "orderClock" : "3",
+          "variantDeletes" : [
+
+          ]
+        },
+        {
+          "chatTombstones" : [
+
+          ],
+          "families" : [
+            {
+              "anchorContentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+              "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+              "orderKey" : {
+                "batchID" : "00000000-0000-4000-8000-000000000002",
+                "counter" : "2",
+                "originID" : "00000000-0000-4000-8000-000000000001",
+                "sequence" : "0"
+              },
+              "variants" : [
+                {
+                  "contentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                  "dateBits" : "0000000000000000",
+                  "payload" : {
+                    "projectUTF8" : "47656e6572616c",
+                    "roleUTF8" : "617373697374616e74",
+                    "textUTF8" : "636166c3a9"
+                  }
+                },
+                {
+                  "contentKey" : "0a9f819d4fad98d8134e23f16f7ff61ebd0f79e9f9f401bc59491da268125e72",
+                  "dateBits" : "0000000000000001",
+                  "payload" : {
+                    "projectUTF8" : "47656e6572616c",
+                    "roleUTF8" : "617373697374616e74",
+                    "textUTF8" : "63616665cc81"
+                  }
+                }
+              ]
+            }
+          ],
+          "familyDeletes" : [
+
+          ],
+          "format" : "veyra-chat-families-v2",
+          "identityScheme" : "chat-content-v2",
+          "orderClock" : "7",
+          "variantDeletes" : [
+
+          ]
+        },
+        {
+          "chatTombstones" : [
+
+          ],
+          "families" : [
+            {
+              "anchorContentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+              "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+              "orderKey" : {
+                "batchID" : "00000000-0000-4000-8000-000000000001",
+                "counter" : "1",
+                "originID" : "00000000-0000-4000-8000-000000000002",
+                "sequence" : "9"
+              },
+              "variants" : [
+                {
+                  "contentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                  "dateBits" : "0000000000000000",
+                  "payload" : {
+                    "projectUTF8" : "47656e6572616c",
+                    "roleUTF8" : "617373697374616e74",
+                    "textUTF8" : "636166c3a9"
+                  }
+                },
+                {
+                  "contentKey" : "8cba91f3e0fec54203843d059b1612c433b07ddaa385b3417ccd95ebdbb87beb",
+                  "dateBits" : "3ff0000000000001",
+                  "payload" : {
+                    "projectUTF8" : "f09f9880",
+                    "roleUTF8" : "75736572",
+                    "textUTF8" : "00f09f98800a"
+                  }
+                }
+              ]
+            }
+          ],
+          "familyDeletes" : [
+
+          ],
+          "format" : "veyra-chat-families-v2",
+          "identityScheme" : "chat-content-v2",
+          "orderClock" : "0",
+          "variantDeletes" : [
+
+          ]
+        }
+      ],
+      "name" : "unicode",
+      "results" : [
+        {
+          "name" : "012-left",
+          "projection" : [
+            {
+              "dateBits" : "0000000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "617373697374616e74",
+                "textUTF8" : "636166c3a9"
+              },
+              "reference" : {
+                "contentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              }
+            },
+            {
+              "dateBits" : "0000000000000001",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "617373697374616e74",
+                "textUTF8" : "63616665cc81"
+              },
+              "reference" : {
+                "contentKey" : "0a9f819d4fad98d8134e23f16f7ff61ebd0f79e9f9f401bc59491da268125e72",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "92401135-eeab-8a56-8a2e-8f2ca559b2b0"
+              }
+            },
+            {
+              "dateBits" : "3ff0000000000001",
+              "payload" : {
+                "projectUTF8" : "f09f9880",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "00f09f98800a"
+              },
+              "reference" : {
+                "contentKey" : "8cba91f3e0fec54203843d059b1612c433b07ddaa385b3417ccd95ebdbb87beb",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "dce58054-07f4-8e60-9983-72dfe56518e1"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000001",
+                  "counter" : "1",
+                  "originID" : "00000000-0000-4000-8000-000000000002",
+                  "sequence" : "9"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "0a9f819d4fad98d8134e23f16f7ff61ebd0f79e9f9f401bc59491da268125e72",
+                    "dateBits" : "0000000000000001",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "617373697374616e74",
+                      "textUTF8" : "63616665cc81"
+                    }
+                  },
+                  {
+                    "contentKey" : "8cba91f3e0fec54203843d059b1612c433b07ddaa385b3417ccd95ebdbb87beb",
+                    "dateBits" : "3ff0000000000001",
+                    "payload" : {
+                      "projectUTF8" : "f09f9880",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "00f09f98800a"
+                    }
+                  },
+                  {
+                    "contentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                    "dateBits" : "0000000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "617373697374616e74",
+                      "textUTF8" : "636166c3a9"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "7",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "012-right",
+          "projection" : [
+            {
+              "dateBits" : "0000000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "617373697374616e74",
+                "textUTF8" : "636166c3a9"
+              },
+              "reference" : {
+                "contentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              }
+            },
+            {
+              "dateBits" : "0000000000000001",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "617373697374616e74",
+                "textUTF8" : "63616665cc81"
+              },
+              "reference" : {
+                "contentKey" : "0a9f819d4fad98d8134e23f16f7ff61ebd0f79e9f9f401bc59491da268125e72",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "92401135-eeab-8a56-8a2e-8f2ca559b2b0"
+              }
+            },
+            {
+              "dateBits" : "3ff0000000000001",
+              "payload" : {
+                "projectUTF8" : "f09f9880",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "00f09f98800a"
+              },
+              "reference" : {
+                "contentKey" : "8cba91f3e0fec54203843d059b1612c433b07ddaa385b3417ccd95ebdbb87beb",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "dce58054-07f4-8e60-9983-72dfe56518e1"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000001",
+                  "counter" : "1",
+                  "originID" : "00000000-0000-4000-8000-000000000002",
+                  "sequence" : "9"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "0a9f819d4fad98d8134e23f16f7ff61ebd0f79e9f9f401bc59491da268125e72",
+                    "dateBits" : "0000000000000001",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "617373697374616e74",
+                      "textUTF8" : "63616665cc81"
+                    }
+                  },
+                  {
+                    "contentKey" : "8cba91f3e0fec54203843d059b1612c433b07ddaa385b3417ccd95ebdbb87beb",
+                    "dateBits" : "3ff0000000000001",
+                    "payload" : {
+                      "projectUTF8" : "f09f9880",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "00f09f98800a"
+                    }
+                  },
+                  {
+                    "contentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                    "dateBits" : "0000000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "617373697374616e74",
+                      "textUTF8" : "636166c3a9"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "7",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "021-left",
+          "projection" : [
+            {
+              "dateBits" : "0000000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "617373697374616e74",
+                "textUTF8" : "636166c3a9"
+              },
+              "reference" : {
+                "contentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              }
+            },
+            {
+              "dateBits" : "0000000000000001",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "617373697374616e74",
+                "textUTF8" : "63616665cc81"
+              },
+              "reference" : {
+                "contentKey" : "0a9f819d4fad98d8134e23f16f7ff61ebd0f79e9f9f401bc59491da268125e72",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "92401135-eeab-8a56-8a2e-8f2ca559b2b0"
+              }
+            },
+            {
+              "dateBits" : "3ff0000000000001",
+              "payload" : {
+                "projectUTF8" : "f09f9880",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "00f09f98800a"
+              },
+              "reference" : {
+                "contentKey" : "8cba91f3e0fec54203843d059b1612c433b07ddaa385b3417ccd95ebdbb87beb",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "dce58054-07f4-8e60-9983-72dfe56518e1"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000001",
+                  "counter" : "1",
+                  "originID" : "00000000-0000-4000-8000-000000000002",
+                  "sequence" : "9"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "0a9f819d4fad98d8134e23f16f7ff61ebd0f79e9f9f401bc59491da268125e72",
+                    "dateBits" : "0000000000000001",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "617373697374616e74",
+                      "textUTF8" : "63616665cc81"
+                    }
+                  },
+                  {
+                    "contentKey" : "8cba91f3e0fec54203843d059b1612c433b07ddaa385b3417ccd95ebdbb87beb",
+                    "dateBits" : "3ff0000000000001",
+                    "payload" : {
+                      "projectUTF8" : "f09f9880",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "00f09f98800a"
+                    }
+                  },
+                  {
+                    "contentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                    "dateBits" : "0000000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "617373697374616e74",
+                      "textUTF8" : "636166c3a9"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "7",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "021-right",
+          "projection" : [
+            {
+              "dateBits" : "0000000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "617373697374616e74",
+                "textUTF8" : "636166c3a9"
+              },
+              "reference" : {
+                "contentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              }
+            },
+            {
+              "dateBits" : "0000000000000001",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "617373697374616e74",
+                "textUTF8" : "63616665cc81"
+              },
+              "reference" : {
+                "contentKey" : "0a9f819d4fad98d8134e23f16f7ff61ebd0f79e9f9f401bc59491da268125e72",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "92401135-eeab-8a56-8a2e-8f2ca559b2b0"
+              }
+            },
+            {
+              "dateBits" : "3ff0000000000001",
+              "payload" : {
+                "projectUTF8" : "f09f9880",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "00f09f98800a"
+              },
+              "reference" : {
+                "contentKey" : "8cba91f3e0fec54203843d059b1612c433b07ddaa385b3417ccd95ebdbb87beb",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "dce58054-07f4-8e60-9983-72dfe56518e1"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000001",
+                  "counter" : "1",
+                  "originID" : "00000000-0000-4000-8000-000000000002",
+                  "sequence" : "9"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "0a9f819d4fad98d8134e23f16f7ff61ebd0f79e9f9f401bc59491da268125e72",
+                    "dateBits" : "0000000000000001",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "617373697374616e74",
+                      "textUTF8" : "63616665cc81"
+                    }
+                  },
+                  {
+                    "contentKey" : "8cba91f3e0fec54203843d059b1612c433b07ddaa385b3417ccd95ebdbb87beb",
+                    "dateBits" : "3ff0000000000001",
+                    "payload" : {
+                      "projectUTF8" : "f09f9880",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "00f09f98800a"
+                    }
+                  },
+                  {
+                    "contentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                    "dateBits" : "0000000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "617373697374616e74",
+                      "textUTF8" : "636166c3a9"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "7",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "102-left",
+          "projection" : [
+            {
+              "dateBits" : "0000000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "617373697374616e74",
+                "textUTF8" : "636166c3a9"
+              },
+              "reference" : {
+                "contentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              }
+            },
+            {
+              "dateBits" : "0000000000000001",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "617373697374616e74",
+                "textUTF8" : "63616665cc81"
+              },
+              "reference" : {
+                "contentKey" : "0a9f819d4fad98d8134e23f16f7ff61ebd0f79e9f9f401bc59491da268125e72",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "92401135-eeab-8a56-8a2e-8f2ca559b2b0"
+              }
+            },
+            {
+              "dateBits" : "3ff0000000000001",
+              "payload" : {
+                "projectUTF8" : "f09f9880",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "00f09f98800a"
+              },
+              "reference" : {
+                "contentKey" : "8cba91f3e0fec54203843d059b1612c433b07ddaa385b3417ccd95ebdbb87beb",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "dce58054-07f4-8e60-9983-72dfe56518e1"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000001",
+                  "counter" : "1",
+                  "originID" : "00000000-0000-4000-8000-000000000002",
+                  "sequence" : "9"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "0a9f819d4fad98d8134e23f16f7ff61ebd0f79e9f9f401bc59491da268125e72",
+                    "dateBits" : "0000000000000001",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "617373697374616e74",
+                      "textUTF8" : "63616665cc81"
+                    }
+                  },
+                  {
+                    "contentKey" : "8cba91f3e0fec54203843d059b1612c433b07ddaa385b3417ccd95ebdbb87beb",
+                    "dateBits" : "3ff0000000000001",
+                    "payload" : {
+                      "projectUTF8" : "f09f9880",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "00f09f98800a"
+                    }
+                  },
+                  {
+                    "contentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                    "dateBits" : "0000000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "617373697374616e74",
+                      "textUTF8" : "636166c3a9"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "7",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "102-right",
+          "projection" : [
+            {
+              "dateBits" : "0000000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "617373697374616e74",
+                "textUTF8" : "636166c3a9"
+              },
+              "reference" : {
+                "contentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              }
+            },
+            {
+              "dateBits" : "0000000000000001",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "617373697374616e74",
+                "textUTF8" : "63616665cc81"
+              },
+              "reference" : {
+                "contentKey" : "0a9f819d4fad98d8134e23f16f7ff61ebd0f79e9f9f401bc59491da268125e72",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "92401135-eeab-8a56-8a2e-8f2ca559b2b0"
+              }
+            },
+            {
+              "dateBits" : "3ff0000000000001",
+              "payload" : {
+                "projectUTF8" : "f09f9880",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "00f09f98800a"
+              },
+              "reference" : {
+                "contentKey" : "8cba91f3e0fec54203843d059b1612c433b07ddaa385b3417ccd95ebdbb87beb",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "dce58054-07f4-8e60-9983-72dfe56518e1"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000001",
+                  "counter" : "1",
+                  "originID" : "00000000-0000-4000-8000-000000000002",
+                  "sequence" : "9"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "0a9f819d4fad98d8134e23f16f7ff61ebd0f79e9f9f401bc59491da268125e72",
+                    "dateBits" : "0000000000000001",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "617373697374616e74",
+                      "textUTF8" : "63616665cc81"
+                    }
+                  },
+                  {
+                    "contentKey" : "8cba91f3e0fec54203843d059b1612c433b07ddaa385b3417ccd95ebdbb87beb",
+                    "dateBits" : "3ff0000000000001",
+                    "payload" : {
+                      "projectUTF8" : "f09f9880",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "00f09f98800a"
+                    }
+                  },
+                  {
+                    "contentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                    "dateBits" : "0000000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "617373697374616e74",
+                      "textUTF8" : "636166c3a9"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "7",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "120-left",
+          "projection" : [
+            {
+              "dateBits" : "0000000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "617373697374616e74",
+                "textUTF8" : "636166c3a9"
+              },
+              "reference" : {
+                "contentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              }
+            },
+            {
+              "dateBits" : "0000000000000001",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "617373697374616e74",
+                "textUTF8" : "63616665cc81"
+              },
+              "reference" : {
+                "contentKey" : "0a9f819d4fad98d8134e23f16f7ff61ebd0f79e9f9f401bc59491da268125e72",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "92401135-eeab-8a56-8a2e-8f2ca559b2b0"
+              }
+            },
+            {
+              "dateBits" : "3ff0000000000001",
+              "payload" : {
+                "projectUTF8" : "f09f9880",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "00f09f98800a"
+              },
+              "reference" : {
+                "contentKey" : "8cba91f3e0fec54203843d059b1612c433b07ddaa385b3417ccd95ebdbb87beb",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "dce58054-07f4-8e60-9983-72dfe56518e1"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000001",
+                  "counter" : "1",
+                  "originID" : "00000000-0000-4000-8000-000000000002",
+                  "sequence" : "9"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "0a9f819d4fad98d8134e23f16f7ff61ebd0f79e9f9f401bc59491da268125e72",
+                    "dateBits" : "0000000000000001",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "617373697374616e74",
+                      "textUTF8" : "63616665cc81"
+                    }
+                  },
+                  {
+                    "contentKey" : "8cba91f3e0fec54203843d059b1612c433b07ddaa385b3417ccd95ebdbb87beb",
+                    "dateBits" : "3ff0000000000001",
+                    "payload" : {
+                      "projectUTF8" : "f09f9880",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "00f09f98800a"
+                    }
+                  },
+                  {
+                    "contentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                    "dateBits" : "0000000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "617373697374616e74",
+                      "textUTF8" : "636166c3a9"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "7",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "120-right",
+          "projection" : [
+            {
+              "dateBits" : "0000000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "617373697374616e74",
+                "textUTF8" : "636166c3a9"
+              },
+              "reference" : {
+                "contentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              }
+            },
+            {
+              "dateBits" : "0000000000000001",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "617373697374616e74",
+                "textUTF8" : "63616665cc81"
+              },
+              "reference" : {
+                "contentKey" : "0a9f819d4fad98d8134e23f16f7ff61ebd0f79e9f9f401bc59491da268125e72",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "92401135-eeab-8a56-8a2e-8f2ca559b2b0"
+              }
+            },
+            {
+              "dateBits" : "3ff0000000000001",
+              "payload" : {
+                "projectUTF8" : "f09f9880",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "00f09f98800a"
+              },
+              "reference" : {
+                "contentKey" : "8cba91f3e0fec54203843d059b1612c433b07ddaa385b3417ccd95ebdbb87beb",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "dce58054-07f4-8e60-9983-72dfe56518e1"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000001",
+                  "counter" : "1",
+                  "originID" : "00000000-0000-4000-8000-000000000002",
+                  "sequence" : "9"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "0a9f819d4fad98d8134e23f16f7ff61ebd0f79e9f9f401bc59491da268125e72",
+                    "dateBits" : "0000000000000001",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "617373697374616e74",
+                      "textUTF8" : "63616665cc81"
+                    }
+                  },
+                  {
+                    "contentKey" : "8cba91f3e0fec54203843d059b1612c433b07ddaa385b3417ccd95ebdbb87beb",
+                    "dateBits" : "3ff0000000000001",
+                    "payload" : {
+                      "projectUTF8" : "f09f9880",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "00f09f98800a"
+                    }
+                  },
+                  {
+                    "contentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                    "dateBits" : "0000000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "617373697374616e74",
+                      "textUTF8" : "636166c3a9"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "7",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "201-left",
+          "projection" : [
+            {
+              "dateBits" : "0000000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "617373697374616e74",
+                "textUTF8" : "636166c3a9"
+              },
+              "reference" : {
+                "contentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              }
+            },
+            {
+              "dateBits" : "0000000000000001",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "617373697374616e74",
+                "textUTF8" : "63616665cc81"
+              },
+              "reference" : {
+                "contentKey" : "0a9f819d4fad98d8134e23f16f7ff61ebd0f79e9f9f401bc59491da268125e72",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "92401135-eeab-8a56-8a2e-8f2ca559b2b0"
+              }
+            },
+            {
+              "dateBits" : "3ff0000000000001",
+              "payload" : {
+                "projectUTF8" : "f09f9880",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "00f09f98800a"
+              },
+              "reference" : {
+                "contentKey" : "8cba91f3e0fec54203843d059b1612c433b07ddaa385b3417ccd95ebdbb87beb",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "dce58054-07f4-8e60-9983-72dfe56518e1"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000001",
+                  "counter" : "1",
+                  "originID" : "00000000-0000-4000-8000-000000000002",
+                  "sequence" : "9"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "0a9f819d4fad98d8134e23f16f7ff61ebd0f79e9f9f401bc59491da268125e72",
+                    "dateBits" : "0000000000000001",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "617373697374616e74",
+                      "textUTF8" : "63616665cc81"
+                    }
+                  },
+                  {
+                    "contentKey" : "8cba91f3e0fec54203843d059b1612c433b07ddaa385b3417ccd95ebdbb87beb",
+                    "dateBits" : "3ff0000000000001",
+                    "payload" : {
+                      "projectUTF8" : "f09f9880",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "00f09f98800a"
+                    }
+                  },
+                  {
+                    "contentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                    "dateBits" : "0000000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "617373697374616e74",
+                      "textUTF8" : "636166c3a9"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "7",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "201-right",
+          "projection" : [
+            {
+              "dateBits" : "0000000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "617373697374616e74",
+                "textUTF8" : "636166c3a9"
+              },
+              "reference" : {
+                "contentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              }
+            },
+            {
+              "dateBits" : "0000000000000001",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "617373697374616e74",
+                "textUTF8" : "63616665cc81"
+              },
+              "reference" : {
+                "contentKey" : "0a9f819d4fad98d8134e23f16f7ff61ebd0f79e9f9f401bc59491da268125e72",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "92401135-eeab-8a56-8a2e-8f2ca559b2b0"
+              }
+            },
+            {
+              "dateBits" : "3ff0000000000001",
+              "payload" : {
+                "projectUTF8" : "f09f9880",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "00f09f98800a"
+              },
+              "reference" : {
+                "contentKey" : "8cba91f3e0fec54203843d059b1612c433b07ddaa385b3417ccd95ebdbb87beb",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "dce58054-07f4-8e60-9983-72dfe56518e1"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000001",
+                  "counter" : "1",
+                  "originID" : "00000000-0000-4000-8000-000000000002",
+                  "sequence" : "9"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "0a9f819d4fad98d8134e23f16f7ff61ebd0f79e9f9f401bc59491da268125e72",
+                    "dateBits" : "0000000000000001",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "617373697374616e74",
+                      "textUTF8" : "63616665cc81"
+                    }
+                  },
+                  {
+                    "contentKey" : "8cba91f3e0fec54203843d059b1612c433b07ddaa385b3417ccd95ebdbb87beb",
+                    "dateBits" : "3ff0000000000001",
+                    "payload" : {
+                      "projectUTF8" : "f09f9880",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "00f09f98800a"
+                    }
+                  },
+                  {
+                    "contentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                    "dateBits" : "0000000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "617373697374616e74",
+                      "textUTF8" : "636166c3a9"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "7",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "210-left",
+          "projection" : [
+            {
+              "dateBits" : "0000000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "617373697374616e74",
+                "textUTF8" : "636166c3a9"
+              },
+              "reference" : {
+                "contentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              }
+            },
+            {
+              "dateBits" : "0000000000000001",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "617373697374616e74",
+                "textUTF8" : "63616665cc81"
+              },
+              "reference" : {
+                "contentKey" : "0a9f819d4fad98d8134e23f16f7ff61ebd0f79e9f9f401bc59491da268125e72",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "92401135-eeab-8a56-8a2e-8f2ca559b2b0"
+              }
+            },
+            {
+              "dateBits" : "3ff0000000000001",
+              "payload" : {
+                "projectUTF8" : "f09f9880",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "00f09f98800a"
+              },
+              "reference" : {
+                "contentKey" : "8cba91f3e0fec54203843d059b1612c433b07ddaa385b3417ccd95ebdbb87beb",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "dce58054-07f4-8e60-9983-72dfe56518e1"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000001",
+                  "counter" : "1",
+                  "originID" : "00000000-0000-4000-8000-000000000002",
+                  "sequence" : "9"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "0a9f819d4fad98d8134e23f16f7ff61ebd0f79e9f9f401bc59491da268125e72",
+                    "dateBits" : "0000000000000001",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "617373697374616e74",
+                      "textUTF8" : "63616665cc81"
+                    }
+                  },
+                  {
+                    "contentKey" : "8cba91f3e0fec54203843d059b1612c433b07ddaa385b3417ccd95ebdbb87beb",
+                    "dateBits" : "3ff0000000000001",
+                    "payload" : {
+                      "projectUTF8" : "f09f9880",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "00f09f98800a"
+                    }
+                  },
+                  {
+                    "contentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                    "dateBits" : "0000000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "617373697374616e74",
+                      "textUTF8" : "636166c3a9"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "7",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "210-right",
+          "projection" : [
+            {
+              "dateBits" : "0000000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "617373697374616e74",
+                "textUTF8" : "636166c3a9"
+              },
+              "reference" : {
+                "contentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              }
+            },
+            {
+              "dateBits" : "0000000000000001",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "617373697374616e74",
+                "textUTF8" : "63616665cc81"
+              },
+              "reference" : {
+                "contentKey" : "0a9f819d4fad98d8134e23f16f7ff61ebd0f79e9f9f401bc59491da268125e72",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "92401135-eeab-8a56-8a2e-8f2ca559b2b0"
+              }
+            },
+            {
+              "dateBits" : "3ff0000000000001",
+              "payload" : {
+                "projectUTF8" : "f09f9880",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "00f09f98800a"
+              },
+              "reference" : {
+                "contentKey" : "8cba91f3e0fec54203843d059b1612c433b07ddaa385b3417ccd95ebdbb87beb",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "dce58054-07f4-8e60-9983-72dfe56518e1"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000001",
+                  "counter" : "1",
+                  "originID" : "00000000-0000-4000-8000-000000000002",
+                  "sequence" : "9"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "0a9f819d4fad98d8134e23f16f7ff61ebd0f79e9f9f401bc59491da268125e72",
+                    "dateBits" : "0000000000000001",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "617373697374616e74",
+                      "textUTF8" : "63616665cc81"
+                    }
+                  },
+                  {
+                    "contentKey" : "8cba91f3e0fec54203843d059b1612c433b07ddaa385b3417ccd95ebdbb87beb",
+                    "dateBits" : "3ff0000000000001",
+                    "payload" : {
+                      "projectUTF8" : "f09f9880",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "00f09f98800a"
+                    }
+                  },
+                  {
+                    "contentKey" : "c0bd1ba711785726140ddee8c7b4af34c8d0b4379ac08c2952ae2c600996bed4",
+                    "dateBits" : "0000000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "617373697374616e74",
+                      "textUTF8" : "636166c3a9"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "7",
+            "variantDeletes" : [
+
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "inputs" : [
+        {
+          "chatTombstones" : [
+
+          ],
+          "families" : [
+            {
+              "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+              "familyID" : "00000000-0000-4000-8000-000000000000",
+              "orderKey" : {
+                "batchID" : "00000000-0000-4000-8000-000000000002",
+                "counter" : "0",
+                "originID" : "00000000-0000-4000-8000-000000000001",
+                "sequence" : "0"
+              },
+              "variants" : [
+                {
+                  "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                  "dateBits" : "4059000000000000",
+                  "payload" : {
+                    "projectUTF8" : "47656e6572616c",
+                    "roleUTF8" : "75736572",
+                    "textUTF8" : "58"
+                  }
+                }
+              ]
+            }
+          ],
+          "familyDeletes" : [
+
+          ],
+          "format" : "veyra-chat-families-v2",
+          "identityScheme" : "chat-content-v2",
+          "orderClock" : "0",
+          "variantDeletes" : [
+
+          ]
+        },
+        {
+          "chatTombstones" : [
+
+          ],
+          "families" : [
+            {
+              "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+              "familyID" : "00000000-0000-4000-8000-000000000001",
+              "orderKey" : {
+                "batchID" : "00000000-0000-4000-8000-000000000002",
+                "counter" : "0",
+                "originID" : "00000000-0000-4000-8000-000000000001",
+                "sequence" : "1"
+              },
+              "variants" : [
+                {
+                  "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                  "dateBits" : "4059000000000000",
+                  "payload" : {
+                    "projectUTF8" : "47656e6572616c",
+                    "roleUTF8" : "75736572",
+                    "textUTF8" : "58"
+                  }
+                }
+              ]
+            }
+          ],
+          "familyDeletes" : [
+
+          ],
+          "format" : "veyra-chat-families-v2",
+          "identityScheme" : "chat-content-v2",
+          "orderClock" : "0",
+          "variantDeletes" : [
+
+          ]
+        },
+        {
+          "chatTombstones" : [
+
+          ],
+          "families" : [
+            {
+              "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+              "familyID" : "00000000-0000-4000-8000-000000000001",
+              "orderKey" : {
+                "batchID" : "00000000-0000-4000-8000-000000000002",
+                "counter" : "0",
+                "originID" : "00000000-0000-4000-8000-000000000001",
+                "sequence" : "1"
+              },
+              "variants" : [
+                {
+                  "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                  "dateBits" : "4059000000000000",
+                  "payload" : {
+                    "projectUTF8" : "47656e6572616c",
+                    "roleUTF8" : "75736572",
+                    "textUTF8" : "58"
+                  }
+                }
+              ]
+            },
+            {
+              "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+              "familyID" : "00000000-0000-4000-8000-000000000000",
+              "orderKey" : {
+                "batchID" : "00000000-0000-4000-8000-000000000002",
+                "counter" : "0",
+                "originID" : "00000000-0000-4000-8000-000000000001",
+                "sequence" : "0"
+              },
+              "variants" : [
+                {
+                  "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                  "dateBits" : "4059000000000000",
+                  "payload" : {
+                    "projectUTF8" : "47656e6572616c",
+                    "roleUTF8" : "75736572",
+                    "textUTF8" : "58"
+                  }
+                }
+              ]
+            }
+          ],
+          "familyDeletes" : [
+
+          ],
+          "format" : "veyra-chat-families-v2",
+          "identityScheme" : "chat-content-v2",
+          "orderClock" : "0",
+          "variantDeletes" : [
+
+          ]
+        }
+      ],
+      "name" : "source-order",
+      "results" : [
+        {
+          "name" : "012-left",
+          "projection" : [
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000000",
+                "projectedID" : "00000000-0000-4000-8000-000000000000"
+              }
+            },
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000001",
+                "projectedID" : "00000000-0000-4000-8000-000000000001"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000000",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  }
+                ]
+              },
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000001",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "1"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "012-right",
+          "projection" : [
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000000",
+                "projectedID" : "00000000-0000-4000-8000-000000000000"
+              }
+            },
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000001",
+                "projectedID" : "00000000-0000-4000-8000-000000000001"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000000",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  }
+                ]
+              },
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000001",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "1"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "021-left",
+          "projection" : [
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000000",
+                "projectedID" : "00000000-0000-4000-8000-000000000000"
+              }
+            },
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000001",
+                "projectedID" : "00000000-0000-4000-8000-000000000001"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000000",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  }
+                ]
+              },
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000001",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "1"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "021-right",
+          "projection" : [
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000000",
+                "projectedID" : "00000000-0000-4000-8000-000000000000"
+              }
+            },
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000001",
+                "projectedID" : "00000000-0000-4000-8000-000000000001"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000000",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  }
+                ]
+              },
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000001",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "1"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "102-left",
+          "projection" : [
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000000",
+                "projectedID" : "00000000-0000-4000-8000-000000000000"
+              }
+            },
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000001",
+                "projectedID" : "00000000-0000-4000-8000-000000000001"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000000",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  }
+                ]
+              },
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000001",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "1"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "102-right",
+          "projection" : [
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000000",
+                "projectedID" : "00000000-0000-4000-8000-000000000000"
+              }
+            },
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000001",
+                "projectedID" : "00000000-0000-4000-8000-000000000001"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000000",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  }
+                ]
+              },
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000001",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "1"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "120-left",
+          "projection" : [
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000000",
+                "projectedID" : "00000000-0000-4000-8000-000000000000"
+              }
+            },
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000001",
+                "projectedID" : "00000000-0000-4000-8000-000000000001"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000000",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  }
+                ]
+              },
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000001",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "1"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "120-right",
+          "projection" : [
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000000",
+                "projectedID" : "00000000-0000-4000-8000-000000000000"
+              }
+            },
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000001",
+                "projectedID" : "00000000-0000-4000-8000-000000000001"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000000",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  }
+                ]
+              },
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000001",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "1"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "201-left",
+          "projection" : [
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000000",
+                "projectedID" : "00000000-0000-4000-8000-000000000000"
+              }
+            },
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000001",
+                "projectedID" : "00000000-0000-4000-8000-000000000001"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000000",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  }
+                ]
+              },
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000001",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "1"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "201-right",
+          "projection" : [
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000000",
+                "projectedID" : "00000000-0000-4000-8000-000000000000"
+              }
+            },
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000001",
+                "projectedID" : "00000000-0000-4000-8000-000000000001"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000000",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  }
+                ]
+              },
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000001",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "1"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "210-left",
+          "projection" : [
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000000",
+                "projectedID" : "00000000-0000-4000-8000-000000000000"
+              }
+            },
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000001",
+                "projectedID" : "00000000-0000-4000-8000-000000000001"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000000",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  }
+                ]
+              },
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000001",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "1"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "210-right",
+          "projection" : [
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000000",
+                "projectedID" : "00000000-0000-4000-8000-000000000000"
+              }
+            },
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000001",
+                "projectedID" : "00000000-0000-4000-8000-000000000001"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000000",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  }
+                ]
+              },
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "00000000-0000-4000-8000-000000000001",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "1"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "inputs" : [
+        {
+          "chatTombstones" : [
+
+          ],
+          "families" : [
+            {
+              "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+              "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+              "orderKey" : {
+                "batchID" : "00000000-0000-4000-8000-000000000002",
+                "counter" : "0",
+                "originID" : "00000000-0000-4000-8000-000000000001",
+                "sequence" : "0"
+              },
+              "variants" : [
+                {
+                  "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                  "dateBits" : "4059000000000000",
+                  "payload" : {
+                    "projectUTF8" : "47656e6572616c",
+                    "roleUTF8" : "75736572",
+                    "textUTF8" : "58"
+                  }
+                }
+              ]
+            }
+          ],
+          "familyDeletes" : [
+
+          ],
+          "format" : "veyra-chat-families-v2",
+          "identityScheme" : "chat-content-v2",
+          "orderClock" : "0",
+          "variantDeletes" : [
+
+          ]
+        },
+        {
+          "chatTombstones" : [
+
+          ],
+          "families" : [
+            {
+              "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+              "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+              "orderKey" : {
+                "batchID" : "00000000-0000-4000-8000-000000000002",
+                "counter" : "0",
+                "originID" : "00000000-0000-4000-8000-000000000001",
+                "sequence" : "0"
+              },
+              "variants" : [
+                {
+                  "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                  "dateBits" : "4069000000000000",
+                  "payload" : {
+                    "projectUTF8" : "47656e6572616c",
+                    "roleUTF8" : "75736572",
+                    "textUTF8" : "58"
+                  }
+                }
+              ]
+            }
+          ],
+          "familyDeletes" : [
+
+          ],
+          "format" : "veyra-chat-families-v2",
+          "identityScheme" : "chat-content-v2",
+          "orderClock" : "0",
+          "variantDeletes" : [
+
+          ]
+        },
+        {
+          "chatTombstones" : [
+
+          ],
+          "families" : [
+            {
+              "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+              "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+              "orderKey" : {
+                "batchID" : "00000000-0000-4000-8000-000000000002",
+                "counter" : "0",
+                "originID" : "00000000-0000-4000-8000-000000000001",
+                "sequence" : "0"
+              },
+              "variants" : [
+                {
+                  "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                  "dateBits" : "4069000000000000",
+                  "payload" : {
+                    "projectUTF8" : "47656e6572616c",
+                    "roleUTF8" : "75736572",
+                    "textUTF8" : "58"
+                  }
+                },
+                {
+                  "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                  "dateBits" : "4062c00000000000",
+                  "payload" : {
+                    "projectUTF8" : "47656e6572616c",
+                    "roleUTF8" : "75736572",
+                    "textUTF8" : "59"
+                  }
+                }
+              ]
+            }
+          ],
+          "familyDeletes" : [
+
+          ],
+          "format" : "veyra-chat-families-v2",
+          "identityScheme" : "chat-content-v2",
+          "orderClock" : "0",
+          "variantDeletes" : [
+
+          ]
+        }
+      ],
+      "name" : "date-grouping",
+      "results" : [
+        {
+          "name" : "012-left",
+          "projection" : [
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              }
+            },
+            {
+              "dateBits" : "4062c00000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "59"
+              },
+              "reference" : {
+                "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "123da262-a7f6-889d-a938-9c46ff83cad8"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  },
+                  {
+                    "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                    "dateBits" : "4062c00000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "59"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "012-right",
+          "projection" : [
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              }
+            },
+            {
+              "dateBits" : "4062c00000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "59"
+              },
+              "reference" : {
+                "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "123da262-a7f6-889d-a938-9c46ff83cad8"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  },
+                  {
+                    "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                    "dateBits" : "4062c00000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "59"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "021-left",
+          "projection" : [
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              }
+            },
+            {
+              "dateBits" : "4062c00000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "59"
+              },
+              "reference" : {
+                "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "123da262-a7f6-889d-a938-9c46ff83cad8"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  },
+                  {
+                    "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                    "dateBits" : "4062c00000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "59"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "021-right",
+          "projection" : [
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              }
+            },
+            {
+              "dateBits" : "4062c00000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "59"
+              },
+              "reference" : {
+                "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "123da262-a7f6-889d-a938-9c46ff83cad8"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  },
+                  {
+                    "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                    "dateBits" : "4062c00000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "59"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "102-left",
+          "projection" : [
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              }
+            },
+            {
+              "dateBits" : "4062c00000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "59"
+              },
+              "reference" : {
+                "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "123da262-a7f6-889d-a938-9c46ff83cad8"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  },
+                  {
+                    "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                    "dateBits" : "4062c00000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "59"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "102-right",
+          "projection" : [
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              }
+            },
+            {
+              "dateBits" : "4062c00000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "59"
+              },
+              "reference" : {
+                "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "123da262-a7f6-889d-a938-9c46ff83cad8"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  },
+                  {
+                    "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                    "dateBits" : "4062c00000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "59"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "120-left",
+          "projection" : [
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              }
+            },
+            {
+              "dateBits" : "4062c00000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "59"
+              },
+              "reference" : {
+                "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "123da262-a7f6-889d-a938-9c46ff83cad8"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  },
+                  {
+                    "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                    "dateBits" : "4062c00000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "59"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "120-right",
+          "projection" : [
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              }
+            },
+            {
+              "dateBits" : "4062c00000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "59"
+              },
+              "reference" : {
+                "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "123da262-a7f6-889d-a938-9c46ff83cad8"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  },
+                  {
+                    "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                    "dateBits" : "4062c00000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "59"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "201-left",
+          "projection" : [
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              }
+            },
+            {
+              "dateBits" : "4062c00000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "59"
+              },
+              "reference" : {
+                "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "123da262-a7f6-889d-a938-9c46ff83cad8"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  },
+                  {
+                    "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                    "dateBits" : "4062c00000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "59"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "201-right",
+          "projection" : [
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              }
+            },
+            {
+              "dateBits" : "4062c00000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "59"
+              },
+              "reference" : {
+                "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "123da262-a7f6-889d-a938-9c46ff83cad8"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  },
+                  {
+                    "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                    "dateBits" : "4062c00000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "59"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "210-left",
+          "projection" : [
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              }
+            },
+            {
+              "dateBits" : "4062c00000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "59"
+              },
+              "reference" : {
+                "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "123da262-a7f6-889d-a938-9c46ff83cad8"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  },
+                  {
+                    "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                    "dateBits" : "4062c00000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "59"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "210-right",
+          "projection" : [
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              }
+            },
+            {
+              "dateBits" : "4062c00000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "59"
+              },
+              "reference" : {
+                "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "123da262-a7f6-889d-a938-9c46ff83cad8"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  },
+                  {
+                    "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                    "dateBits" : "4062c00000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "59"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "inputs" : [
+        {
+          "chatTombstones" : [
+
+          ],
+          "families" : [
+            {
+              "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+              "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+              "orderKey" : {
+                "batchID" : "00000000-0000-4000-8000-000000000002",
+                "counter" : "0",
+                "originID" : "00000000-0000-4000-8000-000000000001",
+                "sequence" : "0"
+              },
+              "variants" : [
+                {
+                  "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                  "dateBits" : "4059000000000000",
+                  "payload" : {
+                    "projectUTF8" : "47656e6572616c",
+                    "roleUTF8" : "75736572",
+                    "textUTF8" : "58"
+                  }
+                },
+                {
+                  "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                  "dateBits" : "4062c00000000000",
+                  "payload" : {
+                    "projectUTF8" : "47656e6572616c",
+                    "roleUTF8" : "75736572",
+                    "textUTF8" : "59"
+                  }
+                }
+              ]
+            }
+          ],
+          "familyDeletes" : [
+
+          ],
+          "format" : "veyra-chat-families-v2",
+          "identityScheme" : "chat-content-v2",
+          "orderClock" : "0",
+          "variantDeletes" : [
+
+          ]
+        },
+        {
+          "chatTombstones" : [
+
+          ],
+          "families" : [
+            {
+              "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+              "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+              "orderKey" : {
+                "batchID" : "00000000-0000-4000-8000-000000000002",
+                "counter" : "0",
+                "originID" : "00000000-0000-4000-8000-000000000001",
+                "sequence" : "0"
+              },
+              "variants" : [
+                {
+                  "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                  "dateBits" : "4069000000000000",
+                  "payload" : {
+                    "projectUTF8" : "47656e6572616c",
+                    "roleUTF8" : "75736572",
+                    "textUTF8" : "58"
+                  }
+                },
+                {
+                  "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                  "dateBits" : "4062c00000000000",
+                  "payload" : {
+                    "projectUTF8" : "47656e6572616c",
+                    "roleUTF8" : "75736572",
+                    "textUTF8" : "59"
+                  }
+                },
+                {
+                  "contentKey" : "2cf35ce0805ec348e426a34e7d6cc31b859969ff0ef9f38971d9b53aa8cce6dc",
+                  "dateBits" : "4058c00000000000",
+                  "payload" : {
+                    "projectUTF8" : "47656e6572616c",
+                    "roleUTF8" : "75736572",
+                    "textUTF8" : "5a"
+                  }
+                }
+              ]
+            }
+          ],
+          "familyDeletes" : [
+
+          ],
+          "format" : "veyra-chat-families-v2",
+          "identityScheme" : "chat-content-v2",
+          "orderClock" : "0",
+          "variantDeletes" : [
+
+          ]
+        }
+      ],
+      "name" : "variant-delete-replay",
+      "results" : [
+        {
+          "name" : "initial",
+          "projection" : [
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              }
+            },
+            {
+              "dateBits" : "4062c00000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "59"
+              },
+              "reference" : {
+                "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "123da262-a7f6-889d-a938-9c46ff83cad8"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  },
+                  {
+                    "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                    "dateBits" : "4062c00000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "59"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "deleted",
+          "projection" : [
+            {
+              "dateBits" : "4062c00000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "59"
+              },
+              "reference" : {
+                "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "123da262-a7f6-889d-a938-9c46ff83cad8"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+              "abcdef01-2345-4abc-8def-0123456789ab"
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                    "dateBits" : "4062c00000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "59"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+              {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              }
+            ]
+          }
+        },
+        {
+          "name" : "replayed",
+          "projection" : [
+            {
+              "dateBits" : "4058c00000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "5a"
+              },
+              "reference" : {
+                "contentKey" : "2cf35ce0805ec348e426a34e7d6cc31b859969ff0ef9f38971d9b53aa8cce6dc",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "3620d9e4-ccc8-8a39-881d-0b0827c282bf"
+              }
+            },
+            {
+              "dateBits" : "4062c00000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "59"
+              },
+              "reference" : {
+                "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "123da262-a7f6-889d-a938-9c46ff83cad8"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+              "abcdef01-2345-4abc-8def-0123456789ab"
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "2cf35ce0805ec348e426a34e7d6cc31b859969ff0ef9f38971d9b53aa8cce6dc",
+                    "dateBits" : "4058c00000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "5a"
+                    }
+                  },
+                  {
+                    "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                    "dateBits" : "4062c00000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "59"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+              {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              }
+            ]
+          }
+        },
+        {
+          "name" : "observed",
+          "projection" : [
+            {
+              "dateBits" : "4058c00000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "5a"
+              },
+              "reference" : {
+                "contentKey" : "2cf35ce0805ec348e426a34e7d6cc31b859969ff0ef9f38971d9b53aa8cce6dc",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "3620d9e4-ccc8-8a39-881d-0b0827c282bf"
+              }
+            },
+            {
+              "dateBits" : "4062c00000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "59"
+              },
+              "reference" : {
+                "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "123da262-a7f6-889d-a938-9c46ff83cad8"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+              "abcdef01-2345-4abc-8def-0123456789ab"
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "2cf35ce0805ec348e426a34e7d6cc31b859969ff0ef9f38971d9b53aa8cce6dc",
+                    "dateBits" : "4058c00000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "5a"
+                    }
+                  },
+                  {
+                    "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                    "dateBits" : "4062c00000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "59"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+              {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "inputs" : [
+        {
+          "chatTombstones" : [
+
+          ],
+          "families" : [
+            {
+              "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+              "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+              "orderKey" : {
+                "batchID" : "00000000-0000-4000-8000-000000000002",
+                "counter" : "0",
+                "originID" : "00000000-0000-4000-8000-000000000001",
+                "sequence" : "0"
+              },
+              "variants" : [
+                {
+                  "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                  "dateBits" : "4059000000000000",
+                  "payload" : {
+                    "projectUTF8" : "47656e6572616c",
+                    "roleUTF8" : "75736572",
+                    "textUTF8" : "58"
+                  }
+                }
+              ]
+            }
+          ],
+          "familyDeletes" : [
+
+          ],
+          "format" : "veyra-chat-families-v2",
+          "identityScheme" : "chat-content-v2",
+          "orderClock" : "0",
+          "variantDeletes" : [
+
+          ]
+        },
+        {
+          "chatTombstones" : [
+
+          ],
+          "families" : [
+            {
+              "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+              "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+              "orderKey" : {
+                "batchID" : "00000000-0000-4000-8000-000000000002",
+                "counter" : "0",
+                "originID" : "00000000-0000-4000-8000-000000000001",
+                "sequence" : "0"
+              },
+              "variants" : [
+                {
+                  "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                  "dateBits" : "4069000000000000",
+                  "payload" : {
+                    "projectUTF8" : "47656e6572616c",
+                    "roleUTF8" : "75736572",
+                    "textUTF8" : "58"
+                  }
+                },
+                {
+                  "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                  "dateBits" : "4062c00000000000",
+                  "payload" : {
+                    "projectUTF8" : "47656e6572616c",
+                    "roleUTF8" : "75736572",
+                    "textUTF8" : "59"
+                  }
+                },
+                {
+                  "contentKey" : "2cf35ce0805ec348e426a34e7d6cc31b859969ff0ef9f38971d9b53aa8cce6dc",
+                  "dateBits" : "4058c00000000000",
+                  "payload" : {
+                    "projectUTF8" : "47656e6572616c",
+                    "roleUTF8" : "75736572",
+                    "textUTF8" : "5a"
+                  }
+                }
+              ]
+            }
+          ],
+          "familyDeletes" : [
+
+          ],
+          "format" : "veyra-chat-families-v2",
+          "identityScheme" : "chat-content-v2",
+          "orderClock" : "0",
+          "variantDeletes" : [
+
+          ]
+        }
+      ],
+      "name" : "family-delete-replay",
+      "results" : [
+        {
+          "name" : "initial",
+          "projection" : [
+            {
+              "dateBits" : "4059000000000000",
+              "payload" : {
+                "projectUTF8" : "47656e6572616c",
+                "roleUTF8" : "75736572",
+                "textUTF8" : "58"
+              },
+              "reference" : {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              }
+            }
+          ],
+          "state" : {
+            "chatTombstones" : [
+
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+                  {
+                    "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                    "dateBits" : "4059000000000000",
+                    "payload" : {
+                      "projectUTF8" : "47656e6572616c",
+                      "roleUTF8" : "75736572",
+                      "textUTF8" : "58"
+                    }
+                  }
+                ]
+              }
+            ],
+            "familyDeletes" : [
+
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+
+            ]
+          }
+        },
+        {
+          "name" : "deleted",
+          "projection" : [
+
+          ],
+          "state" : {
+            "chatTombstones" : [
+              "abcdef01-2345-4abc-8def-0123456789ab"
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+
+                ]
+              }
+            ],
+            "familyDeletes" : [
+              "abcdef01-2345-4abc-8def-0123456789ab"
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+              {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              }
+            ]
+          }
+        },
+        {
+          "name" : "replayed",
+          "projection" : [
+
+          ],
+          "state" : {
+            "chatTombstones" : [
+              "123da262-a7f6-889d-a938-9c46ff83cad8",
+              "3620d9e4-ccc8-8a39-881d-0b0827c282bf",
+              "abcdef01-2345-4abc-8def-0123456789ab"
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+
+                ]
+              }
+            ],
+            "familyDeletes" : [
+              "abcdef01-2345-4abc-8def-0123456789ab"
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+              {
+                "contentKey" : "2cf35ce0805ec348e426a34e7d6cc31b859969ff0ef9f38971d9b53aa8cce6dc",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "3620d9e4-ccc8-8a39-881d-0b0827c282bf"
+              },
+              {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              },
+              {
+                "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "123da262-a7f6-889d-a938-9c46ff83cad8"
+              }
+            ]
+          }
+        },
+        {
+          "name" : "observed",
+          "projection" : [
+
+          ],
+          "state" : {
+            "chatTombstones" : [
+              "123da262-a7f6-889d-a938-9c46ff83cad8",
+              "2aec1ecc-43ac-8c35-a3b3-19345bf1bc40",
+              "3620d9e4-ccc8-8a39-881d-0b0827c282bf",
+              "abcdef01-2345-4abc-8def-0123456789ab"
+            ],
+            "families" : [
+              {
+                "anchorContentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "orderKey" : {
+                  "batchID" : "00000000-0000-4000-8000-000000000002",
+                  "counter" : "0",
+                  "originID" : "00000000-0000-4000-8000-000000000001",
+                  "sequence" : "0"
+                },
+                "variants" : [
+
+                ]
+              }
+            ],
+            "familyDeletes" : [
+              "abcdef01-2345-4abc-8def-0123456789ab"
+            ],
+            "format" : "veyra-chat-families-v2",
+            "identityScheme" : "chat-content-v2",
+            "orderClock" : "0",
+            "variantDeletes" : [
+              {
+                "contentKey" : "2cf35ce0805ec348e426a34e7d6cc31b859969ff0ef9f38971d9b53aa8cce6dc",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "3620d9e4-ccc8-8a39-881d-0b0827c282bf"
+              },
+              {
+                "contentKey" : "58b32ca7a34840dc3a7ef370534b1b810e1a6f4efd831a053c88218534a6c25f",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "abcdef01-2345-4abc-8def-0123456789ab"
+              },
+              {
+                "contentKey" : "5c8cbae01d27bf56a498e23f774d3d5ab290ffbe17c769069cb1c46046cb0587",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "2aec1ecc-43ac-8c35-a3b3-19345bf1bc40"
+              },
+              {
+                "contentKey" : "7ab7c543e3dcb6f93775d7e26dc2729c214d6f34b8d07e62395f15303dcb99af",
+                "familyID" : "abcdef01-2345-4abc-8def-0123456789ab",
+                "projectedID" : "123da262-a7f6-889d-a938-9c46ff83cad8"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "status" : "native-export"
+}

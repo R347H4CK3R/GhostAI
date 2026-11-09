@@ -49,7 +49,7 @@ jobs:
         if: ${{ always() && steps.dependencies.outcome == 'success' && runner.os == 'Windows' }}
         run: |
           set -euo pipefail
-          python -m unittest scripts.tests.test_private_memory_sync_reference scripts.tests.test_private_sync_interop scripts.tests.test_sync_conformance_ci scripts.tests.test_chat_foundation_ci scripts.tests.test_chat_state_v2_interop -v 2>&1 | tee build/sync-conformance/script-tests.log
+          python -m unittest scripts.tests.test_private_memory_sync_reference scripts.tests.test_private_sync_interop scripts.tests.test_sync_conformance_ci scripts.tests.test_chat_foundation_ci scripts.tests.test_chat_state_v2_interop scripts.tests.test_note_foundation_ci -v 2>&1 | tee build/sync-conformance/script-tests.log
       - name: Record final tracked source diff
         if: ${{ always() && steps.checkout.outcome == 'success' && steps.python.outcome == 'success' }}
         run: python -m scripts.sync_conformance_ci provenance --expected-sha "$GITHUB_SHA" --output build/sync-conformance/provenance-finish.json
@@ -112,7 +112,9 @@ jobs:
   native-seed:
     name: Native foundation plus legacy gate (not release-ready)
     runs-on: macos-15
-    timeout-minutes: 90
+    # Explicit step bounds sum to 93m; retain setup/upload headroom after failures.
+    # Individual test, invocation and simulator-startup limits are unchanged.
+    timeout-minutes: 110
     defaults:
       run:
         shell: bash
@@ -214,6 +216,32 @@ jobs:
             --output build/sync-conformance/chat-native-export.json | tee build/sync-conformance/chat-selection.json
           python -m scripts.chat_state_v2_interop build/sync-conformance/chat-native-export.json \
             2>&1 | tee build/sync-conformance/chat-cross-language-gate.log
+      - name: Run unwired immutable-note foundation (22 native tests)
+        id: note-tests
+        if: ${{ always() && steps.simulator.outcome == 'success' }}
+        timeout-minutes: 15
+        run: |
+          set -euo pipefail
+          xcodebuild test -project AsterionVeyra.xcodeproj -scheme AsterionVeyra \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -destination-timeout 120 \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 180 \
+            -only-testing:AsterionVeyraTests/ImmutableNoteStateV2Tests \
+            -derivedDataPath build/SyncInteropDerivedData \
+            -resultBundlePath build/sync-conformance/ImmutableNotesV2.xcresult \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee build/sync-conformance/note-foundation-tests.log
+      - name: Retain and verify independent note result (zero skips)
+        id: note-result
+        if: ${{ always() && steps.note-tests.outcome != 'skipped' }}
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          test -d build/sync-conformance/ImmutableNotesV2.xcresult
+          xcrun xcresulttool get test-results summary --path build/sync-conformance/ImmutableNotesV2.xcresult \
+            > build/sync-conformance/note-foundation-summary.json
+          python -m scripts.sync_conformance_ci check-foundation --suite ImmutableNoteStateV2Tests \
+            --summary build/sync-conformance/note-foundation-summary.json \
+            --output build/sync-conformance/note-foundation-check.json
       - name: Export unchanged legacy synthetic vectors (seed phase)
         id: native-tests
         if: ${{ always() && steps.simulator.outcome == 'success' }}
