@@ -49,14 +49,14 @@ jobs:
         if: ${{ always() && steps.dependencies.outcome == 'success' && runner.os == 'Windows' }}
         run: |
           set -euo pipefail
-          python -m unittest scripts.tests.test_private_memory_sync_reference scripts.tests.test_private_sync_interop scripts.tests.test_sync_conformance_ci -v 2>&1 | tee build/sync-conformance/script-tests.log
+          python -m unittest scripts.tests.test_private_memory_sync_reference scripts.tests.test_private_sync_interop scripts.tests.test_sync_conformance_ci scripts.tests.test_chat_foundation_ci scripts.tests.test_chat_state_v2_interop -v 2>&1 | tee build/sync-conformance/script-tests.log
       - name: Record final tracked source diff
         if: ${{ always() && steps.checkout.outcome == 'success' && steps.python.outcome == 'success' }}
         run: python -m scripts.sync_conformance_ci provenance --expected-sha "$GITHUB_SHA" --output build/sync-conformance/provenance-finish.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: private-sync-seed-python-${{ matrix.os }}-${{ github.sha }}
+          name: private-sync-seed-python-${{ matrix.os }}-${{ github.sha }}-attempt-${{ github.run_attempt }}
           path: build/sync-conformance/
           if-no-files-found: warn
           retention-days: 14
@@ -101,7 +101,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: private-sync-seed-android-${{ github.sha }}
+          name: private-sync-seed-android-${{ github.sha }}-attempt-${{ github.run_attempt }}
           path: |
             build/sync-conformance/
             android/app/build/reports/
@@ -112,7 +112,7 @@ jobs:
   native-seed:
     name: Native foundation plus legacy gate (not release-ready)
     runs-on: macos-15
-    timeout-minutes: 70
+    timeout-minutes: 90
     defaults:
       run:
         shell: bash
@@ -143,7 +143,7 @@ jobs:
         id: simulator
         timeout-minutes: 6
         run: python scripts/ci_simulator.py boot --output build/sync-conformance/simulator --github-env "$GITHUB_ENV"
-      - name: Run unwired knowledge join foundation (14 native tests)
+      - name: Run unwired knowledge join foundation (17 native tests)
         id: foundation-tests
         timeout-minutes: 15
         run: |
@@ -168,6 +168,52 @@ jobs:
           python -m scripts.sync_conformance_ci check-foundation \
             --summary build/sync-conformance/foundation-summary.json \
             --output build/sync-conformance/foundation-check.json
+      - name: Run unwired chat-state foundation (18 native tests)
+        id: chat-tests
+        if: ${{ always() && steps.simulator.outcome == 'success' }}
+        timeout-minutes: 15
+        run: |
+          set -euo pipefail
+          xcodebuild test -project AsterionVeyra.xcodeproj -scheme AsterionVeyra \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -destination-timeout 120 \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 180 \
+            -only-testing:AsterionVeyraTests/ChatStateV2Tests \
+            -derivedDataPath build/SyncInteropDerivedData \
+            -resultBundlePath build/sync-conformance/ChatStateV2.xcresult \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee build/sync-conformance/chat-foundation-tests.log
+      - name: Retain and verify independent chat result (zero skips)
+        id: chat-result
+        if: ${{ always() && steps.chat-tests.outcome != 'skipped' }}
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          test -d build/sync-conformance/ChatStateV2.xcresult
+          xcrun xcresulttool get test-results summary --path build/sync-conformance/ChatStateV2.xcresult \
+            > build/sync-conformance/chat-foundation-summary.json
+          python -m scripts.sync_conformance_ci check-foundation --suite ChatStateV2Tests \
+            --summary build/sync-conformance/chat-foundation-summary.json \
+            --output build/sync-conformance/chat-foundation-check.json
+      - name: Retain actual native chat projection evidence
+        id: chat-export
+        if: ${{ always() && steps.chat-tests.outcome != 'skipped' }}
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          test -d build/sync-conformance/ChatStateV2.xcresult
+          xcrun xcresulttool export attachments --path build/sync-conformance/ChatStateV2.xcresult \
+            --output-path build/sync-conformance/chat-attachments
+      - name: Compare actual native projections with the independent Python reference
+        if: ${{ always() && steps.chat-export.outcome == 'success' }}
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          python -m scripts.sync_conformance_ci select-export \
+            --format veyra-chat-state-v2-projection-evidence-v1 \
+            --attachments build/sync-conformance/chat-attachments \
+            --output build/sync-conformance/chat-native-export.json | tee build/sync-conformance/chat-selection.json
+          python -m scripts.chat_state_v2_interop build/sync-conformance/chat-native-export.json \
+            2>&1 | tee build/sync-conformance/chat-cross-language-gate.log
       - name: Export unchanged legacy synthetic vectors (seed phase)
         id: native-tests
         if: ${{ always() && steps.simulator.outcome == 'success' }}
@@ -212,7 +258,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: private-sync-native-seed-${{ github.sha }}
+          name: private-sync-native-seed-${{ github.sha }}-attempt-${{ github.run_attempt }}
           path: build/sync-conformance/
           if-no-files-found: warn
           retention-days: 14

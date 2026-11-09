@@ -60,17 +60,31 @@ class ExportSelectionTests(unittest.TestCase):
         self.assertFalse(self.output.exists())
 
 
+class ArtifactNamingTests(unittest.TestCase):
+    def test_each_artifact_is_unique_per_attempt_without_overwriting_evidence(self):
+        workflow = (Path(__file__).resolve().parents[2] /
+                    '.github/workflows/private-sync-conformance.yml').read_text()
+        names = [line.strip() for line in workflow.splitlines()
+                 if line.strip().startswith('name: private-sync-')]
+        self.assertEqual(len(names), 3)
+        for name in names:
+            with self.subTest(name=name):
+                self.assertIn('${{ github.sha }}', name)
+                self.assertIn('${{ github.run_attempt }}', name)
+        self.assertNotIn('overwrite:', workflow)
+
+
 class FoundationEvidenceTests(unittest.TestCase):
-    def test_foundation_requires_fourteen_passes_without_skips_or_failures(self):
+    def test_foundation_requires_seventeen_passes_without_skips_or_failures(self):
         check = getattr(ci, 'foundation_result', None)
         self.assertTrue(callable(check), 'An independent native foundation result is required')
-        good = dict(result='Passed', passedTests=14, totalTestCount=14, failedTests=0, skippedTests=0)
+        good = dict(result='Passed', passedTests=17, totalTestCount=17, failedTests=0, skippedTests=0)
         result = check(good)
         self.assertTrue(result['passed'])
         self.assertFalse(result['release_ready'])
         self.assertEqual(result['suite'], 'KnowledgeSyncJoinTests')
-        invalid = [None, {}, dict(good, result='Failed'), dict(good, passedTests=13),
-                   dict(good, totalTestCount=15), dict(good, failedTests=1), dict(good, skippedTests=1)]
+        invalid = [None, {}, dict(good, result='Failed'), dict(good, passedTests=16),
+                   dict(good, totalTestCount=18), dict(good, failedTests=1), dict(good, skippedTests=1)]
         for field in ('passedTests', 'totalTestCount', 'failedTests', 'skippedTests'):
             invalid += [dict(good, **{field: True}), dict(good, **{field: False}),
                         dict(good, **{field: float(good[field])}), dict(good, **{field: str(good[field])})]
@@ -81,7 +95,7 @@ class FoundationEvidenceTests(unittest.TestCase):
     def test_foundation_cli_retains_a_failed_independent_result(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); source = root / 'summary.json'; output = root / 'check.json'
-            source.write_text(json.dumps(dict(result='Passed', passedTests=13, totalTestCount=14,
+            source.write_text(json.dumps(dict(result='Passed', passedTests=16, totalTestCount=17,
                                              failedTests=0, skippedTests=1)))
             result = subprocess.run([sys.executable, '-m', 'scripts.sync_conformance_ci',
                                      'check-foundation', '--summary', str(source), '--output', str(output)],
@@ -96,7 +110,7 @@ class FoundationEvidenceTests(unittest.TestCase):
     def test_foundation_cli_success_is_still_not_release_approval(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); source = root / 'summary.json'; output = root / 'check.json'
-            source.write_text(json.dumps(dict(result='Passed', passedTests=14, totalTestCount=14,
+            source.write_text(json.dumps(dict(result='Passed', passedTests=17, totalTestCount=17,
                                              failedTests=0, skippedTests=0)))
             result = subprocess.run([sys.executable, '-m', 'scripts.sync_conformance_ci',
                                      'check-foundation', '--summary', str(source), '--output', str(output)],
@@ -124,7 +138,7 @@ class FoundationEvidenceTests(unittest.TestCase):
         self.assertIn('seven known divergences', workflow)
         self.assertNotIn('continue-on-error', workflow)
         self.assertNotIn('|| true', workflow)
-        self.assertEqual(workflow.count('CODE_SIGNING_ALLOWED=NO'), 2)
+        self.assertEqual(workflow.count('CODE_SIGNING_ALLOWED=NO'), 3)
         steps = workflow.split('      - name: ')
         foundation_step = next(step for step in steps if '\n        id: foundation-tests\n' in step)
         result_step = next(step for step in steps if '\n        id: foundation-result\n' in step)
@@ -138,7 +152,7 @@ class FoundationEvidenceTests(unittest.TestCase):
         self.assertNotIn('KnowledgeSyncJoinTests', legacy_step)
         self.assertIn('SyncInterop.xcresult', legacy_step)
         self.assertEqual(len(__import__('re').findall(r'func test\w+\(',
-                            (root / 'Tests/KnowledgeSyncJoinTests.swift').read_text())), 14)
+                            (root / 'Tests/KnowledgeSyncJoinTests.swift').read_text())), 17)
 
 
 class ProvenanceTests(unittest.TestCase):

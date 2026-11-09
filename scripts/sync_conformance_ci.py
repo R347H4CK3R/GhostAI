@@ -15,7 +15,13 @@ from companion.private_sync_codec import MAXIMUM_DOCUMENT_BYTES, strict_json
 from scripts.private_sync_interop import FORMAT
 
 
-def select_export(attachments: Path, output: Path) -> dict:
+CHAT_FORMAT = 'veyra-chat-state-v2-projection-evidence-v1'
+FOUNDATION_COUNTS = {'KnowledgeSyncJoinTests': 17, 'ChatStateV2Tests': 18}
+
+
+def select_export(attachments: Path, output: Path, expected_format: str = FORMAT) -> dict:
+    if expected_format not in {FORMAT, CHAT_FORMAT}:
+        raise ValueError('Unknown synthetic native export format')
     if attachments.is_symlink() or not attachments.is_dir():
         raise ValueError('Missing regular attachment directory')
     found = []
@@ -42,7 +48,7 @@ def select_export(attachments: Path, output: Path) -> dict:
                 value = strict_json(raw)
             except ValueError:
                 continue
-            if isinstance(value, dict) and value.get('format') == FORMAT:
+            if isinstance(value, dict) and value.get('format') == expected_format:
                 if value.get('status') != 'native-export':
                     raise ValueError('Pending or invalid native export cannot seed conformance')
                 found.append((path, raw))
@@ -81,13 +87,16 @@ def provenance(root: Path, expected_sha: str) -> dict:
     }
 
 
-def foundation_result(summary) -> dict:
+def foundation_result(summary, suite='KnowledgeSyncJoinTests') -> dict:
     """Check only the isolated native helper suite, never overall sync readiness."""
-    expected = {'passedTests': 14, 'totalTestCount': 14, 'failedTests': 0, 'skippedTests': 0}
+    if suite not in FOUNDATION_COUNTS:
+        raise ValueError('Unknown native foundation suite')
+    count = FOUNDATION_COUNTS[suite]
+    expected = {'passedTests': count, 'totalTestCount': count, 'failedTests': 0, 'skippedTests': 0}
     summary = summary if isinstance(summary, dict) else {}
     passed = summary.get('result') == 'Passed' and all(
         type(summary.get(field)) is int and summary[field] == count for field, count in expected.items())
-    return {'phase': 'unwired-foundation', 'suite': 'KnowledgeSyncJoinTests', 'passed': passed,
+    return {'phase': 'unwired-foundation', 'suite': suite, 'passed': passed,
             'counts': {field: summary.get(field) for field in expected}, 'release_ready': False,
             'legacy_convergence': 'blocked by seven known divergences; checked separately'}
 
@@ -102,7 +111,9 @@ def main(argv=None):
     select = commands.add_parser('select-export')
     select.add_argument('--attachments', type=Path, required=True)
     select.add_argument('--output', type=Path, required=True)
+    select.add_argument('--format', choices=[FORMAT, CHAT_FORMAT], default=FORMAT)
     foundation = commands.add_parser('check-foundation')
+    foundation.add_argument('--suite', choices=list(FOUNDATION_COUNTS), default='KnowledgeSyncJoinTests')
     foundation.add_argument('--summary', type=Path, required=True)
     foundation.add_argument('--output', type=Path, required=True)
     args = parser.parse_args(argv)
@@ -117,13 +128,13 @@ def main(argv=None):
         if args.command == 'check-foundation':
             with args.summary.open('rb') as stream:
                 summary = strict_json(stream.read(MAXIMUM_DOCUMENT_BYTES + 1))
-            result = foundation_result(summary)
+            result = foundation_result(summary, suite=args.suite)
             args.output.parent.mkdir(parents=True, exist_ok=True)
             with args.output.open('x') as stream:
                 json.dump(result, stream, indent=2); stream.write('\n')
             print(json.dumps(result, indent=2))
             return 0 if result['passed'] else 1
-        result = select_export(args.attachments, args.output)
+        result = select_export(args.attachments, args.output, expected_format=args.format)
         print(json.dumps(result, indent=2))
         return 0
     except (OSError, ValueError, subprocess.SubprocessError):

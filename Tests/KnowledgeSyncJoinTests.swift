@@ -339,7 +339,7 @@ final class KnowledgeSyncJoinTests: XCTestCase {
         XCTAssertEqual(prior.suppressedIDs.count, 90_000)
     }
 
-    func testEntryCountAndSourceByteUnionLimitsFailWithoutEviction() throws {
+    func testEntryCountLimitFailsWithoutEviction() throws {
         let a = snapshot(try (0..<5_000).map { try entry(.action, index: $0) })
         let b = snapshot(try (5_000..<10_000).map { try entry(.action, index: $0) })
         XCTAssertEqual(try joined([a, b]).entries.count, 10_000)
@@ -347,14 +347,38 @@ final class KnowledgeSyncJoinTests: XCTestCase {
         assertFailure(.quota, [a, b, extra])
         let oversized = snapshot(a.entries + b.entries + extra.entries, suppressed: [extra.entries[0].id])
         assertFailure(.invalidContent, [oversized])
+        XCTAssertEqual(a.entries.count, 5_000)
+        XCTAssertEqual(b.entries.count, 5_000)
+    }
+
+    private func sourceByteBoundaryEntries(_ count: Int) throws -> [KnowledgeEntry] {
+        // Preserve the actual 256 KiB record / 50 MiB cache limits and safety scans.
+        // These cases are separate tests so repeated large validation does not share
+        // one 120-second allowance. No global timeout or production limit is changed.
         let text = String(repeating: "x", count: 256 * 1_024)
-        let large = try (0..<201).map { try entry(.conversation, index: $0, text: text) }
+        return try (0..<count).map { try entry(.conversation, index: $0, text: text) }
+    }
+
+    func testSourceByteUnionAcceptsExactlyFiftyMiB() throws {
+        let large = try sourceByteBoundaryEntries(200)
         let atLimit = try joined([snapshot(Array(large.prefix(100))), snapshot(Array(large[100..<200]))])
         XCTAssertEqual(atLimit.entries.count, 200)
         XCTAssertEqual(atLimit.entries.reduce(0) { $0 + $1.byteCount }, 50 * 1_024 * 1_024)
-        assertFailure(.quota, [snapshot(Array(large.prefix(100))), snapshot(Array(large.dropFirst(100)))])
+    }
+
+    func testSourceByteUnionRejectsOverflowWithoutEviction() throws {
+        let large = try sourceByteBoundaryEntries(201)
+        let a = snapshot(Array(large.prefix(100))), b = snapshot(Array(large.dropFirst(100)))
+        assertFailure(.quota, [a, b])
+        XCTAssertEqual(a.entries.count, 100)
+        XCTAssertEqual(b.entries.count, 101)
+        XCTAssertEqual(a.entries.reduce(0) { $0 + $1.byteCount } + b.entries.reduce(0) { $0 + $1.byteCount },
+                       50 * 1_024 * 1_024 + 256 * 1_024)
+    }
+
+    func testSuppressionCannotHideSourceByteOverflow() throws {
+        let large = try sourceByteBoundaryEntries(201)
         assertFailure(.quota, [snapshot(large, suppressed: large.map(\.id))])
-        XCTAssertEqual(a.entries.count, 5_000)
-        XCTAssertEqual(b.entries.count, 5_000)
+        XCTAssertEqual(large.count, 201)
     }
 }

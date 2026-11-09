@@ -183,7 +183,7 @@ convergence blocker before any writer work is enabled.
 ## Unwired knowledge-join foundation validation
 
 `App/KnowledgeSyncJoin.swift` is an unused, pure remove-wins helper for a future
-reviewed protocol. Existing app/cache/merge call sites do not call it. Its 14
+reviewed protocol. Existing app/cache/merge call sites do not call it. Its 17
 native tests cover normalization, operand/grouping laws within compatible bounded
 states, exact UTF-8 and binary64 ties, source/scope validation, and fail-closed
 capacity limits. This is not a document-v2 implementation or a migration.
@@ -193,7 +193,7 @@ The native seed job now runs `KnowledgeSyncJoinTests` in its own bounded
 is independent beneath `build/sync-conformance/`:
 - `KnowledgeJoin.xcresult` and `foundation-tests.log`: actual native helper results.
 - `foundation-summary.json`: raw `xcresulttool get test-results summary` output.
-- `foundation-check.json`: exactly 14 passed, zero failed and zero skipped tests
+- `foundation-check.json`: exactly 17 passed, zero failed and zero skipped tests
   are required. Missing or malformed counts fail; a success still records
   `release_ready: false`.
 - Existing `SyncInterop.xcresult`, `native-export.json` and `export-gate.log` retain
@@ -206,10 +206,48 @@ the overall job is expected to remain red until the existing protocol is correct
 inspect the independent foundation steps/artifacts to determine that helper's
 outcome. No failing export replaces the pending golden fixture.
 
-The job budget is 70 minutes to cover the added bounded invocation and leave time
+The job budget is 90 minutes to cover the separate bounded native invocations and leave time
 for evidence retention and owned-simulator cleanup. Individual native invocations
-remain bounded at 15 minutes, with per-test timeouts. This change has not yet run
-natively; local Python tests cannot establish Swift compilation or native success.
+remain bounded at 15 minutes, with per-test timeouts. The original 14-test run compiled: 13 methods passed and the combined capacity
+method exceeded its 120-second allowance. The count boundary, exact 50 MiB union,
+union overflow and suppressed invalid input are now four separate tests, retaining
+all limits and assertions. These 17 methods have not yet run natively; splitting
+is not a claim that the large cases finish within their unchanged allowances.
+
+## Independent chat foundation and cross-language projection gate
+
+The same owned simulator now runs `ChatStateV2Tests` separately, requiring exactly
+18 passes and zero failed/skipped tests. `ChatStateV2.xcresult`,
+`chat-foundation-tests.log`, `chat-foundation-summary.json` and
+`chat-foundation-check.json` retain that outcome independently of knowledge17 and
+the intentionally failing legacy convergence gate. A failure in one suite does not
+prevent the other suites from producing their evidence after successful simulator
+preparation. Each test invocation keeps its existing 15-minute bound and 120/180
+second per-test allowances.
+
+The existing chat exact-vector test also exports synthetic source states and native
+projections without adding a nineteenth method. CI extracts that attachment to
+`chat-attachments/`, selects its distinct reviewed format, preserves its exact bytes
+as `chat-native-export.json`, and runs:
+
+```sh
+python -m scripts.chat_state_v2_interop build/sync-conformance/chat-native-export.json
+```
+
+The comparator independently replays the received fixed source corpus through the
+unused Python chat reference. It compares every identity, UTF-8 byte, binary64 date
+bit, order fact and deletion marker across five scenarios and 44 results, including
+NFC/NFD, both old grouping counterexamples and typed deletion/replay. Native XCTest
+also checks grouping invariance independently of cross-language agreement. Evidence
+selection, summary validation and comparison all fail closed. Missing or malformed
+attachments are failures, never skips or permission to synthesize an expected file.
+
+`chat-selection.json` and `chat-cross-language-gate.log` are retained with the
+native artifact. Artifact names include the run attempt and SHA so rerun evidence
+is unambiguous without overwriting earlier artifacts. Until this exact code runs on
+Xcode and the actual exported vectors pass the independent comparator, cross-language
+parity remains unproven. Even a passing synthetic projection gate is not a complete
+wire codec, migration, Android parity, new writer or release approval.
 
 ## Equivalent manual native export and later golden verification
 
