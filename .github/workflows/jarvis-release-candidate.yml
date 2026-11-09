@@ -109,11 +109,16 @@ jobs:
     - name: Boot owned test simulator
       timeout-minutes: 6
       run: python3 scripts/ci_simulator.py boot --output test-simulator --github-env "$GITHUB_ENV"
+    - name: Compile simulator test bundles
+      timeout-minutes: 25
+      run: |
+        set -euo pipefail
+        xcodebuild -project AsterionVeyra.xcodeproj -scheme AsterionVeyra -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -destination-timeout 120 -derivedDataPath simulator-build CODE_SIGNING_ALLOWED=NO build-for-testing 2>&1 | tee simulator-build.log
     - name: Unit tests
       timeout-minutes: 30
       run: |
         set -euo pipefail
-        xcodebuild -project AsterionVeyra.xcodeproj -scheme AsterionVeyra -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -destination-timeout 120 -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 180 -resultBundlePath TestResults.xcresult CODE_SIGNING_ALLOWED=NO test 2>&1 | tee xcode-tests.log
+        xcodebuild -project AsterionVeyra.xcodeproj -scheme AsterionVeyra -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -destination-timeout 120 -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 180 -derivedDataPath simulator-build -resultBundlePath TestResults.xcresult CODE_SIGNING_ALLOWED=NO test-without-building 2>&1 | tee xcode-tests.log
     - name: Export test screenshots
       if: always()
       run: |
@@ -152,7 +157,7 @@ jobs:
       run: python3 scripts/jarvis_release.py stage
       id: stage
     if: github.repository == 'R347H4CK3R/GhostAI' && github.event.repository.private == false && github.ref == 'refs/heads/feature/unified-assistant-planning'
-    timeout-minutes: 110
+    timeout-minutes: 135
     permissions:
       contents: write
       actions: read

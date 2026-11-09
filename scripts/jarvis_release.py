@@ -18,7 +18,7 @@ WORKFLOW = '.github/workflows/jarvis-release-candidate.yml'
 VERSION = '0.4.0'
 ASSET = 'Jarvis-unsigned.ipa'
 PREREQUISITES = {'desktop-companion (ubuntu-latest)', 'desktop-companion (windows-latest)', 'desktop-companion (macos-latest)', 'android', 'ios-pairing-tls-preflight'}
-NATIVE_GATES = {'Verify app icon source', 'Unit tests', 'Export test screenshots', 'Verify encrypted Swift-to-desktop transfer', 'Verify install-over-existing simulator upgrade', 'Verify live release simulator upgrade', 'Compile unsigned device app'}
+NATIVE_GATES = {'Verify app icon source', 'Compile simulator test bundles', 'Unit tests', 'Export test screenshots', 'Verify encrypted Swift-to-desktop transfer', 'Verify install-over-existing simulator upgrade', 'Verify live release simulator upgrade', 'Compile unsigned device app'}
 
 
 def validate_context(env, run, jobs, *, phase="stage"):

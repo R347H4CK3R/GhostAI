@@ -248,12 +248,17 @@ import XCTest
         XCTAssertTrue(field.waitForExistence(timeout: 10))
         field.tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
-        field.typeText(note)
+        app.typeText(note)
         // The event synthesizer can return before all characters reach the field.
         // Do not submit the first character while the rest are still arriving.
-        expectation(for: NSPredicate(format: "value == %@", note), evaluatedWith: field)
-        waitForExpectations(timeout: 10)
-        XCTAssertEqual(field.value as? String, note)
+        let inputMatches = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", note), object: field)
+        // A standalone waiter lets the equality assertion report the actual input
+        // even when a timeout would otherwise stop this test immediately.
+        let inputWaitResult = XCTWaiter.wait(for: [inputMatches], timeout: 10)
+        let actualInput = field.value as? String
+        XCTAssertEqual(actualInput, note, "Exact note input wait result: \(inputWaitResult.rawValue)")
+        XCTAssertEqual(inputWaitResult, .completed,
+                       "Exact note input timed out; actual: \(String(describing: actualInput)); expected: \(note)")
         let remember = app.buttons["memoryNoteSaveKeyboard"]
         XCTAssertTrue(remember.waitForExistence(timeout: 5))
         XCTAssertTrue(remember.isEnabled)
