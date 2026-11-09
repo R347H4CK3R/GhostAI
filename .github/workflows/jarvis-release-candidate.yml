@@ -49,7 +49,7 @@ jobs:
     if: github.repository == 'R347H4CK3R/GhostAI' && github.event.repository.private == false && github.ref == 'refs/heads/feature/unified-assistant-planning'
     timeout-minutes: 30
   ios-pairing-tls-preflight:
-    runs-on: macos-15
+    runs-on: macos-15-intel
     timeout-minutes: 30
     steps:
     - uses: actions/checkout@v4
@@ -58,10 +58,13 @@ jobs:
     - name: Select Xcode 26
       run: |
         set -euo pipefail
-        XCODE=$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' | sort -V | tail -1)
-        test -n "$XCODE" || { echo 'Xcode 26 is required'; exit 1; }
+        XCODE=/Applications/Xcode_26.2.app
+        test -d "$XCODE" || { echo 'Xcode 26 is required'; exit 1; }
         sudo xcode-select -s "$XCODE/Contents/Developer"
         xcodebuild -version
+        uname -m
+        xcodebuild -showsdks
+        xcrun simctl list runtimes
     - run: brew install xcodegen
     - run: xcodegen generate
     - name: Boot test simulator
@@ -82,7 +85,7 @@ jobs:
     - desktop-companion
     - android
     - ios-pairing-tls-preflight
-    runs-on: macos-15
+    runs-on: macos-15-intel
     steps:
     - uses: actions/checkout@v4
       with:
@@ -90,10 +93,13 @@ jobs:
     - name: Select Xcode 26
       run: |
         set -euo pipefail
-        XCODE=$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' | sort -V | tail -1)
-        test -n "$XCODE" || { echo 'Xcode 26 is required'; exit 1; }
+        XCODE=/Applications/Xcode_26.2.app
+        test -d "$XCODE" || { echo 'Xcode 26 is required'; exit 1; }
         sudo xcode-select -s "$XCODE/Contents/Developer"
         xcodebuild -version
+        uname -m
+        xcodebuild -showsdks
+        xcrun simctl list runtimes
     - run: brew install xcodegen
     - name: Verify app icon source
       run: |
