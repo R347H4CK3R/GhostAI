@@ -21,7 +21,7 @@ Opening planning or import makes no network call. Explicit Ask assistant uses th
 
 ## Verification gates
 
-Native XCTest files were authored before implementation but could not execute in the authoring Linux workspace: Swift/Xcode is unavailable. Static review cannot establish type correctness. Before merging/releasing, run the repository's existing iOS tests and compile gate once on the reviewed commit, followed by signed-device checks:
+Native XCTest files were authored before implementation but could not execute in the authoring Linux workspace: Swift/Xcode is unavailable. Static review cannot establish type correctness. The branch-only Jarvis native candidate workflow uses one standard macos-15 runner in the public repository, read-only permissions, targeted integration/import/voice tests and unsigned device compilation. It does not upload artifacts, publish releases or establish a full regression pass. Before merging/releasing, run the remaining repository iOS/upgrade gates on the reviewed commit, followed by signed-device checks:
 
 1. Install over the retained app without deleting it; verify existing notes/chats and settings.
 2. Import synthetic Luma notes/checklists, reject duplicate-key/unsafe/malformed samples, cancel and change workspace mid-preview; confirm no unintended write.

@@ -1,0 +1,62 @@
+name: Verify Jarvis native candidate
+on:
+  push:
+    branches: [feature/unified-assistant-planning]
+    paths:
+      - 'App/**'
+      - 'Tests/**'
+      - 'UITests/**'
+      - 'project.yml'
+      - '.github/workflows/jarvis-native-candidate.yml'
+permissions:
+  contents: read
+concurrency:
+  group: jarvis-native-candidate
+  cancel-in-progress: false
+jobs:
+  native-candidate:
+    # Public repository, standard runner only. No larger runner, upload or publish.
+    if: github.repository == 'R347H4CK3R/GhostAI' && github.event.repository.private == false
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select installed Xcode 26
+        run: |
+          set -euo pipefail
+          XCODE=$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' | sort -V | tail -1)
+          test -n "$XCODE" || { echo 'Xcode 26 unavailable'; exit 1; }
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+      - run: brew install xcodegen
+      - run: xcodegen generate
+      - name: Boot owned simulator
+        timeout-minutes: 6
+        run: python3 scripts/ci_simulator.py boot --output jarvis-simulator --github-env "$GITHUB_ENV"
+      - name: Native integration and import regression tests
+        timeout-minutes: 20
+        run: |
+          set -euo pipefail
+          xcodebuild -project AsterionVeyra.xcodeproj -scheme AsterionVeyra \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -destination-timeout 120 \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 180 \
+            -only-testing:AsterionVeyraTests/LumaBackupImportTests \
+            -only-testing:AsterionVeyraTests/UnifiedPlanningTests \
+            -only-testing:AsterionVeyraTests/VoiceEntryRequestTests \
+            -only-testing:AsterionVeyraTests/ConversationImportTests \
+            -only-testing:AsterionVeyraTests/VoicePolicyTests \
+            CODE_SIGNING_ALLOWED=NO test
+      - name: Compile unsigned iPhone candidate
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          xcodebuild -project AsterionVeyra.xcodeproj -scheme AsterionVeyra \
+            -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath jarvis-device CODE_SIGNING_ALLOWED=NO build
+          test -d jarvis-device/Build/Products/Release-iphoneos/AsterionVeyra.app
+          echo 'Unsigned device compilation complete. No signed installation or full regression pass is claimed.'
+      - name: Shut down owned simulator
+        if: ${{ always() && env.SIMULATOR_ID != '' }}
+        timeout-minutes: 2
+        run: python3 scripts/ci_simulator.py shutdown --output jarvis-simulator --simulator-id "$SIMULATOR_ID"
