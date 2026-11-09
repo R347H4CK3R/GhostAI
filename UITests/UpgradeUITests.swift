@@ -12,7 +12,7 @@ import XCTest
         XCTAssertTrue(app.tabBars.buttons["Assistant"].waitForExistence(timeout: 20))
         XCTAssertTrue(app.staticTexts["Upgrade fixture: a saved question, not a model request."].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["Upgrade fixture: a saved response, not generated inference."].exists)
-        XCTAssertFalse(app.alerts["Asterion"].exists, "An unreadable old store must fail the upgrade gate")
+        XCTAssertFalse(app.alerts["Jarvis"].exists || app.alerts["Asterion"].exists, "An unreadable old store must fail the upgrade gate")
         saveScreenshot(app.screenshot(), name: "Upgrade retained prior conversation")
 
         app.tabBars.buttons["Memory"].tap()
@@ -27,7 +27,7 @@ import XCTest
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         XCTAssertTrue(springboard.wait(for: .runningForeground, timeout: 10))
         saveScreenshot(XCUIScreen.main.screenshot(), name: "Upgrade Home before icon selection")
-        let icons = springboard.icons.matching(identifier: "Asterion Veyra")
+        let icons = springboard.icons.matching(identifier: "Jarvis")
         var visibleIcon: XCUIElement?
         // Home can still be settling when SpringBoard becomes foreground. Do
         // not swipe away from an already-visible icon or choose an off-page
@@ -65,3 +65,4 @@ import XCTest
         add(attachment)
     }
 }
+

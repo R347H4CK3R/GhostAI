@@ -11,7 +11,7 @@ targets:
     info:
       path: App/Info.plist
       properties:
-        CFBundleDisplayName: Asterion Veyra
+        CFBundleDisplayName: Jarvis
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSLocalNetworkUsageDescription: Connect only to the desktop you explicitly pair for bounded read-only jobs.
@@ -26,7 +26,7 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         SWIFT_VERSION: "5.0"
         GENERATE_INFOPLIST_FILE: NO
-        INFOPLIST_KEY_CFBundleDisplayName: Asterion Veyra
+        INFOPLIST_KEY_CFBundleDisplayName: Jarvis
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_NSMicrophoneUsageDescription: Record your voice only when you start a voice conversation.
         INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: Turn your spoken messages into text using available on-device recognition.
@@ -65,3 +65,4 @@ schemes:
         AsterionVeyraUITests: [test]
     test:
       targets: [AsterionVeyraTests, AsterionVeyraUITests]
+

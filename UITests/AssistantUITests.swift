@@ -80,7 +80,7 @@ import XCTest
         let field = composer(in: app)
         field.tap(); app.typeText("password = synthetic-only")
         app.buttons["chatSend"].tap()
-        let alert = app.alerts["Asterion"]
+        let alert = app.alerts["Jarvis"]
         XCTAssertTrue(alert.waitForExistence(timeout: 5)); alert.buttons["OK"].tap()
         XCTAssertEqual(field.value as? String, "password = synthetic-only")
         let error = app.staticTexts["chatInlineError"]
@@ -94,7 +94,7 @@ import XCTest
         let field = composer(in: app)
         field.tap(); app.typeText("Request an answer")
         app.buttons["chatSend"].tap()
-        let alert = app.alerts["Asterion"]
+        let alert = app.alerts["Jarvis"]
         XCTAssertTrue(alert.waitForExistence(timeout: 10)); alert.buttons["OK"].tap()
         let error = app.staticTexts["chatInlineError"]
         XCTAssertTrue(error.waitForExistence(timeout: 5))
@@ -310,3 +310,4 @@ import XCTest
     }
 
 }
+

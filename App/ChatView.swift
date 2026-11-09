@@ -32,7 +32,7 @@ struct ChatView: View {
         NavigationStack {
             transcript
                 .safeAreaInset(edge: .bottom, spacing: 0) { composer }
-                .navigationTitle("Asterion")
+                .navigationTitle("Jarvis")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
@@ -41,7 +41,7 @@ struct ChatView: View {
                     }
                     ToolbarItem(placement: .principal) {
                         VStack(spacing: 2) {
-                            Label("Asterion Veyra", systemImage: "sparkles").font(.subheadline.weight(.semibold))
+                            Label("Jarvis", systemImage: "sparkles").font(.subheadline.weight(.semibold))
                             Text(store.connectionState.shortLabel + " · " + store.project).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                                 .accessibilityIdentifier("chatConnectionSummary")
                         }.accessibilityElement(children: .combine)
@@ -210,7 +210,7 @@ struct ChatView: View {
 
     private func message(_ text: String, isUser: Bool, source: String? = nil) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(isUser ? "You" : "Asterion").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            Text(isUser ? "You" : "Jarvis").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
             if !isUser, let source { Text(source).font(.caption2).foregroundStyle(.secondary) }
             Text(text).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
         }.padding(14).frame(maxWidth: .infinity, alignment: .leading)
@@ -232,10 +232,10 @@ struct ChatView: View {
                 Button { openVoiceSettings() } label: {
                     Image(systemName: "phone.fill").font(.title3).frame(width: 44, height: 44)
                 }.accessibilityLabel("Voice call and settings").accessibilityHint("Open controls for an on-device voice conversation.").accessibilityIdentifier("chatVoiceSettings")
-                TextField("Message Asterion", text: draft, axis: .vertical)
+                TextField("Message Jarvis", text: draft, axis: .vertical)
                     .lineLimit(1...4).padding(.vertical, 12)
                     .focused($composerFocused)
-                    .accessibilityLabel("Message Asterion")
+                    .accessibilityLabel("Message Jarvis")
                     .accessibilityHint("Write a message for the selected project. Swipe down in the conversation or use Done to dismiss the keyboard.")
                     .accessibilityIdentifier("chatComposer")
                 if store.busy {
@@ -283,7 +283,7 @@ struct ChatView: View {
                         .tint(voiceConversation ? .red : .cyan)
                         .disabled(store.busy && !voiceConversation)
                         .accessibilityIdentifier("chatStartVoiceCall")
-                    Text("Talk back and forth with Asterion using this device’s microphone and speaker. This is an in-app voice conversation, not a telephone call. Microphone and speech permission are requested when you start.")
+                    Text("Talk back and forth with Jarvis using this device’s microphone and speaker. This is an in-app voice conversation, not a telephone call. Microphone and speech permission are requested when you start.")
                         .font(.caption).foregroundStyle(.secondary)
                     Button {
                         if voice.state == .speaking { endVoiceConversation() }

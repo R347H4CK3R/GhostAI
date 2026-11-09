@@ -39,7 +39,7 @@ struct MainView: View {
         .onChange(of: scenePhase) { _, phase in if phase == .active { diagnostics.runIfDue() } }
         .tint(.cyan)
         .preferredColorScheme(.dark)
-        .alert("Asterion", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) {
+        .alert("Jarvis", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) {
             Button("OK") { store.error = nil }
         } message: { Text(store.error ?? "") }
     }
@@ -216,7 +216,7 @@ struct AboutView: View {
                     NavigationLink("Check for app updates") { AppUpdatesView() }
                         .accessibilityIdentifier("updates.open")
                 }
-                Section("Independent assistant") { Text("Asterion Veyra is a new app, not a clone of dot or ChatGPT. It has its own local conversations and memories.") }
+                Section("Independent assistant") { Text("Jarvis combines this app’s native assistant with everyday planning and reviewed Luma imports. It is independent of ChatGPT, with its own local conversations and memories.") }
                 Section("Works offline") { Text("Saved notes, chat history, retrieved project context and available Apple on-device inference. GitHub discovery and repository tools need internet. Local Assistant and voice stay on-device. The separate Hosted screen sends only the request you explicitly review to OpenAI and may incur API charges.") }
                 Section("Current scope") { Text("Public and explicitly connected private GitHub repositories; bounded model-directed source reads; local note search; encrypted manual memory transfer. Separate review screens support optional hosted answers and new-branch draft pull requests. They do not run automatically from model responses. Automatic cross-device memory sync and arbitrary local code execution are not implemented. Optional paired desktop jobs are a development preview with native verification pending. Voice uses turn-taking when on-device recognition is available. Active-audio background operation needs direct-device testing.") }
                 Section("Real limits") { Text("Requires iOS 26 and available Apple Intelligence. Context, storage, battery and background execution are finite. The app cannot control arbitrary installed apps or run Xcode. No guarantee of unlimited knowledge or perfect recall.") }
@@ -243,7 +243,7 @@ struct AboutView: View {
                     Text("Safe checks refresh every three days when the app is opened. Reports contain only app/iOS versions and test statuses, not chats, memories, code, credentials or recordings. Nothing is automatically uploaded to the public repository.").font(.caption)
                 }
                 Section("Siri and Shortcuts") {
-                    Text("A directly installed app exposes Open Asterion Veyra as an App Shortcut. Try Siri after installation; no custom always-listening wake word is used.")
+                    Text("A directly installed app exposes Open Jarvis and Open voice controls as App Shortcuts. Try Siri after installation; no custom always-listening wake word is used.")
                     Button("Open Shortcuts") { if let url = URL(string: "shortcuts://") { UIApplication.shared.open(url) } }
                     Button("Create a shortcut in the Shortcuts editor") { if let url = URL(string: "shortcuts://create-shortcut") { UIApplication.shared.open(url) } }
                     Text("The editor opens for you to configure and approve workflows involving other apps. This app does not silently add arbitrary shortcuts.").font(.caption)

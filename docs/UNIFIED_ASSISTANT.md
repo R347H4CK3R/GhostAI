@@ -1,5 +1,7 @@
 # Unified assistant integration candidate
 
+The visible assistant name is Jarvis. The app identifier, storage paths, signing identity requirements and model boundaries remain unchanged. This is an independently implemented personality and interface, not a copy of ChatGPT’s model or private conversations.
+
 This branch adds original native planning and Luma-backup compatibility to Veyra. It is a source candidate, not a verified merged/released app. No private Luma source, conversations, credentials or model weights are embedded.
 
 ## Available in this candidate's source
