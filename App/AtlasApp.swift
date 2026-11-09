@@ -22,9 +22,10 @@ struct MainView: View {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var diagnostics = DiagnosticsController()
     @State private var selectedTab = "assistant"
+    @ObservedObject private var voiceEntry = VoiceEntryRequest.shared
     var body: some View {
         TabView(selection: $selectedTab) {
-            ChatView().tabItem { Label("Assistant", systemImage: "sparkles") }.tag("assistant")
+            ChatView(isSelected: selectedTab == "assistant").tabItem { Label("Assistant", systemImage: "sparkles") }.tag("assistant")
             RepositoriesView(onRepositorySelected: { repository, commit, client, workspace in
                 store.selectRepository(repository, commit: commit, client: client, workspace: workspace)
             }).tabItem { Label("Projects", systemImage: "folder") }.tag("projects")
@@ -33,7 +34,8 @@ struct MainView: View {
             AboutView(onOpenIntegration: { selectedTab = $0 }).tabItem { Label("About", systemImage: "info.circle") }.tag("about")
         }
         .environmentObject(diagnostics)
-        .task { diagnostics.runIfDue() }
+        .task { diagnostics.runIfDue(); if voiceEntry.pending { selectedTab = "assistant" } }
+        .onChange(of: voiceEntry.pending) { _, pending in if pending { selectedTab = "assistant" } }
         .onChange(of: scenePhase) { _, phase in if phase == .active { diagnostics.runIfDue() } }
         .tint(.cyan)
         .preferredColorScheme(.dark)
@@ -284,3 +286,4 @@ struct AboutView: View {
         }
     }
 }
+

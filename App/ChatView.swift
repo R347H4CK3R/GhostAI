@@ -2,9 +2,12 @@ import SwiftUI
 import UIKit
 
 struct ChatView: View {
+    var isSelected = true
+    @State private var showingPlanning = false
     @EnvironmentObject var store: AssistantStore
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var voice = VoiceController()
+    @ObservedObject private var voiceEntry = VoiceEntryRequest.shared
     @FocusState private var composerFocused: Bool
     // Drafts are project-scoped and stay in memory, never in the saved note/chat store.
     @State private var drafts: [String: String] = [:]
@@ -32,6 +35,10 @@ struct ChatView: View {
                 .navigationTitle("Asterion")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button { showingPlanning = true } label: { Label("Plan and act", systemImage: "checklist") }
+                            .accessibilityIdentifier("planning.open")
+                    }
                     ToolbarItem(placement: .principal) {
                         VStack(spacing: 2) {
                             Label("Asterion Veyra", systemImage: "sparkles").font(.subheadline.weight(.semibold))
@@ -55,7 +62,14 @@ struct ChatView: View {
                             .accessibilityIdentifier("chatKeyboardDone")
                     }
                 }
+                .navigationDestination(isPresented: $showingPlanning) {
+                    UnifiedPlanningView(onSubmitQuestion: submitPlannedQuestion)
+                }
+                .onChange(of: isSelected) { _, selected in if selected { consumeVoiceEntry() } }
+                .onChange(of: scenePhase) { _, phase in if phase == .active { consumeVoiceEntry() } }
                 .sheet(isPresented: $showVoiceSettings) { voiceSettings }
+                .onAppear { consumeVoiceEntry() }
+                .onChange(of: voiceEntry.pending) { _, pending in if pending { consumeVoiceEntry() } }
                 .confirmationDialog("Delete this project’s chat history?", isPresented: $confirmClear) {
                     Button("Delete chat", role: .destructive) {
                         endVoiceConversation(); store.clearProjectChat()
@@ -314,7 +328,23 @@ struct ChatView: View {
     private func scrollToLatest(_ proxy: ScrollViewProxy) {
         withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(bottomID, anchor: .bottom) }
     }
+    private func consumeVoiceEntry() {
+        guard isSelected, scenePhase == .active else { return }
+        if voiceEntry.consume() { showingPlanning = false; openVoiceSettings() }
+    }
     private func openVoiceSettings() { composerFocused = false; showVoiceSettings = true }
+    private func submitPlannedQuestion(_ text: String) -> Bool {
+        endVoiceConversation()
+        composerFocused = false
+        guard store.ask(text) else {
+            if let error = store.error { inlineError = error }
+            return false
+        }
+        // Use the same request bookkeeping as typed chat; preserve any typed draft.
+        submittedQuestion = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        inlineError = nil; failedQuestion = nil
+        return true
+    }
     private func sendMessage() {
         guard canSend else { return }
         endVoiceConversation()
@@ -350,3 +380,4 @@ struct ChatView: View {
         voice.allowsBackgroundVoice = false
     }
 }
+

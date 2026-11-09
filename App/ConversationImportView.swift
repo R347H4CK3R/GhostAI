@@ -31,7 +31,10 @@ struct ConversationImportView: View {
                 Picker("File format", selection: $kind) {
                     ForEach(ConversationImportKind.allCases) { item in Text(item.label).tag(item) }
                 }.disabled(reading)
-                if kind != .chatGPTConversations {
+                if kind == .lumaBackup {
+                    Text("Select a plain JSON backup exported by Luma. Notes and checklist status become local reference notes, not executable jobs or live tasks. Original Luma data is untouched. Encrypted backups are not accepted. Reimported edits become new snapshots; review older versions yourself. Unknown fields are not copied. Keep both apps and your backups until you verify the result.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                } else if kind != .chatGPTConversations {
                     Text(kind == .memoryText
                          ? "A UTF-8 .txt or .md file becomes one memory note, up to 20,000 characters. Copy only memories you personally want to retain."
                          : "This accepts only the documented Asterion memory-import JSON schema, not an assumed OpenAI saved-memory format. See the project’s conversation import guide.")
@@ -112,7 +115,7 @@ struct ConversationImportView: View {
                     Text("\(reason.label): \(count)").font(.footnote).foregroundStyle(.orange)
                 }
             }
-            Text("Coverage is for supported plain text on current_node’s ancestor branch only. Export metadata, tools/system messages, other branches and assets are not copied. Unknown structures may be skipped or rejected. This is not a full account migration.")
+            Text(kind == .lumaBackup ? "Coverage includes supported Luma notes and checklist snapshots only. No credentials, models, app permissions, settings or running jobs are transferred." : "Coverage is for supported plain text on current_node’s ancestor branch only. Export metadata, tools/system messages, other branches and assets are not copied. Unknown structures may be skipped or rejected. This is not a full account migration.")
                 .font(.footnote).foregroundStyle(.secondary)
         }
     }
@@ -188,3 +191,4 @@ private struct ConversationImportDetail: View {
         }.navigationTitle("Review import")
     }
 }
+

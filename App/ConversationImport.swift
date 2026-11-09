@@ -3,13 +3,14 @@ import CryptoKit
 import CoreFoundation
 
 enum ConversationImportKind: String, CaseIterable, Identifiable, Sendable {
-    case chatGPTConversations, memoryText, memoryJSON
+    case chatGPTConversations, memoryText, memoryJSON, lumaBackup
     var id: String { rawValue }
     var label: String {
         switch self {
         case .chatGPTConversations: return "ChatGPT conversations JSON"
         case .memoryText: return "My memory text file"
         case .memoryJSON: return "Asterion memory import JSON"
+        case .lumaBackup: return "Luma plain backup JSON"
         }
     }
 }
@@ -154,10 +155,12 @@ enum ConversationImporter {
         guard !project.isEmpty, project.count <= 300, KnowledgePolicy.isSafe(project), importedAt.timeIntervalSince1970.isFinite,
               (0...253_402_300_799).contains(importedAt.timeIntervalSince1970) else { throw ConversationImportFailure.unsafe }
         if kind == .memoryText { return try memoryText(bytes, filename: filename, project: project, date: importedAt) }
+        if kind == .lumaBackup, bytes.count > 2_000_000 { throw ConversationImportFailure.oversized }
         try ConversationImportJSONGuard.validate(bytes)
         let json: Any
         do { json = try JSONSerialization.jsonObject(with: bytes) } catch { throw ConversationImportFailure.malformed }
         try Task.checkCancellation()
+        if kind == .lumaBackup { return try LumaBackupImport.preview(json, filename: filename, project: project, importedAt: importedAt) }
         if kind == .memoryJSON { return try memoryJSON(json, filename: filename, project: project, date: importedAt) }
         guard let records = json as? [Any] else { throw ConversationImportFailure.unsupported }
         guard records.count <= ConversationImportPolicy.maximumConversations else { throw ConversationImportFailure.oversized }
@@ -305,3 +308,4 @@ enum ConversationImporter {
         return ConversationImportPreview(project: project, filename: filename, kind: .memoryJSON, sourceItems: records.count, groups: groups, skipped: skipped, omittedBranchNodes: 0, missingTimestamps: missing)
     }
 }
+
