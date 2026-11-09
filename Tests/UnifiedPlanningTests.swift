@@ -13,6 +13,14 @@ final class UnifiedPlanningTests: XCTestCase {
             XCTAssertThrowsError(try UnifiedPlanning.checklist(goal: goal, kit: .daily))
         }
     }
+    func testPairedGoalIsReadOnlyAndExcludesImplicitMemory() throws {
+        let goal = try UnifiedPlanning.pairedGoal(goal: "Investigate failing tests")
+        XCTAssertTrue(goal.contains("Read-only"))
+        XCTAssertTrue(goal.contains("Investigate failing tests"))
+        XCTAssertTrue(goal.contains("Do not modify"))
+        XCTAssertLessThan(goal.count, 2000)
+        XCTAssertThrowsError(try UnifiedPlanning.pairedGoal(goal: "api_key=sample"))
+    }
     func testModelDraftIsBoundedAndDoesNotGrantTools() throws {
         let prompt = try UnifiedPlanning.question(goal: "Prepare release", kit: .project)
         XCTAssertLessThanOrEqual(prompt.count, 2000)

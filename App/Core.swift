@@ -7,14 +7,14 @@ struct MemoryNote: Identifiable, Codable, Equatable, Sendable {
     var source: String
     var savedAt = Date()
 }
-struct ChatEntry: Identifiable, Codable {
+struct ChatEntry: Identifiable, Codable, Sendable {
     var id = UUID()
     var project: String
     var role: String
     var text: String
     var date = Date()
 }
-struct SavedState: Codable {
+struct SavedState: Codable, Sendable {
     var version = 1
     var notes: [MemoryNote]
     var chats: [ChatEntry]

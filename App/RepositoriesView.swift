@@ -15,9 +15,15 @@ private struct RepositorySelection: Hashable {
 struct RepositoriesView: View {
     @EnvironmentObject var store: AssistantStore
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @EnvironmentObject private var credentials: GitHubCredentialStore
     var onRepositorySelected: ((Repository, String, GitHubClient, String) -> Void)? = nil
     @State private var owner = ""
+    @State private var search = ""
+    @State private var searchPresented = false
+    @State private var collection: ProjectCollection = .all
+    @State private var inspectedWorkspace: SavedWorkspaceSummary?
+    private enum ProjectCollection: String, CaseIterable { case all = "All", saved = "Saved", github = "GitHub" }
     @State private var repositories: [Repository] = []
     @State private var page = 1
     @State private var more = false
@@ -37,37 +43,68 @@ struct RepositoriesView: View {
     var body: some View {
         NavigationStack(path: $navigation) {
             List {
-                if let connection = credentials.connection {
-                    Section("Connected GitHub account") {
-                        Label(connection.account.login, systemImage: "lock.shield")
-                        Button("Load accessible repositories") { Task { await load(reset: true) } }.disabled(loading)
-                        Text("Read-only session. Ends after eight hours, app exit or sign-out. Each repository is pinned to a commit.").font(.caption)
+                if search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Section {
+                        LibraryOverview(eyebrow: "YOUR WORKSPACES", title: "Pick up where you left off",
+                            subtitle: "Keep each project’s conversations, notes and source context together.", symbol: "square.stack.3d.up")
+                        HStack(alignment: .top, spacing: 12) {
+                            LibraryItemIcon(symbol: "checkmark.circle")
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Current workspace").font(.caption).foregroundStyle(.secondary)
+                                Text(WorkspaceDisplay(store.project).title).font(.headline).fixedSize(horizontal: false, vertical: true)
+                                Text(WorkspaceDisplay(store.project).subtitle).font(.caption).foregroundStyle(.secondary)
+                            }
+                        }.padding(.vertical, 4).accessibilityElement(children: .combine)
                     }
-                } else {
+                }
+                Section {
+                    Picker("Project collection", selection: $collection) {
+                        ForEach(ProjectCollection.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                    }.pickerStyle(.segmented).accessibilityIdentifier("projects.collection")
+                }.listRowBackground(Color.clear).listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                connectionSection
+                if collection != .github { savedProjects }
+                if collection != .saved { githubProjects }
+                if credentials.connection == nil {
                     publicProjects
                     privateConnection
                 }
                 Section {
-                    Button("Sign out and remove saved token", role: .destructive) { signOut() }
-                    Text("Sign-out cancels requests and clears current source context. Saved offline notes and conversations remain until you delete them under Memory or Assistant.").font(.caption).foregroundStyle(.secondary)
-                }
-                Section("Project workspaces") {
-                    Button("General assistant") { store.switchProject("General") }
-                    ForEach(repositories) { repository in
-                        NavigationLink(value: RepositorySelection(repository: repository, connectionID: credentials.connection?.id)) {
-                            Label(repository.full_name, systemImage: credentials.connection == nil ? "folder.fill" : "lock.doc")
-                        }
-                    }
-                    if more { Button("Load more") { Task { await load(reset: false) } }.disabled(loading) }
-                    if loading { ProgressView() }
-                }
-                Section("Saved offline workspaces") {
-                    ForEach(Array(Set(store.saved.notes.map(\.project) + store.saved.chats.map(\.project))).sorted(), id: \.self) { project in
-                        Button(project) { store.switchProject(project) }
+                    DisclosureGroup("Session and saved credentials") {
+                        Button("Sign out and remove saved token", role: .destructive) { signOut() }
+                        Text("Sign-out cancels requests and clears current source context. Your saved notes and conversations remain in Memory and Assistant until you delete them.")
+                            .font(.caption).foregroundStyle(.secondary)
                     }
                 }
             }
-            .navigationTitle("Project nexus")
+            .listStyle(.insetGrouped)
+            .contentMargins(.bottom, 32, for: .scrollContent)
+            .scrollDismissesKeyboard(.interactively)
+            .searchable(text: $search, isPresented: $searchPresented,
+                        placement: .navigationBarDrawer(displayMode: .always), prompt: "Search projects, owners or branches")
+            .navigationTitle("Projects")
+            .sheet(item: $inspectedWorkspace) { project in
+                NavigationStack {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text(project.id).textSelection(.enabled)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text("\(project.noteCount) notes · \(project.messageCount) messages")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                    }
+                    .navigationTitle("Workspace details")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Close") { inspectedWorkspace = nil }
+                                .accessibilityIdentifier("projects.workspace.details.close")
+                        }
+                    }
+                }
+            }
             .navigationDestination(for: RepositorySelection.self) { selection in
                 if let id = selection.connectionID {
                     if let connection = credentials.connection, connection.id == id {
@@ -103,6 +140,109 @@ struct RepositoriesView: View {
         .onDisappear { token = ""; pendingConsent = nil }
     }
 
+    private var savedWorkspaces: [SavedWorkspaceSummary] {
+        LibraryPresentation.workspaces(state: store.saved, current: store.project, query: search)
+    }
+    private var matchingRepositories: [Repository] {
+        LibraryPresentation.repositories(repositories, query: search)
+    }
+    private var savedProjects: some View {
+        Section {
+            ForEach(savedWorkspaces) { project in
+                Button {
+                    store.switchProject(project.id)
+                    searchPresented = false
+                    search = ""
+                } label: {
+                    HStack(alignment: .top, spacing: 12) {
+                        if !dynamicTypeSize.isAccessibilitySize {
+                            LibraryItemIcon(symbol: project.id == "General" ? "sparkles" : "folder")
+                        }
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(WorkspaceDisplay(project.id).title).font(.headline).foregroundStyle(.primary)
+                                .lineLimit(3).truncationMode(.middle)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text(WorkspaceDisplay(project.id).subtitle).font(.caption).foregroundStyle(.secondary)
+                                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : nil)
+                                .fixedSize(horizontal: false, vertical: true)
+                            if !dynamicTypeSize.isAccessibilitySize {
+                                Text("\(project.noteCount) notes · \(project.messageCount) messages")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            if dynamicTypeSize.isAccessibilitySize && project.id == store.project {
+                                Label("Selected", systemImage: "checkmark.circle.fill")
+                                    .font(.caption).foregroundStyle(.cyan).accessibilityHidden(true)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        if !dynamicTypeSize.isAccessibilitySize {
+                            Spacer(minLength: 4)
+                            if project.id == store.project {
+                                Image(systemName: "checkmark.circle.fill").foregroundStyle(.cyan).accessibilityHidden(true)
+                            }
+                        }
+                    }.padding(.vertical, 6)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(project.id)
+                .accessibilityValue(project.id == store.project ? "Selected" : "\(project.noteCount) notes, \(project.messageCount) messages")
+                .accessibilityHint("Switch the Assistant and Memory to this saved workspace")
+                .contextMenu {
+                    Button("Show full workspace name") { inspectedWorkspace = project }
+                }
+                .privacySensitive()
+            }
+            if savedWorkspaces.isEmpty {
+                LibraryEmptyState(title: "No matching workspaces", detail: "Try a project name or owner. Search stays on this device.", symbol: "magnifyingglass")
+            }
+        } header: { Text("Saved workspaces · \(savedWorkspaces.count)") }
+        footer: { Text("Saved notes and conversations are available offline. Opening a saved workspace does not reconnect its live repository.") }
+    }
+    private var githubProjects: some View {
+        Section {
+            ForEach(matchingRepositories) { repository in
+                NavigationLink(value: RepositorySelection(repository: repository, connectionID: credentials.connection?.id)) {
+                    HStack(alignment: .top, spacing: 12) {
+                        LibraryItemIcon(symbol: "chevron.left.forwardslash.chevron.right")
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(WorkspaceDisplay(repository.full_name).title).font(.headline)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text(WorkspaceDisplay(repository.full_name).subtitle).font(.subheadline).foregroundStyle(.secondary)
+                            Label(repository.default_branch, systemImage: "arrow.triangle.branch")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }.padding(.vertical, 6)
+                }
+                .accessibilityLabel(repository.full_name)
+                .accessibilityHint("Browse source, then choose this project for the Assistant")
+                .privacySensitive()
+            }
+            if repositories.isEmpty && !loading {
+                LibraryEmptyState(title: "Your repositories, one place", detail: "Load public repositories or connect your GitHub account below. Browsing requires an internet connection.", symbol: "network")
+            } else if matchingRepositories.isEmpty && !loading {
+                LibraryEmptyState(title: "No matching repositories", detail: "Search the loaded names, owners or branches. More repositories may be available on the next page.", symbol: "magnifyingglass")
+            }
+            if more {
+                Button { Task { await load(reset: false) } } label: { Label("Load more repositories", systemImage: "arrow.down.circle") }
+                    .disabled(loading)
+            }
+            if loading { ProgressView("Loading repositories…") }
+        } header: { Text("GitHub repositories · \(matchingRepositories.count)") }
+    }
+    @ViewBuilder private var connectionSection: some View {
+        if let connection = credentials.connection {
+            Section("GitHub connection") {
+                Label(connection.account.login, systemImage: "lock.shield").font(.headline)
+                Button { Task { await load(reset: true) } } label: {
+                    Label(repositories.isEmpty ? "Load accessible repositories" : "Refresh repositories", systemImage: "arrow.clockwise")
+                }.disabled(loading)
+                DisclosureGroup("Read-only session details") {
+                    Text("This session ends after eight hours, app exit or sign-out. Each opened repository is pinned to a commit; saved copies are not live source.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
     private var publicProjects: some View {
         Section("Connect your public projects") {
             TextField("GitHub username", text: $owner).textInputAutocapitalization(.never).autocorrectionDisabled()

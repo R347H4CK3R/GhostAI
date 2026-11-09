@@ -75,6 +75,32 @@ enum EncryptedMemoryTransfer {
         return prefix + sealed.ciphertext + sealed.tag
     }
 
+    // Domain-separated from manual transfer. Uses exactly the same reviewed PBKDF2-SHA256
+    // parameters and AES-256-GCM implementation; the sync schema is validated separately.
+    private static let syncHeader = Data("VEYRA-SYNC\0\0\0\u{1}".utf8)
+    static func encryptSyncPayload(_ raw: Data, passphrase: String) throws -> Data {
+        try validatePassphrase(passphrase, forExport: true)
+        guard raw.count <= PrivateMemorySyncPolicy.maximumJournalBytes else { throw Failure.fileSize }
+        let salt = try randomBytes(count: 16), nonce = try randomBytes(count: 12)
+        let prefix = syncHeader + salt + nonce
+        let sealed = try AES.GCM.seal(raw, using: deriveKey(passphrase, salt: salt),
+                                      nonce: AES.GCM.Nonce(data: nonce), authenticating: prefix)
+        return prefix + sealed.ciphertext + sealed.tag
+    }
+    static func decryptSyncPayload(_ encrypted: Data, passphrase: String) throws -> Data {
+        try validatePassphrase(passphrase, forExport: false)
+        guard encrypted.count >= envelopeOverhead,
+              encrypted.count <= PrivateMemorySyncPolicy.maximumJournalBytes + envelopeOverhead,
+              encrypted.starts(with: syncHeader) else { throw Failure.format }
+        let salt = encrypted.subdata(in: 14..<30), nonce = encrypted.subdata(in: 30..<42)
+        let key = try deriveKey(passphrase, salt: salt)
+        do {
+            let sealed = try AES.GCM.SealedBox(nonce: AES.GCM.Nonce(data: nonce),
+                ciphertext: encrypted.subdata(in: 42..<(encrypted.count - 16)), tag: encrypted.suffix(16))
+            return try AES.GCM.open(sealed, using: key, authenticating: encrypted.prefix(42))
+        } catch { throw Failure.authentication }
+    }
+
     /// Authenticates and validates the whole file before returning any importable bytes.
     static func decrypt(_ encrypted: Data, passphrase: String) throws -> Decoded {
         try validatePassphrase(passphrase, forExport: false)

@@ -140,6 +140,55 @@ import XCTest
         XCTAssertEqual(field.value as? String, "General project draft")
     }
 
+    func testPlanningSavesReviewedChecklistAndPreservesTypedDraft() {
+        let app = launchChatFixture("success")
+        let field = composer(in: app)
+        field.tap(); app.typeText("Keep my original typed draft")
+        expectation(for: NSPredicate(format: "value == %@", "Keep my original typed draft"), evaluatedWith: field)
+        waitForExpectations(timeout: 5)
+        app.buttons["chatKeyboardDone"].tap()
+        app.buttons["planning.open"].tap()
+        let goal = app.descendants(matching: .any).matching(identifier: "planning.goal").firstMatch
+        XCTAssertTrue(goal.waitForExistence(timeout: 5))
+        goal.tap(); app.typeText("Synthetic release checklist")
+        expectation(for: NSPredicate(format: "value == %@", "Synthetic release checklist"), evaluatedWith: goal)
+        waitForExpectations(timeout: 5)
+        app.buttons["planning.keyboardDone"].tap()
+        let makeChecklist = app.buttons["planning.checklist"]
+        XCTAssertTrue(revealInContent(makeChecklist, in: app)); makeChecklist.tap()
+        let save = app.buttons["planning.save"]
+        XCTAssertTrue(revealInContent(save, in: app)); save.tap()
+        let status = app.staticTexts["Saved to this workspace. Existing approved sync settings apply. This is a reference checklist, not a scheduled job."]
+        XCTAssertTrue(revealInContent(status, in: app))
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertEqual(field.value as? String, "Keep my original typed draft")
+        app.tabBars.buttons["Memory"].tap()
+        let saved = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Goal: Synthetic release checklist")).firstMatch
+        XCTAssertTrue(revealInContent(saved, in: app))
+        saveScreenshot(app, name: "Jarvis reviewed planning saved to canonical memory")
+    }
+
+    func testFailedPlanningQuestionCanBeRestoredInChat() {
+        let app = launchChatFixture("empty")
+        app.buttons["planning.open"].tap()
+        let goal = app.descendants(matching: .any).matching(identifier: "planning.goal").firstMatch
+        XCTAssertTrue(goal.waitForExistence(timeout: 5))
+        goal.tap(); app.typeText("Synthetic planning retry")
+        expectation(for: NSPredicate(format: "value == %@", "Synthetic planning retry"), evaluatedWith: goal)
+        waitForExpectations(timeout: 5)
+        app.buttons["planning.keyboardDone"].tap()
+        let review = app.buttons["planning.reviewQuestion"]
+        XCTAssertTrue(revealInContent(review, in: app)); review.tap()
+        let ask = app.buttons["planning.ask"]
+        XCTAssertTrue(revealInContent(ask, in: app)); ask.tap()
+        let alert = app.alerts["Jarvis"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 10)); alert.buttons["OK"].tap()
+        XCTAssertTrue(app.buttons["chatRestoreDraft"].waitForExistence(timeout: 5))
+        app.buttons["chatRestoreDraft"].tap()
+        XCTAssertTrue((composer(in: app).value as? String ?? "").contains("Synthetic planning retry"))
+        saveScreenshot(app, name: "Jarvis planning failure retains retry prompt")
+    }
+
     private func launchChatFixture(_ scenario: String) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["--uitest-chat", scenario]
@@ -205,7 +254,13 @@ import XCTest
         expectation(for: NSPredicate(format: "value == %@", note), evaluatedWith: field)
         waitForExpectations(timeout: 10)
         XCTAssertEqual(field.value as? String, note)
-        app.buttons["Remember note"].tap()
+        let remember = app.buttons["memoryNoteSaveKeyboard"]
+        XCTAssertTrue(remember.waitForExistence(timeout: 5))
+        XCTAssertTrue(remember.isEnabled)
+        XCTAssertTrue(remember.isHittable)
+        XCTAssertLessThanOrEqual(remember.frame.maxY, app.keyboards.firstMatch.frame.minY)
+        remember.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
         let saved = app.staticTexts[note]
         XCTAssertTrue(revealInContent(saved, in: app), "The exact note must be saved before relaunch")
         app.terminate(); app.launch()
@@ -287,13 +342,14 @@ import XCTest
         let app = XCUIApplication(); app.launch()
         app.tabBars.buttons["Projects"].tap()
         let direct = app.switches["github-direct-install-toggle"]
-        for _ in 0..<6 where !direct.isHittable { app.swipeUp() }
-        XCTAssertTrue(direct.waitForExistence(timeout: 10))
+        // A partly visible row can be hittable while its thumb is under the floating tab bar.
+        XCTAssertTrue(revealInContent(direct, in: app), "Direct-install acknowledgment must be fully above the tab bar")
         // SwiftUI exposes the whole labeled row as a Switch; tap its actual thumb.
         direct.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        XCTAssertTrue(app.tabBars.buttons["Projects"].isSelected, "Tapping the switch must not select a tab behind it")
         XCTAssertEqual(direct.value as? String, "1", "The direct-install acknowledgment must be enabled")
         let token = app.secureTextFields["github-token-field"]
-        for _ in 0..<4 where !token.isHittable { app.swipeUp() }
+        XCTAssertTrue(revealInContent(token, in: app), "Token field must be unobscured before entering the synthetic token")
         token.tap(); app.typeText("github_pat_SYNTHETIC_TEST_ONLY_123")
         let connect = app.buttons["github-connect-button"]
         XCTAssertTrue(revealInContent(connect, in: app), "Consent button must not be behind the navigation bar or keyboard")

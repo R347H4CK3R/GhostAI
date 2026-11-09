@@ -113,6 +113,7 @@ jobs:
           python3 -m venv .verification-venv
           .verification-venv/bin/python -m pip install -r companion/requirements-sync.txt
           .verification-venv/bin/python Tests/verify_mobile_transfer.py test-screenshots
+          .verification-venv/bin/python -m unittest scripts.tests.test_private_memory_sync_reference -v
       - name: Shut down owned test simulator before upgrade
         if: ${{ always() && env.SIMULATOR_ID != '' }}
         timeout-minutes: 2

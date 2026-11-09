@@ -1,0 +1,24 @@
+{
+  "passphrase": "synthetic shared recovery words",
+  "encryptedBase64": "VkVZUkEtU1lOQwAAAAEAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobqh0sPegamaYeicKD886X8vMX2rsCZ7Gygzg6Rhk/uWqT4xf//EtfPUu27LqAUo1Y8lIF8MlWFVN/TraqCvcLlmM+lpPVO6+3qjqdEt66T5E6jtJqzuoiFSsojj5bgfuE4PIqVLvLmnTsaUNwvqzcHsF/+aKl0zJ6ym/RPUJ3z+g+21MzcLpgnjXF9VTps4swsVW6mma8zXzAazPNvyj+5YxeO2SvXcLC5TsSbSZD03LWMt5gmTM5FA08k32m9ZH+mZHi5SEvsLIprDF8j+2g0amXOA+A4do0eYoasK8iQFv4pPUAKNhyVNf2Ux/Jh2xEoGo2SYlat5r1pykB5XHbH1/Hh6rpjzcpHkHHZ5s2z/0O5H4UciQV9J+OrFGP0SDXJeTs7OXJTGy1DmoLLXhAwR08FmBwQAx+QeJAYe5ufG3djt9V0Ou8aimp8yh0sVjbvp30wuQQk0D3CrCGe2mekQ==",
+  "document": {
+    "version": 1,
+    "repositoryID": 12345,
+    "notes": [
+      {
+        "id": "12345678-1234-4234-8234-123456789012",
+        "project": "General",
+        "text": "Synthetic cross-platform memory",
+        "source": "Public test fixture",
+        "savedAt": 721692800
+      }
+    ],
+    "chats": [],
+    "knowledge": [],
+    "tombstones": [
+      "chat:22345678-1234-4234-8234-123456789012"
+    ],
+    "includesPrivateWorkspaces": false,
+    "chatOrder": []
+  }
+}

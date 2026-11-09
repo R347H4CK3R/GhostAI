@@ -1,0 +1,196 @@
+# Six public verification executions, then one lightweight public release finalizer.
+# No Actions artifact/cache uploads. Draft assets stay unpublished until all verification jobs succeed.
+name: Verify and release Jarvis unsigned candidate
+permissions:
+  contents: read
+  actions: read
+jobs:
+  desktop-companion:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+        - ubuntu-latest
+        - windows-latest
+        - macos-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - run: python -m pip install -r companion/requirements-pairing.txt
+    - run: python -m unittest discover -s companion/tests -v
+    if: github.repository == 'R347H4CK3R/GhostAI' && github.event.repository.private == false && github.ref == 'refs/heads/feature/unified-assistant-planning'
+    timeout-minutes: 30
+  android:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '17'
+    - uses: android-actions/setup-android@v3
+      with:
+        accept-android-sdk-licenses: false
+        packages: platform-tools platforms;android-35 build-tools;35.0.0
+    - uses: gradle/actions/setup-gradle@v4
+      with:
+        gradle-version: '8.9'
+        cache-disabled: true
+    - name: Test, lint and build Android debug APK
+      working-directory: android
+      run: gradle --no-daemon :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+    if: github.repository == 'R347H4CK3R/GhostAI' && github.event.repository.private == false && github.ref == 'refs/heads/feature/unified-assistant-planning'
+    timeout-minutes: 30
+  ios-pairing-tls-preflight:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - name: Select Xcode 26
+      run: |
+        set -euo pipefail
+        XCODE=$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' | sort -V | tail -1)
+        test -n "$XCODE" || { echo 'Xcode 26 is required'; exit 1; }
+        sudo xcode-select -s "$XCODE/Contents/Developer"
+        xcodebuild -version
+    - run: brew install xcodegen
+    - run: xcodegen generate
+    - name: Boot test simulator
+      timeout-minutes: 6
+      run: |
+        set -euo pipefail
+        DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys,re; ds=json.load(sys.stdin)["devices"]; keys=sorted((k for k in ds if "iOS-26" in k), key=lambda k: tuple(map(int,re.findall(r"[0-9]+",k))), reverse=True); print(next(d["udid"] for k in keys for d in ds[k] if "iPhone" in d["name"]))')
+        echo "SIMULATOR_ID=$DEVICE" >> "$GITHUB_ENV"
+        xcrun simctl bootstatus "$DEVICE" -b
+    - name: Pairing TLS policy tests
+      timeout-minutes: 15
+      run: |
+        set -euo pipefail
+        xcodebuild -project AsterionVeyra.xcodeproj -scheme AsterionVeyra -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -destination-timeout 120 -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 180 -only-testing:AsterionVeyraTests/PairedDesktopTransportTests -resultBundlePath PairingTLSResults.xcresult CODE_SIGNING_ALLOWED=NO test 2>&1 | tee pairing-tls-tests.log
+    if: github.repository == 'R347H4CK3R/GhostAI' && github.event.repository.private == false && github.ref == 'refs/heads/feature/unified-assistant-planning'
+  ios:
+    needs:
+    - desktop-companion
+    - android
+    - ios-pairing-tls-preflight
+    runs-on: macos-15
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - name: Select Xcode 26
+      run: |
+        set -euo pipefail
+        XCODE=$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' | sort -V | tail -1)
+        test -n "$XCODE" || { echo 'Xcode 26 is required'; exit 1; }
+        sudo xcode-select -s "$XCODE/Contents/Developer"
+        xcodebuild -version
+    - run: brew install xcodegen
+    - name: Verify app icon source
+      run: |
+        python3 scripts/verify_app_icon.py
+        python3 -m unittest discover -s scripts/tests -v
+    - run: xcodegen generate
+    - name: Boot owned test simulator
+      timeout-minutes: 6
+      run: python3 scripts/ci_simulator.py boot --output test-simulator --github-env "$GITHUB_ENV"
+    - name: Unit tests
+      timeout-minutes: 30
+      run: |
+        set -euo pipefail
+        xcodebuild -project AsterionVeyra.xcodeproj -scheme AsterionVeyra -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -destination-timeout 120 -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 180 -resultBundlePath TestResults.xcresult CODE_SIGNING_ALLOWED=NO test 2>&1 | tee xcode-tests.log
+    - name: Export test screenshots
+      if: always()
+      run: |
+        if [ -d TestResults.xcresult ]; then
+          xcrun xcresulttool export attachments --path TestResults.xcresult --output-path test-screenshots || true
+        fi
+    - name: Verify encrypted Swift-to-desktop transfer
+      if: success()
+      run: |
+        python3 -m venv .verification-venv
+        .verification-venv/bin/python -m pip install -r companion/requirements-sync.txt
+        .verification-venv/bin/python Tests/verify_mobile_transfer.py test-screenshots
+        .verification-venv/bin/python -m unittest scripts.tests.test_private_memory_sync_reference -v
+    - name: Shut down owned test simulator before upgrade
+      if: ${{ always() && env.SIMULATOR_ID != '' }}
+      timeout-minutes: 2
+      run: python3 scripts/ci_simulator.py shutdown --output test-simulator --simulator-id "$SIMULATOR_ID"
+    - name: Verify install-over-existing simulator upgrade
+      timeout-minutes: 20
+      run: python3 scripts/verify_simulator_upgrade.py --output upgrade-results --budget-seconds 1080
+    - name: Verify live release simulator upgrade
+      timeout-minutes: 20
+      run: python3 scripts/jarvis_verify_upgrade.py --output jarvis-live-upgrade-results --budget-seconds 1080
+    - name: Compile unsigned device app
+      run: |
+        set -euo pipefail
+        xcodebuild -project AsterionVeyra.xcodeproj -scheme AsterionVeyra -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO MARKETING_VERSION=0.4.0 CURRENT_PROJECT_VERSION=${{ github.run_number }} build
+        mkdir Payload
+        cp -R build/Build/Products/Release-iphoneos/AsterionVeyra.app Payload/
+        zip -qr Jarvis-unsigned.ipa Payload
+        unzip -t Jarvis-unsigned.ipa
+        python3 scripts/verify_app_icon.py --ipa Jarvis-unsigned.ipa --asset-info-output app-icon-assets.json
+    - name: Stage verified Jarvis draft
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: python3 scripts/jarvis_release.py stage
+      id: stage
+    if: github.repository == 'R347H4CK3R/GhostAI' && github.event.repository.private == false && github.ref == 'refs/heads/feature/unified-assistant-planning'
+    timeout-minutes: 110
+    permissions:
+      contents: write
+      actions: read
+    outputs:
+      ipa_sha256: ${{ steps.stage.outputs.ipa_sha256 }}
+      notes_sha256: ${{ steps.stage.outputs.notes_sha256 }}
+      sums_sha256: ${{ steps.stage.outputs.sums_sha256 }}
+  finalize:
+    needs:
+    - desktop-companion
+    - android
+    - ios-pairing-tls-preflight
+    - ios
+    if: github.repository == 'R347H4CK3R/GhostAI' && github.event.repository.private == false && github.ref == 'refs/heads/feature/unified-assistant-planning'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - name: Publish completed verified Jarvis prerelease
+      env:
+        GH_TOKEN: ${{ github.token }}
+        EXPECTED_IPA_SHA256: ${{ needs.ios.outputs.ipa_sha256 }}
+        EXPECTED_NOTES_SHA256: ${{ needs.ios.outputs.notes_sha256 }}
+        EXPECTED_SUMS_SHA256: ${{ needs.ios.outputs.sums_sha256 }}
+      run: python3 scripts/jarvis_release.py finalize
+'on':
+  push:
+    branches:
+    - feature/unified-assistant-planning
+    paths:
+    - 'App/**'
+    - 'Tests/**'
+    - 'UITests/**'
+    - 'companion/**'
+    - 'android/**'
+    - 'scripts/**'
+    - 'project.yml'
+    - '.github/workflows/jarvis-release-candidate.yml'
+  workflow_dispatch: null
+concurrency:
+  group: jarvis-release-candidate
+  cancel-in-progress: false

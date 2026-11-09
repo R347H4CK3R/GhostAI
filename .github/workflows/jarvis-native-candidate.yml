@@ -1,13 +1,6 @@
 name: Verify Jarvis native candidate
 on:
-  push:
-    branches: [feature/unified-assistant-planning]
-    paths:
-      - 'App/**'
-      - 'Tests/**'
-      - 'UITests/**'
-      - 'project.yml'
-      - '.github/workflows/jarvis-native-candidate.yml'
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
@@ -21,6 +14,8 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Select installed Xcode 26
         run: |
           set -euo pipefail

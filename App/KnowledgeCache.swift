@@ -1,6 +1,7 @@
 import Foundation
 import CryptoKit
 import SQLite3
+import Darwin
 
 /// The caller supplies a stable account identifier, never a token or display name.
 /// Local conversations use a distinct account such as `device-local`.
@@ -52,9 +53,9 @@ enum KnowledgeRetention: String, Codable, CaseIterable, Hashable, Sendable {
 }
 
 struct KnowledgeSettings: Codable, Equatable, Sendable {
-    var captureConversations = false
-    var captureActions = false
-    var captureResearch = false
+    var captureConversations = true
+    var captureActions = true
+    var captureResearch = true
     var retention: KnowledgeRetention = .untilDeleted
 }
 
@@ -213,6 +214,8 @@ enum KnowledgePolicy {
     private(set) var settings = KnowledgeSettings()
     private(set) var lastCapture = KnowledgeCaptureReport()
     private(set) var captureIsFull = false
+    /// Runs only after a successful transaction that changed persistent records.
+    var onMutation: (() -> Void)?
 
     init(root: URL, scope: KnowledgeScope, maximumBytes: Int = KnowledgePolicy.maximumCacheBytes) throws {
         guard (1_048_576...KnowledgePolicy.maximumCacheBytes).contains(maximumBytes) else { throw KnowledgeFailure.quota }
@@ -220,6 +223,9 @@ enum KnowledgePolicy {
         let folder = root.appendingPathComponent(scope.storageKey, isDirectory: true)
         databaseURL = folder.appendingPathComponent("knowledge.sqlite3")
         do {
+            try Self.validateExistingDirectory(root)
+            try Self.validateExistingDirectory(folder)
+            try Self.validateExistingDatabase(databaseURL)
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true,
                                                    attributes: [.protectionKey: FileProtectionType.complete])
             try FileManager.default.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: folder.path)
@@ -229,7 +235,7 @@ enum KnowledgePolicy {
             if !existed {
                 guard try totalDatabaseBytes() + 65_536 <= maximumBytes - min(2_097_152, maximumBytes / 4) else { throw KnowledgeFailure.quota }
             }
-            guard sqlite3_open_v2(databaseURL.path, &database, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK else {
+            guard sqlite3_open_v2(databaseURL.path, &database, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_NOFOLLOW, nil) == SQLITE_OK else {
                 throw KnowledgeFailure.unavailable
             }
             sqlite3_busy_timeout(database, 1_000)
@@ -269,6 +275,7 @@ enum KnowledgePolicy {
                     try transaction { try execute("UPDATE metadata SET value=? WHERE key='repository'", [.text(repository)]) }
                 }
             }
+            try storeSyncScopeDescriptor()
             try FileManager.default.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: databaseURL.path)
         } catch {
             if let database { sqlite3_close(database) }; database = nil
@@ -279,6 +286,7 @@ enum KnowledgePolicy {
     deinit { if let database { sqlite3_close(database) } }
 
     func updateSettings(_ value: KnowledgeSettings) throws {
+        guard value != settings else { return }
         try transaction { try writeSettings(value) }; settings = value
     }
     func entries(limit: Int = 500) throws -> [KnowledgeEntry] {
@@ -569,14 +577,193 @@ enum KnowledgePolicy {
         let otherBytes = max(0, try totalDatabaseBytes() - ownBytes)
         guard pageSize > 0, otherBytes + ownBytes <= maximumBytes else { throw KnowledgeFailure.quota }
         _ = try scalarInt("PRAGMA max_page_count=\((maximumBytes - otherBytes) / pageSize)")
+        let changesBefore = sqlite3_total_changes(database)
         try execute("BEGIN IMMEDIATE")
         transactionOtherBytes = otherBytes; insertionLimitApplied = false
-        defer { transactionOtherBytes = nil; insertionLimitApplied = false }
-        do { try operation(); try execute("COMMIT") }
+        var changed = false
+        defer {
+            transactionOtherBytes = nil; insertionLimitApplied = false
+            if changed { onMutation?() }
+        }
+        do {
+            try operation(); try execute("COMMIT")
+            changed = sqlite3_total_changes(database) != changesBefore
+        }
         catch {
             // Roll back even after a corruption flag disabled normal statements.
             sqlite3_exec(database, "ROLLBACK", nil, nil, nil)
             throw error
         }
+    }
+}
+
+@MainActor extension KnowledgeCache {
+    func syncSnapshot() throws -> KnowledgeSyncSnapshot {
+        let descriptor = try syncScopeDescriptor()
+        var suppressed: [String] = []
+        try query("SELECT id FROM suppressed ORDER BY id") { suppressed.append(columnText($0, 0)) }
+        let cutoff = try clearCutoff()
+        return try KnowledgeSyncSnapshot(accountID: descriptor.accountID, project: descriptor.project,
+                                         repository: descriptor.repository, entries: entries(limit: KnowledgePolicy.maximumRecords),
+                                         suppressedIDs: suppressed, clearBefore: cutoff > 0 ? Date(timeIntervalSince1970: cutoff) : nil).validated()
+    }
+
+    /// Deletions are monotonic and committed before additions, so quota/conflict failures
+    /// cannot undo a deletion that another device already confirmed.
+    func applySyncSnapshot(_ incoming: KnowledgeSyncSnapshot, canonicalState: SavedState? = nil) throws {
+        let incoming = try incoming.validated()
+        let canonicalIDs = try incoming.canonicalConversationIDs(in: canonicalState)
+        let incomingScope = try incoming.scope
+        guard incomingScope.storageKey == scope.storageKey,
+              incomingScope.accountID == scope.accountID, incomingScope.project == scope.project else { throw KnowledgeFailure.invalidScope }
+        let local = try syncScopeDescriptor()
+        guard incoming.repository == nil || local.repository == nil || incoming.repository == local.repository else {
+            throw KnowledgeFailure.invalidScope
+        }
+        try transaction {
+            if local.repository == nil, let repository = incoming.repository {
+                try execute("UPDATE metadata SET value=? WHERE key='repository'", [.text(repository)])
+            }
+            if let remoteCutoff = incoming.clearBefore?.timeIntervalSince1970, remoteCutoff > (try clearCutoff()) {
+                try execute("UPDATE metadata SET value=? WHERE key='clear_before'", [.text(String(remoteCutoff))])
+            }
+            let cutoff = Date(timeIntervalSince1970: try clearCutoff())
+            let deleted = Set(incoming.suppressedIDs)
+            for entry in try entries(limit: KnowledgePolicy.maximumRecords) where deleted.contains(entry.id) || entry.predatesSyncClear(cutoff) {
+                try suppressAndDelete(entry.id)
+            }
+        }
+        // A full union may exceed the marker budget. Preserve the cutoff and deletions
+        // of locally present copies first; fail visibly rather than truncating history.
+        try transaction {
+            for id in incoming.suppressedIDs { try retainSuppression(id) }
+            let cutoff = Date(timeIntervalSince1970: try clearCutoff())
+            // Preserve IDs for previously unseen stale imports as well. A later snapshot
+            // cannot revive an old file by presenting a different cache timestamp.
+            for entry in incoming.entries where entry.predatesSyncClear(cutoff) { try retainSuppression(entry.id) }
+        }
+        try storeSyncScopeDescriptor()
+        try transaction {
+            for entry in incoming.entries where !(try isSuppressed(entry)) {
+                try insertSyncedEntry(entry, isCanonicalConversation: canonicalIDs.contains(entry.id))
+            }
+        }
+        captureIsFull = false
+    }
+
+    private func insertSyncedEntry(_ entry: KnowledgeEntry, isCanonicalConversation: Bool) throws {
+        var existing: KnowledgeEntry?
+        try query("SELECT payload FROM entries WHERE id=?", [.text(entry.id)]) { existing = try decode($0, column: 0) }
+        guard let existing else { _ = try insert(entry); return }
+        if isCanonicalConversation, existing.kind == .conversation, entry.kind == .conversation,
+           existing.text != entry.text || existing.source != entry.source || existing.sourceDate != entry.sourceDate {
+            // This is a mirror repair after canonical conflict resolution, not a user
+            // deletion. Replace the row and FTS chunks atomically without a tombstone.
+            try execute("DELETE FROM chunks WHERE entry_id=?", [.text(entry.id)])
+            try execute("DELETE FROM entries WHERE id=?", [.text(entry.id)])
+            _ = try insert(entry)
+            return
+        }
+        let merged = try existing.mergedSyncCopy(entry)
+        guard merged != existing else { return }
+        // Text and ID are unchanged, so FTS chunks are already correct. The merge cannot
+        // grow filenames; only earliest observation timestamps/provenance are reconciled.
+        try execute("UPDATE entries SET source_date=?, fingerprint=?, payload=? WHERE id=?",
+                    [.double(merged.sourceDate.timeIntervalSince1970), .text(fingerprint(merged)),
+                     .data(try JSONEncoder().encode(merged)), .text(merged.id)])
+    }
+
+    /// New databases retain only canonical scope metadata, not a full library manifest.
+    /// Existing caches remain discoverable through known SavedState project names.
+    private func syncScopeDescriptor() throws -> KnowledgeSyncSnapshot {
+        let repository = try scalarText("SELECT value FROM metadata WHERE key='repository'")
+        return try KnowledgeSyncSnapshot(accountID: scope.accountID, project: scope.project,
+                                         repository: repository.flatMap { $0.isEmpty ? nil : $0 },
+                                         entries: [], suppressedIDs: [], clearBefore: nil).validated()
+    }
+
+    private func storeSyncScopeDescriptor() throws {
+        // Low-level callers may use noncanonical local test/migration scopes. They remain
+        // local: the bridge never invents a trusted identity from their arbitrary labels.
+        guard let descriptor = try? syncScopeDescriptor() else { return }
+        let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
+        let text = String(decoding: try encoder.encode(descriptor), as: UTF8.self)
+        guard try scalarText("SELECT value FROM metadata WHERE key='sync_scope'") != text else { return }
+        try transaction { try execute("INSERT OR REPLACE INTO metadata(key,value) VALUES('sync_scope',?)", [.text(text)]) }
+    }
+
+    private func retainSuppression(_ id: String) throws {
+        guard KnowledgeSyncSnapshot.validID(id) else { throw KnowledgeFailure.invalidContent }
+        if try scalarInt("SELECT count(*) FROM suppressed WHERE id=?", [.text(id)]) == 0 {
+            guard try scalarInt("SELECT count(*) FROM suppressed") < KnowledgePolicy.maximumTombstones else { throw KnowledgeFailure.quota }
+            try execute("INSERT INTO suppressed(id) VALUES(?)", [.text(id)])
+        }
+        try execute("DELETE FROM chunks WHERE entry_id=?", [.text(id)])
+        try execute("DELETE FROM entries WHERE id=?", [.text(id)])
+    }
+
+    private static func validateExistingDirectory(_ folder: URL) throws {
+        try validateExistingItem(folder, expectedType: mode_t(S_IFDIR))
+    }
+    private static func validateExistingDatabase(_ url: URL) throws {
+        try validateExistingItem(url, expectedType: mode_t(S_IFREG))
+    }
+    private static func validateExistingItem(_ url: URL, expectedType: mode_t) throws {
+        // lstat sees dangling links too; fileExists follows them and would permit SQLite
+        // CREATE to create the link target outside the intended library.
+        var information = stat()
+        guard lstat(url.path, &information) == 0 else {
+            if errno == ENOENT { return }
+            throw KnowledgeFailure.unavailable
+        }
+        guard information.st_mode & mode_t(S_IFMT) == expectedType else { throw KnowledgeFailure.corrupt }
+    }
+
+    static func discoveredSyncScopes(root: URL, includePrivateWorkspaces: Bool,
+                                     authenticatedAccountID: String?, knownScopeKeys: Set<String> = [],
+                                     onUnresolvedLegacyScopes: ((Int) -> Void)? = nil) throws -> [KnowledgeScope] {
+        guard FileManager.default.fileExists(atPath: root.path) else { onUnresolvedLegacyScopes?(0); return [] }
+        try validateExistingDirectory(root)
+        let folders = try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+        var result: [KnowledgeScope] = []
+        var unresolved = 0
+        for folder in folders where folder.lastPathComponent.range(of: "^[a-f0-9]{64}$", options: .regularExpression) != nil {
+            try validateExistingDirectory(folder)
+            let url = folder.appendingPathComponent("knowledge.sqlite3")
+            guard FileManager.default.fileExists(atPath: url.path) else { continue }
+            try validateExistingDatabase(url)
+            guard let descriptor = try readSyncScopeDescriptor(url) else {
+                if !knownScopeKeys.contains(folder.lastPathComponent) { unresolved += 1 }
+                continue
+            }
+            let verified = try descriptor.validated()
+            let scope = try verified.scope
+            guard scope.storageKey == folder.lastPathComponent, verified.entries.isEmpty,
+                  verified.suppressedIDs.isEmpty, verified.clearBefore == nil else { throw KnowledgeFailure.corrupt }
+            guard verified.isPermitted(includePrivateWorkspaces: includePrivateWorkspaces, authenticatedAccountID: authenticatedAccountID) else { continue }
+            result.append(scope)
+        }
+        onUnresolvedLegacyScopes?(unresolved)
+        return result
+    }
+
+    private static func readSyncScopeDescriptor(_ url: URL) throws -> KnowledgeSyncSnapshot? {
+        var database: OpaquePointer?
+        guard sqlite3_open_v2(url.path, &database, SQLITE_OPEN_READONLY | SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_NOFOLLOW, nil) == SQLITE_OK else {
+            if let database { sqlite3_close(database) }; throw KnowledgeFailure.unavailable
+        }
+        defer { sqlite3_close(database) }
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, "SELECT value FROM metadata WHERE key='sync_scope'", -1, &statement, nil) == SQLITE_OK else {
+            throw KnowledgeFailure.corrupt
+        }
+        defer { sqlite3_finalize(statement) }
+        let result = sqlite3_step(statement)
+        if result == SQLITE_DONE { return nil }
+        guard result == SQLITE_ROW, let value = sqlite3_column_text(statement, 0),
+              sqlite3_column_bytes(statement, 0) <= 4_096 else { throw KnowledgeFailure.corrupt }
+        let data = Data(bytes: value, count: Int(sqlite3_column_bytes(statement, 0)))
+        guard let descriptor = try? JSONDecoder().decode(KnowledgeSyncSnapshot.self, from: data) else { throw KnowledgeFailure.corrupt }
+        return descriptor
     }
 }

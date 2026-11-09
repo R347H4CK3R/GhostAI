@@ -17,6 +17,10 @@ struct PairedDesktopView: View {
     @State private var forgetConfirmation = false
     @State private var archiveConfirmation: PairedDesktopSubmission?
 
+    init(initialGoal: String = "") {
+        _goal = State(initialValue: initialGoal)
+    }
+
     var body: some View {
         List {
             Section("Foreground desktop jobs · Development") {
@@ -216,3 +220,4 @@ struct PairedDesktopView: View {
         }
     }
 }
+

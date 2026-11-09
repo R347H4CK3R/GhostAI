@@ -47,7 +47,8 @@ import XCTest
         var settings = KnowledgeSettings(); settings.captureActions = true
         try cache.updateSettings(settings)
         try cache.captureAction(id: UUID(), kind: .question, status: .succeeded)
-        try cache.updateSettings(KnowledgeSettings())
+        settings.captureActions = false
+        try cache.updateSettings(settings)
         try cache.captureAction(id: UUID(), kind: .repositoryRead, status: .succeeded)
         XCTAssertEqual(try cache.entries().count, 1)
         XCTAssertEqual(try cache.search("question").count, 1)

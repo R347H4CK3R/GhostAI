@@ -32,7 +32,7 @@ targets:
         INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: Turn your spoken messages into text using available on-device recognition.
         TARGETED_DEVICE_FAMILY: "1,2"
         CODE_SIGNING_ALLOWED: NO
-        MARKETING_VERSION: "0.3.4"
+        MARKETING_VERSION: "0.4.0"
         CURRENT_PROJECT_VERSION: "1"
   AsterionVeyraTests:
     type: bundle.unit-test

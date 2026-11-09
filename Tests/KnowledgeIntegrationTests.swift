@@ -36,7 +36,7 @@ final class KnowledgeWorkspacePolicyTests: XCTestCase {
     private func store(_ root: URL) -> AssistantStore { AssistantStore(root: root, launchArguments: []) }
     private func enableConversationCapture(_ store: AssistantStore) throws -> KnowledgeLibraryModel {
         let library = try XCTUnwrap(store.knowledge)
-        var settings = library.settings; settings.captureConversations = true
+        var settings = library.settings; settings.captureConversations = true; settings.captureActions = false
         library.updateSettings(settings, savedState: store.saved)
         return library
     }

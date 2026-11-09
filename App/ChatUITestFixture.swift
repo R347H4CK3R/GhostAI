@@ -4,7 +4,7 @@ import Foundation
 /// Explicit, synthetic UI-test input. Release builds contain none of this code.
 /// All persistence is bypassed while enabled; no saved user data is read or changed.
 struct ChatUITestFixture {
-    enum Scenario: String { case success, pending, empty }
+    enum Scenario: String { case success, pending, empty, library }
     let scenario: Scenario
 
     static func fromLaunchArguments(_ arguments: [String] = ProcessInfo.processInfo.arguments) -> ChatUITestFixture? {
@@ -19,7 +19,12 @@ struct ChatUITestFixture {
             [ChatEntry(project: "General", role: "user", text: "Synthetic project question \(index)"),
              ChatEntry(project: "General", role: "assistant", text: "Synthetic project answer \(index). This longer conversation checks that earlier messages stay scrollable while the keyboard is open.")]
         }
-        return SavedState(notes: [MemoryNote(project: "Synthetic second project", text: "Synthetic workspace for draft isolation", source: "UI test fixture")], chats: chats)
+        var notes = [MemoryNote(project: "Synthetic second project", text: "Synthetic workspace for draft isolation", source: "UI test fixture")]
+        if scenario == .library {
+            notes.append(MemoryNote(project: "GitHub account 42: sample-owner/A-long-readable-workspace-name-for-accessibility-layout",
+                                    text: "Synthetic long workspace note", source: "UI test fixture"))
+        }
+        return SavedState(notes: notes, chats: chats)
     }
 
     func respond(to question: String) async throws -> String {

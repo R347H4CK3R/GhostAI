@@ -81,7 +81,8 @@ struct ConversationImportPreview: Sendable {
     /// Returns additions only. Existing IDs always win. The caller must recheck the current
     /// scope/state and atomically persist the merged result before reporting success.
     /// Explicit acknowledgment is required on EVERY import: canonical SavedState has no
-    /// tombstones, so the importer cannot infer whether an absent ID was previously deleted.
+    /// tombstones, so this preview cannot infer a previous deletion. The owning store
+    /// separately checks configured sync history and remaps explicit restoration copies.
     func selection(ids: Set<UUID>, into current: SavedState, acknowledgeRestoringDeleted: Bool) throws -> SavedState {
         guard acknowledgeRestoringDeleted else { throw ConversationImportFailure.acknowledgment }
         guard !ids.isEmpty, ids.isSubset(of: Set(groups.map(\.id))) else { throw ConversationImportFailure.selection }

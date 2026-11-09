@@ -4,6 +4,8 @@
 
 The app can preview a user-selected **extracted ChatGPT conversation JSON file** and add chosen supported text to local canonical chat history. It can separately import memory text that the user supplies, or the exact Asterion memory-import JSON schema below. This is a bounded compatibility importer, not account synchronization, an account merger, or a promise to recover every conversation or memory.
 
+Imported copies can be included in encrypted private GitHub sync only after that separate capability is explicitly configured and the workspace is within its approved scope. Import does not itself connect an account or grant a new network permission. New offline libraries capture eligible app conversations, research and fixed activity summaries automatically; previously saved capture preferences are preserved.
+
 The importer does not sign into ChatGPT, use another assistant's accounts or private memory, request or download an export, enumerate folders, fetch links, or download assets. ZIP decompression is deliberately not implemented. Extract the export outside the app and select one JSON file. Nothing in an imported message grants permission to run tools or change app security settings.
 
 ## Obtain the source yourself
@@ -63,7 +65,11 @@ The preview shows source item count, importable count, supported message/note co
 
 Stable UUIDv8 identifiers derive from a SHA-256 namespaced hash of project, record kind, conversation ID and message ID; memory JSON uses project plus stable supplied memory ID. Plain-memory text uses project plus complete text. Filenames/titles/content changes do not change conversation or memory-JSON IDs. Existing canonical IDs win, so reimport cannot overwrite edits or duplicate existing records. Conversation IDs are independent of the export filename, so numbered/repartitioned exports deduplicate.
 
-Canonical `SavedState` has **no persistent deletion markers**. Therefore every import requires a separate, clearly worded acknowledgment that selected records previously deleted may be restored. There is no background reimport or silent resurrection. If an import is confirmed, restoration of selected absent IDs is intentional. Optional knowledge-cache tombstones still govern cache suppression independently; this importer does not clear them.
+Canonical `SavedState` has no deletion markers, but a configured private sync vault retains permanent markers. Every import still requires acknowledgment of intentional restoration. Before saving to a readable configured store, the importer checks already verified sync history, including local deletions not yet uploaded. Known deleted note/chat IDs receive stable, domain-separated restoration-copy UUIDs; old markers are never cleared. Repeating the same restoration deduplicates to the same live copy. If that copy is later deleted, another explicit restoration advances to a new identity. Ordinary first imports and existing live IDs are unchanged. Record content, source dates and conversation ordering are preserved.
+
+If configured sync history is unavailable, no import is saved and the view explains how to reconnect/sync before trying again. The app does not report restoration success only to have its known deletion markers erase the result. Concurrent deletions not yet observed follow the vault's normal conflict/deletion rules. Knowledge-library suppression IDs and clear-before dates remain separate; restoring canonical text does not clear a previously deleted cached copy or reset retention settings.
+
+Recovering an unreadable canonical store is different: before the confirmed backup recovery, any configured sync is durably paused and marked for review. The unreadable file and encrypted queue are preserved, and the backup becomes available locally. Automatic resume remains blocked. A separate explicit warning in Private memory sync explains that resuming the existing queue can remove recovered IDs already deleted from the vault and propagate omissions from the recovered backup. Cancel keeps recovery local. This applies to both JSON backup and encrypted-file recovery; local-only recovery without a configured vault keeps its prior behavior.
 
 ## Bounds and privacy
 

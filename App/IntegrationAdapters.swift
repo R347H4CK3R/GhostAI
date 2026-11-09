@@ -14,8 +14,8 @@ struct AppleLocalModelIntegration: IntegrationAdapter {
 struct OfflineMemoryIntegration: IntegrationAdapter {
     static let descriptor = IntegrationDescriptor(id: "local.memory", version: .init(major: 1, minor: 0, patch: 0),
         name: "Offline project memory", summary: "Search saved project notes and indexed offline knowledge, and save notes you choose to remember.",
-        symbol: "brain", setup: "Uses this app's local saved memory. Enable optional capture in Offline knowledge; imports and deletion remain explicit actions in Memory. The separate knowledge cache is not included in chat/note backups. A storage failure can make memory unavailable.",
-        dataDisclosure: "No network recipient. Notes stay in app storage, but device backups can include them. Exports are separate user actions. Notes are retrieved, not permanently trained into a model.",
+        symbol: "brain", setup: "Uses this app's saved memory. New offline libraries capture eligible conversations, research and fixed activity summaries automatically; existing capture preferences are preserved. Imports and deletion remain explicit. The separate knowledge library is not included in manual chat/note backups. Private GitHub sync has separate reviewed setup and scope.",
+        dataDisclosure: "These search/save operations run locally. If private GitHub sync is explicitly configured, eligible notes, chats and saved knowledge are also sent encrypted to the reviewed private repository. Private GitHub workspaces need separate scope consent. Device backups can include local files; manual exports remain separate actions. Notes are retrieved, not permanently trained into a model.",
         operations: [
             .init(id: "search_notes", name: "Search selected project notes", access: .read, resourceKind: .project,
                 recipient: .onDevice, dataScopes: [.projectNotes], consent: .userStartedRead, modelCallable: true),

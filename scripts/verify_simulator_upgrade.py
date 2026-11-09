@@ -25,6 +25,8 @@ import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE_COMMIT = '8074b807a864a79e659200ee9521141c3c00df98'
+DEFAULT_BASELINE = (BASELINE_COMMIT, '0.3.0', '17')
+TRUSTED_BASELINES = (DEFAULT_BASELINE, ('59aa7329efa87ce01b247ca309941c20b2e3dc8d', '0.3.6', '44'))
 BUNDLE_ID = 'dev.asterionveyra.assistant'
 FIXTURE = ROOT / 'Tests/Fixtures/upgrade-state-v1.json'
 STATE_PATH = Path('Library/Application Support/AsterionVeyra/state.json')
@@ -268,7 +270,24 @@ def launch_and_stop(runner, result, identifier, label, screenshot=False):
     runner.run(['xcrun', 'simctl', 'terminate', identifier, BUNDLE_ID])
 
 
-def verify_upgrade(runner, result, simulator):
+def validate_baseline(baseline):
+    if not isinstance(baseline, tuple) or baseline not in TRUSTED_BASELINES:
+        raise ValueError('Expected an exact trusted baseline commit/version/build tuple')
+    return baseline
+
+
+def validate_upgrade_versions(old, current, baseline):
+    _, version, build = validate_baseline(baseline)
+    if old['version'] != version or old['build'] != build:
+        raise ValueError(f'Pinned baseline is not the expected {version} build {build}')
+    if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', current['version']):
+        raise ValueError('Current build must identify a numeric release version')
+    if tuple(map(int, current['version'].split('.'))) <= tuple(map(int, version.split('.'))):
+        raise ValueError('Current build must identify a newer release than the pinned baseline')
+
+
+def verify_upgrade(runner, result, simulator, *, baseline=DEFAULT_BASELINE):
+    baseline_commit, baseline_version, baseline_build = validate_baseline(baseline)
     result['stage'] = 'infrastructure'
     if platform.system() != 'Darwin' or any(shutil.which(t) is None for t in ['xcrun', 'xcodebuild', 'xcodegen']):
         raise UnsupportedInfrastructure('Real upgrade verification requires macOS, Xcode 26 and XcodeGen')
@@ -294,17 +313,17 @@ def verify_upgrade(runner, result, simulator):
         temporary = Path(directory)
         baseline = temporary / 'baseline'; baseline.mkdir()
         result['stage'] = 'build_pinned_baseline'
-        _, exists = runner.run(['git', 'cat-file', '-e', BASELINE_COMMIT + '^{commit}'], required=False)
+        _, exists = runner.run(['git', 'cat-file', '-e', baseline_commit + '^{commit}'], required=False)
         if exists:
-            runner.run(['git', 'fetch', '--no-tags', '--depth=1', 'origin', BASELINE_COMMIT], timeout=120)
-        runner.run(['git', 'archive', '--format=tar', '--output=' + str(temporary / 'baseline.tar'), BASELINE_COMMIT])
+            runner.run(['git', 'fetch', '--no-tags', '--depth=1', 'origin', baseline_commit], timeout=120)
+        runner.run(['git', 'archive', '--format=tar', '--output=' + str(temporary / 'baseline.tar'), baseline_commit])
         runner.run(['tar', '-xf', temporary / 'baseline.tar', '-C', baseline])
         runner.run(['xcodegen', 'generate'], cwd=baseline)
         old_build, new_build = temporary / 'old-build', temporary / 'new-build'
         common = ['-project', 'AsterionVeyra.xcodeproj', '-scheme', 'AsterionVeyra', '-configuration', 'Debug',
                   '-sdk', 'iphonesimulator', '-destination', 'platform=iOS Simulator,id=' + identifier,
                   '-destination-timeout', '120', 'CODE_SIGNING_ALLOWED=NO']
-        runner.run(['xcodebuild', *common, '-derivedDataPath', old_build, 'CURRENT_PROJECT_VERSION=17', 'build'], cwd=baseline, timeout=420)
+        runner.run(['xcodebuild', *common, '-derivedDataPath', old_build, 'CURRENT_PROJECT_VERSION=' + baseline_build, 'build'], cwd=baseline, timeout=420)
         result['stage'] = 'build_current_tests'
         runner.run(['xcodegen', 'generate'])
         build_number = os.environ.get('GITHUB_RUN_NUMBER', '18')
@@ -313,10 +332,7 @@ def verify_upgrade(runner, result, simulator):
         old_app = old_build / 'Build/Products/Debug-iphonesimulator/AsterionVeyra.app'
         new_app = new_build / 'Build/Products/Debug-iphonesimulator/AsterionVeyra.app'
         result['baseline_app'], result['current_app'] = app_metadata(old_app), app_metadata(new_app)
-        if result['baseline_app']['version'] != '0.3.0' or result['baseline_app']['build'] != '17':
-            raise ValueError('Pinned baseline is not the expected 0.3.0 build 17')
-        if tuple(map(int, result['current_app']['version'].split('.'))) <= (0, 3, 0):
-            raise ValueError('Current build must identify a newer release than the pinned baseline')
+        validate_upgrade_versions(result['baseline_app'], result['current_app'], (baseline_commit, baseline_version, baseline_build))
 
         def container():
             path = Path(runner.run(['xcrun', 'simctl', 'get_app_container', identifier, BUNDLE_ID, 'data'])[0].strip()).resolve()
@@ -365,7 +381,8 @@ def verify_upgrade(runner, result, simulator):
         result['stage'] = 'complete'
 
 
-def main(argv=None):
+def main(argv=None, *, baseline=DEFAULT_BASELINE):
+    baseline = validate_baseline(baseline)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, default=ROOT / 'upgrade-results')
     parser.add_argument('--budget-seconds', type=int, default=1080)
@@ -378,7 +395,8 @@ def main(argv=None):
     output.mkdir(parents=True, exist_ok=False)
     runner = Runner(output, args.budget_seconds)
     runner.deadline = started + args.budget_seconds
-    result = {'status': 'running', 'baseline_commit': BASELINE_COMMIT,
+    result = {'status': 'running', 'baseline_commit': baseline[0],
+              'baseline_expected_version': baseline[1], 'baseline_expected_build': baseline[2],
               **provenance, 'budget_seconds': args.budget_seconds,
               'model_inference': 'not_tested', 'voice_audio': 'not_tested',
               'home_icon_artwork': 'not_tested',
@@ -386,7 +404,10 @@ def main(argv=None):
     simulator = []
     exit_code = 1
     try:
-        verify_upgrade(runner, result, simulator)
+        if baseline == DEFAULT_BASELINE:
+            verify_upgrade(runner, result, simulator)
+        else:
+            verify_upgrade(runner, result, simulator, baseline=baseline)
         result['status'] = 'passed'
         exit_code = 0
     except UnsupportedInfrastructure as error:
