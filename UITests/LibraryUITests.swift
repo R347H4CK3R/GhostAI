@@ -9,7 +9,7 @@ import XCTest
         let search = app.searchFields.firstMatch
         XCTAssertTrue(search.waitForExistence(timeout: 5))
         search.tap(); search.typeText("Synthetic second")
-        waitForText("Synthetic second", in: search)
+        waitForText("Synthetic second", in: search, app: app)
         let project = app.buttons["Synthetic second project"]
         reveal(project, in: app)
         project.tap()
@@ -27,7 +27,7 @@ import XCTest
         let search = app.searchFields.firstMatch
         XCTAssertTrue(search.waitForExistence(timeout: 5))
         search.tap(); search.typeText("No such note")
-        waitForText("No such note", in: search)
+        waitForText("No such note", in: search, app: app)
         reveal(app.staticTexts["No matching notes"], in: app)
         XCTAssertFalse(app.staticTexts["Synthetic workspace for draft isolation"].exists)
         saveScreenshot(app, name: "Memory search stays in the current workspace")
@@ -107,8 +107,8 @@ import XCTest
         XCTAssertTrue(save.waitForExistence(timeout: 5))
         XCTAssertFalse(save.isEnabled, "A blank note cannot be saved from the keyboard toolbar")
         let noteText = "Synthetic newest note"
-        field.typeText(noteText)
-        waitForText(noteText, in: field)
+        app.typeText(noteText)
+        waitForText(noteText, in: field, app: app)
         XCTAssertTrue(save.isEnabled)
         XCTAssertTrue(save.isHittable)
         XCTAssertTrue(app.keyboards.firstMatch.exists, "Exercise saving with the keyboard still visible")
@@ -133,11 +133,18 @@ import XCTest
         XCTAssertTrue(app.tabBars.buttons["Memory"].waitForExistence(timeout: 15))
         return app
     }
-    private func waitForText(_ text: String, in field: XCUIElement) {
-        // Synthesized typing can finish before the final characters reach SwiftUI.
-        expectation(for: NSPredicate(format: "value == %@", text), evaluatedWith: field)
-        waitForExpectations(timeout: 10)
-        XCTAssertEqual(field.value as? String, text)
+    private func waitForText(_ text: String, in field: XCUIElement, app: XCUIApplication,
+                             file: StaticString = #filePath, line: UInt = #line) {
+        let matches = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", text), object: field)
+        let result = XCTWaiter.wait(for: [matches], timeout: 10)
+        let actual = field.value as? String
+        if result != .completed || actual != text {
+            let hierarchy = XCTAttachment(string: app.debugDescription)
+            hierarchy.name = "Exact library input failure hierarchy"; hierarchy.lifetime = .keepAlways; add(hierarchy)
+            saveScreenshot(app, name: "Exact library input failure")
+        }
+        XCTAssertEqual(actual, text, "Exact input wait result: \(result.rawValue)", file: file, line: line)
+        XCTAssertEqual(result, .completed, "Input must settle within the existing deadline", file: file, line: line)
     }
     private func reveal(_ element: XCUIElement, in app: XCUIApplication,
                         file: StaticString = #filePath, line: UInt = #line) {

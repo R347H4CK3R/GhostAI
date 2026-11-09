@@ -92,7 +92,10 @@ import XCTest
     func testEmptyModelReplyShowsRecoverableErrorInsteadOfAnEmptyBubble() {
         let app = launchChatFixture("empty")
         let field = composer(in: app)
-        field.tap(); app.typeText("Request an answer")
+        field.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        app.typeText("Request an answer")
+        waitForExactText("Request an answer", in: field, app: app)
         app.buttons["chatSend"].tap()
         let alert = app.alerts["Jarvis"]
         XCTAssertTrue(alert.waitForExistence(timeout: 10)); alert.buttons["OK"].tap()
@@ -100,7 +103,11 @@ import XCTest
         XCTAssertTrue(error.waitForExistence(timeout: 5))
         XCTAssertTrue(error.label.contains("empty answer"))
         XCTAssertTrue(error.isHittable)
-        XCTAssertTrue(app.buttons["chatRestoreDraft"].exists)
+        // Distinguish a missing recovery action from a late/partial composer input.
+        XCTAssertEqual(field.value as? String, "", "Accepted requests must clear the composer")
+        let restore = app.buttons["chatRestoreDraft"]
+        if !restore.exists { saveFailureDiagnostics(app, name: "Missing failed-request recovery") }
+        XCTAssertTrue(restore.exists, "An accepted request must remain recoverable after the error alert is dismissed")
         app.buttons["chatRestoreDraft"].tap()
         XCTAssertEqual(field.value as? String, "Request an answer")
     }
@@ -144,15 +151,16 @@ import XCTest
         let app = launchChatFixture("success")
         let field = composer(in: app)
         field.tap(); app.typeText("Keep my original typed draft")
-        expectation(for: NSPredicate(format: "value == %@", "Keep my original typed draft"), evaluatedWith: field)
-        waitForExpectations(timeout: 5)
+        waitForExactText("Keep my original typed draft", in: field, app: app)
         app.buttons["chatKeyboardDone"].tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
         app.buttons["planning.open"].tap()
         let goal = app.descendants(matching: .any).matching(identifier: "planning.goal").firstMatch
         XCTAssertTrue(goal.waitForExistence(timeout: 5))
-        goal.tap(); app.typeText("Synthetic release checklist")
-        expectation(for: NSPredicate(format: "value == %@", "Synthetic release checklist"), evaluatedWith: goal)
-        waitForExpectations(timeout: 5)
+        goal.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        app.typeText("Synthetic release checklist")
+        waitForExactText("Synthetic release checklist", in: goal, app: app)
         app.buttons["planning.keyboardDone"].tap()
         let makeChecklist = app.buttons["planning.checklist"]
         XCTAssertTrue(revealInContent(makeChecklist, in: app)); makeChecklist.tap()
@@ -173,9 +181,10 @@ import XCTest
         app.buttons["planning.open"].tap()
         let goal = app.descendants(matching: .any).matching(identifier: "planning.goal").firstMatch
         XCTAssertTrue(goal.waitForExistence(timeout: 5))
-        goal.tap(); app.typeText("Synthetic planning retry")
-        expectation(for: NSPredicate(format: "value == %@", "Synthetic planning retry"), evaluatedWith: goal)
-        waitForExpectations(timeout: 5)
+        goal.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        app.typeText("Synthetic planning retry")
+        waitForExactText("Synthetic planning retry", in: goal, app: app)
         app.buttons["planning.keyboardDone"].tap()
         let review = app.buttons["planning.reviewQuestion"]
         XCTAssertTrue(revealInContent(review, in: app)); review.tap()
@@ -187,6 +196,25 @@ import XCTest
         app.buttons["chatRestoreDraft"].tap()
         XCTAssertTrue((composer(in: app).value as? String ?? "").contains("Synthetic planning retry"))
         saveScreenshot(app, name: "Jarvis planning failure retains retry prompt")
+    }
+
+    private func waitForExactText(_ text: String, in field: XCUIElement, app: XCUIApplication,
+                                  file: StaticString = #filePath, line: UInt = #line) {
+        let matches = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", text), object: field)
+        let result = XCTWaiter.wait(for: [matches], timeout: 5)
+        let actual = field.value as? String
+        if result != .completed || actual != text {
+            saveFailureDiagnostics(app, name: "Exact input failure: \(field.identifier)")
+        }
+        // Assert the value first: a waiter timeout must not hide what actually arrived.
+        XCTAssertEqual(actual, text, "Exact input wait result: \(result.rawValue)", file: file, line: line)
+        XCTAssertEqual(result, .completed, "Input must settle within the existing deadline", file: file, line: line)
+    }
+
+    private func saveFailureDiagnostics(_ app: XCUIApplication, name: String) {
+        let hierarchy = XCTAttachment(string: app.debugDescription)
+        hierarchy.name = name + " hierarchy"; hierarchy.lifetime = .keepAlways; add(hierarchy)
+        saveScreenshot(app, name: name)
     }
 
     private func launchChatFixture(_ scenario: String) -> XCUIApplication {

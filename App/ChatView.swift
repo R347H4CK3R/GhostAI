@@ -77,7 +77,10 @@ struct ChatView: View {
                     }
                     Button("Cancel", role: .cancel) {}
                 }
-                .onChange(of: store.error) { _, message in
+                // Receive the error at publication, before ask's task clears busy.
+                // onChange can coalesce busy's transitions and observe only false,
+                // losing the accepted question needed by "Edit and try again".
+                .onReceive(store.$error) { message in
                     guard let message else { return }
                     inlineError = message
                     if store.busy { failedQuestion = submittedQuestion }
