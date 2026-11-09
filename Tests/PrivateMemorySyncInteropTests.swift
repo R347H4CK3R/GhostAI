@@ -126,6 +126,61 @@ final class PrivateMemorySyncInteropTests: XCTestCase {
                  "chatOrder": identifiers.map { $0.uppercased() }]]
     }
 
+    private func chatOrderProbes() throws -> [[String: Any]] {
+        let identifiers = [UUID(uuidString: "00000000-0000-4000-8000-000000000000")!,
+                           UUID(uuidString: "00000000-0000-4000-8000-000000000001")!]
+        func document(_ order: [Int]) throws -> PrivateMemorySyncDocument {
+            var result = empty()
+            result.chats = order.map { index in
+                ChatEntry(id: identifiers[index], project: "General", role: "user",
+                          text: "Synthetic grouping turn \(index)", date: Date(timeIntervalSinceReferenceDate: 100))
+            }
+            result.chatOrder = result.chats.map(\.id)
+            try result.validate()
+            return result
+        }
+        func merge(_ left: PrivateMemorySyncDocument, _ right: PrivateMemorySyncDocument) throws -> PrivateMemorySyncDocument {
+            try PrivateMemorySyncMerge.merge(base: empty(), local: left, remote: right)
+        }
+        let base = try document([]), a = try document([0]), b = try document([1]), c = try document([1, 0])
+        let leftGrouped = try merge(merge(a, b), c).encoded()
+        let rightGrouped = try merge(a, merge(b, c)).encoded()
+        return [["name": "equal-date-chat-order-grouping", "acceptedInputs": true,
+                 "baseInputBase64": try base.encoded().base64EncodedString(),
+                 "leftInputBase64": try a.encoded().base64EncodedString(),
+                 "middleInputBase64": try b.encoded().base64EncodedString(),
+                 "rightInputBase64": try c.encoded().base64EncodedString(),
+                 "forwardBase64": leftGrouped.base64EncodedString(),
+                 "reverseBase64": rightGrouped.base64EncodedString(), "converges": leftGrouped == rightGrouped]]
+    }
+
+    private func chatContentProbes() throws -> [[String: Any]] {
+        func document(_ text: String, _ seconds: Double) throws -> PrivateMemorySyncDocument {
+            var result = empty()
+            result.chats = [ChatEntry(id: identifier, project: "General", role: "user", text: text,
+                                     date: Date(timeIntervalSinceReferenceDate: seconds))]
+            result.chatOrder = [identifier]
+            try result.validate()
+            return result
+        }
+        func merge(_ left: PrivateMemorySyncDocument, _ right: PrivateMemorySyncDocument) throws -> PrivateMemorySyncDocument {
+            try PrivateMemorySyncMerge.merge(base: empty(), local: left, remote: right)
+        }
+        let base = empty()
+        try base.validate()
+        let a = try document("X", 100), b = try document("X", 200), c = try document("Y", 150)
+        let leftGrouped = try merge(merge(a, b), c).encoded()
+        let rightGrouped = try merge(a, merge(b, c)).encoded()
+        return [["name": "chat-content-date-grouping", "acceptedInputs": true,
+                 "baseInputBase64": try base.encoded().base64EncodedString(),
+                 "leftInputBase64": try a.encoded().base64EncodedString(),
+                 "middleInputBase64": try b.encoded().base64EncodedString(),
+                 "rightInputBase64": try c.encoded().base64EncodedString(),
+                 "inputRecordsBase64": try [a, b, c].map { try encoded($0.chats[0]) },
+                 "forwardBase64": leftGrouped.base64EncodedString(),
+                 "reverseBase64": rightGrouped.base64EncodedString(), "converges": leftGrouped == rightGrouped]]
+    }
+
     private func unicodeProbes() throws -> [[String: Any]] {
         var left = empty(), right = empty()
         left.chats = [chat("Caf\u{e9}")]; right.chats = [chat("Cafe\u{301}")]
@@ -226,7 +281,7 @@ final class PrivateMemorySyncInteropTests: XCTestCase {
 
     private func deterministicVectors() throws -> [String: Any] {
         ["records": try records(), "conflicts": try conflicts(), "restorations": try restorations(),
-         "documents": try documents(), "unicodeProbes": try unicodeProbes(), "malformedDates": try malformedDateProbes(), "malformedDocuments": try malformedDocumentProbes(), "knowledgeProbes": try knowledgeProbes()]
+         "documents": try documents(), "chatOrderProbes": try chatOrderProbes(), "chatContentProbes": try chatContentProbes(), "unicodeProbes": try unicodeProbes(), "malformedDates": try malformedDateProbes(), "malformedDocuments": try malformedDocumentProbes(), "knowledgeProbes": try knowledgeProbes()]
     }
 
     func testExportSyntheticNativeGoldenVectors() throws {

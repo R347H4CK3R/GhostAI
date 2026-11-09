@@ -10,7 +10,8 @@ original `private-memory-sync-v1.json` envelope fixture are unchanged.
 `Tests/Fixtures/private-memory-sync-interop-v1.json` is deliberately marked
 `pending-native-export`. It contains **no invented Foundation output**. Swift,
 Xcode, Gradle and the Android SDK were unavailable during local implementation.
-Native export/comparison and Android compilation/tests remain pending. Passing
+At that point native export/comparison and Android compilation/tests were pending;
+the first CI results are recorded below. Passing
 portable tests while the native fixture test skips is **not** release approval.
 
 ## What is implemented
@@ -100,6 +101,42 @@ the synthetic input cases and rejects any non-idempotence or grouping divergence
 Source inspection predicts risks here; only native execution can establish the
 actual outputs. No production behavior is altered to make these probes pass.
 
+### Chat grouping probes
+
+The exporter also compares `M(M(A, B), C)` and `M(A, M(B, C))`, using an empty
+base at every merge. The two chats have identical per-ID records and the same
+reference date (100); A contains ID 0, B contains ID 1, and C explicitly orders
+ID 1 before ID 0. Inputs are validated before export. The gate requires these
+exact inputs, both records unchanged in each output, and equal output bytes.
+A rendered total order may lose ordering provenance between merge rounds, so
+pairwise symmetry alone is insufficient.
+
+A second case uses one original chat ID with A=(X, date 100), B=(X, date 200)
+and C=(Y, date 150), again comparing both groupings with an empty base. It exports
+the actual canonical input records as well as documents, allowing the gate to
+check derived conflict IDs without inventing Foundation bytes. The output must
+retain both X and Y, contain only supplied text/date combinations, and have equal
+bytes across groupings. Timestamp-only collapse can otherwise interact with
+content-based conflict IDs. Both new native probes still need execution.
+
+### Verified first seed, still blocked
+
+[Seed run 42537632328](https://github.com/R347H4CK3R/GhostAI/actions/runs/42537632328)
+used source `ee17516a6d6cf278ba8ad0fc62f5aeb5f6164eae` and tree
+`3315bedfdd4486e34f35bf5a371737aadce67b43`, with clean tracked-source provenance
+before and after each job. Native export compiled and passed on Xcode 26.3 and
+iOS 26.2. Android's 30 unit tests, lint and build passed; Linux and Windows Python
+jobs passed. The macOS script suite exposed a test fixture's missing `os.waitid`
+guard, fixed separately without changing production cleanup.
+
+The real export confirmed five convergence failures: NFC/NFD chat representation,
+canonically equivalent filename ties, accepted suppression overlap on duplicate
+and identity merges, and cutoff grouping. Its date/UUID/string, conflict,
+restoration and native-to-Python AES-GCM primitive checks passed independently.
+The full gate correctly failed. This diagnostic export is **not an approved
+golden** and must not replace the pending marker. The chat grouping probes
+were added afterward and still need native execution. No new writer is approved.
+
 ## Standalone seed CI
 
 `.github/workflows/private-sync-conformance.yml` runs only for pushes to
@@ -187,7 +224,8 @@ in its provenance. Do not package or publish an IPA from this job.
 
 Use the attachment manifest to locate the one named
 `private-memory-sync-interop-v1.json`. Review that it contains synthetic inputs
-only and replace the pending fixture with that exact file. Retain producer/test
+only. Replace the pending fixture only after that exact export passes all coverage
+and convergence gates; a divergent diagnostic export must remain separate. Retain producer/test
 provenance separately; the artifact's own label is not execution evidence.
 
 1. Run `python3 -m scripts.private_sync_interop <exact exported attachment path>`

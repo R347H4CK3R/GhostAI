@@ -70,7 +70,7 @@ class NativeGateTests(unittest.TestCase):
             'unicodeProbes': [dict(name=name, forwardBase64='e30=', reverseBase64='e30=', converges=True)
                               for name in ('canonically-equivalent-chat', 'filename-ascii-tie', 'filename-unicode-tie')],
             'malformedDates': [None] * 8, 'malformedDocuments': [None] * 4,
-            'envelopes': [old] * 3, 'knowledgeProbes': [{}] * 3,
+            'envelopes': [old] * 3, 'knowledgeProbes': [{}] * 3, 'chatOrderProbes': [{}], 'chatContentProbes': [{}],
         }
         with self.assertRaises(ValueError):
             gate.verify_native_vectors(fixture)
@@ -143,6 +143,90 @@ class NativeGateTests(unittest.TestCase):
             changed = copy.deepcopy(probes); changed[index][key] = value
             with self.assertRaises(ValueError):
                 gate.verify_knowledge_coverage(changed)
+
+    def test_chat_order_grouping_requires_exact_inputs_and_retained_records(self):
+        # Parser-only samples, never expected native encoding or a replacement merge.
+        verify = getattr(gate, 'verify_chat_order_coverage', None)
+        self.assertTrue(callable(verify), 'Chat-order grouping coverage must be required')
+        identifiers = ['00000000-0000-4000-8000-000000000000',
+                       '00000000-0000-4000-8000-000000000001']
+        def doc(order):
+            return dict(version=1, repositoryID=12345, notes=[], knowledge=[], tombstones=[],
+                        includesPrivateWorkspaces=False, chatOrder=[identifiers[i] for i in order],
+                        chats=[dict(id=identifiers[i], project='General', role='user',
+                                    text=f'Synthetic grouping turn {i}', date=100) for i in order])
+        def encoded(value):
+            return base64.b64encode(json.dumps(value).encode()).decode()
+        probe = dict(name='equal-date-chat-order-grouping', acceptedInputs=True,
+                     baseInputBase64=encoded(doc([])), leftInputBase64=encoded(doc([0])),
+                     middleInputBase64=encoded(doc([1])), rightInputBase64=encoded(doc([1, 0])),
+                     forwardBase64=encoded(doc([0, 1])), reverseBase64=encoded(doc([1, 0])), converges=False)
+        verify([probe])
+        with self.assertRaises(ValueError):
+            gate.check_convergence([probe])
+        forged = dict(probe, converges=True)
+        with self.assertRaises(ValueError):
+            gate.check_convergence([forged])
+        for key, value in [('acceptedInputs', False), ('baseInputBase64', encoded(doc([0]))),
+                           ('leftInputBase64', encoded(doc([1]))),
+                           ('middleInputBase64', encoded(doc([0]))),
+                           ('rightInputBase64', encoded(doc([0, 1]))),
+                           ('forwardBase64', encoded(doc([]))),
+                           ('reverseBase64', encoded(doc([1, 1])))]:
+            changed = dict(probe, **{key: value})
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                verify([changed])
+        changed_output = doc([0, 1]); changed_output['chats'][0]['text'] = 'Rewritten'
+        with self.assertRaises(ValueError):
+            verify([dict(probe, forwardBase64=encoded(changed_output))])
+        for field in ('baseInputBase64', 'forwardBase64'):
+            for key, value in [('version', True), ('version', 1.0), ('includesPrivateWorkspaces', 0)]:
+                document = json.loads(base64.b64decode(probe[field])); document[key] = value
+                with self.subTest(field=field, key=key), self.assertRaises(ValueError):
+                    verify([dict(probe, **{field: encoded(document)})])
+        for probes in [[], [probe, probe], [dict(probe, name='placeholder')]]:
+            with self.assertRaises(ValueError):
+                verify(probes)
+
+    def test_chat_content_grouping_requires_inputs_and_native_conflict_identities(self):
+        verify = getattr(gate, 'verify_chat_content_coverage', None)
+        self.assertTrue(callable(verify), 'Chat-content grouping coverage must be required')
+        original = 'ABCDEF01-2345-4ABC-8DEF-0123456789AB'
+        def chat(text, date):
+            return dict(id=original, project='General', role='user', text=text, date=date)
+        def doc(chats):
+            return dict(version=1, repositoryID=12345, notes=[], knowledge=[], tombstones=[],
+                        includesPrivateWorkspaces=False, chatOrder=[v['id'] for v in chats], chats=chats)
+        def encoded(value):
+            return base64.b64encode(json.dumps(value).encode()).decode()
+        rows = [chat('X', 100), chat('X', 200), chat('Y', 150)]
+        raw = [encoded(row) for row in rows]
+        # Derived IDs exercise the gate with parser samples, not native golden bytes.
+        def copy_row(index):
+            return dict(rows[index], id=gate.conflict_id('chat', original, base64.b64decode(raw[index])).upper())
+        left = encoded(doc([rows[0], copy_row(2)]))
+        right = encoded(doc([rows[0], copy_row(2), copy_row(1)]))
+        probe = dict(name='chat-content-date-grouping', acceptedInputs=True,
+                     baseInputBase64=encoded(doc([])), leftInputBase64=encoded(doc([rows[0]])),
+                     middleInputBase64=encoded(doc([rows[1]])), rightInputBase64=encoded(doc([rows[2]])),
+                     inputRecordsBase64=raw, forwardBase64=left, reverseBase64=right, converges=False)
+        verify([probe])
+        with self.assertRaises(ValueError):
+            gate.check_convergence([dict(probe, converges=True)])
+        for key, value in [('acceptedInputs', False), ('baseInputBase64', encoded(doc(rows[:1]))),
+                           ('middleInputBase64', encoded(doc(rows[:1]))), ('inputRecordsBase64', raw[:2]),
+                           ('forwardBase64', encoded(doc([rows[0]])))]:
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                verify([dict(probe, **{key: value})])
+        for change in [dict(rows[2], id='00000000-0000-4000-8000-000000000000'),
+                       dict(copy_row(2), date=151), dict(copy_row(2), text='Z')]:
+            with self.assertRaises(ValueError):
+                verify([dict(probe, forwardBase64=encoded(doc([rows[0], change])))])
+        with self.assertRaises(ValueError):
+            verify([dict(probe, forwardBase64=encoded(dict(doc([rows[0], copy_row(2)]), version=True)))])
+        for probes in [[], [probe, probe], [dict(probe, name='placeholder')]]:
+            with self.assertRaises(ValueError):
+                verify(probes)
 
     def test_committed_native_vectors(self):
         fixture = strict_json(FIXTURE.read_bytes())

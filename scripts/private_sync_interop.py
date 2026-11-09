@@ -173,12 +173,74 @@ def verify_knowledge_coverage(probes):
             _require(all(entry['id'] == 'file:' + digest and entry['text'] == text for entry in snapshot['entries']))
 
 
+def _chat_probe_document(raw):
+    document = strict_json(_bytes(raw))
+    _require(isinstance(document, dict) and type(document.get('version')) is int
+             and type(document.get('repositoryID')) is int
+             and type(document.get('includesPrivateWorkspaces')) is bool)
+    return document
+
+
+def verify_chat_order_coverage(probes):
+    """Require the exact synthetic grouping inputs without predicting native bytes."""
+    _require(len(probes) == 1 and probes[0]['name'] == 'equal-date-chat-order-grouping')
+    vector = probes[0]
+    _require(vector['acceptedInputs'] is True)
+    identifiers = ['00000000-0000-4000-8000-000000000000',
+                   '00000000-0000-4000-8000-000000000001']
+    def document(order):
+        return dict(version=1, repositoryID=12345, notes=[], knowledge=[], tombstones=[],
+                    includesPrivateWorkspaces=False, chatOrder=[identifiers[i] for i in order],
+                    chats=[dict(id=identifiers[i], project='General', role='user',
+                                text=f'Synthetic grouping turn {i}', date=100) for i in order])
+    for field, order in [('baseInputBase64', []), ('leftInputBase64', [0]),
+                         ('middleInputBase64', [1]), ('rightInputBase64', [1, 0])]:
+        _require(_chat_probe_document(vector[field]) == document(order))
+    # Either order is permitted here, but neither record may be lost or rewritten.
+    # The separate byte-convergence check must reject unequal native results.
+    for field in ('forwardBase64', 'reverseBase64'):
+        output = _chat_probe_document(vector[field])
+        _require(output in (document([0, 1]), document([1, 0])))
+
+
+def verify_chat_content_coverage(probes):
+    """Record grouping of timestamp-only and conflicting edits, without blessing it."""
+    _require(len(probes) == 1 and probes[0]['name'] == 'chat-content-date-grouping')
+    vector = probes[0]
+    _require(vector['acceptedInputs'] is True)
+    original = _ORIGINAL.upper()
+    rows = [dict(id=original, project='General', role='user', text=text, date=date)
+            for text, date in [('X', 100), ('X', 200), ('Y', 150)]]
+    def document(chats):
+        return dict(version=1, repositoryID=12345, notes=[], knowledge=[], tombstones=[],
+                    includesPrivateWorkspaces=False, chatOrder=[row['id'] for row in chats], chats=chats)
+    _require(_chat_probe_document(vector['baseInputBase64']) == document([]))
+    for field, row in zip(('leftInputBase64', 'middleInputBase64', 'rightInputBase64'), rows):
+        _require(_chat_probe_document(vector[field]) == document([row]))
+    native_rows = vector['inputRecordsBase64']
+    _require(isinstance(native_rows, list) and len(native_rows) == 3)
+    allowed = list(rows)
+    for raw, row in zip(native_rows, rows):
+        canonical = _bytes(raw)
+        _require(strict_json(canonical) == row)
+        allowed.append(dict(row, id=conflict_id('chat', original, canonical).upper()))
+    for field in ('forwardBase64', 'reverseBase64'):
+        output = _chat_probe_document(vector[field])
+        chats = output['chats']
+        _require(isinstance(chats, list) and 2 <= len(chats) <= 3
+                 and all(row in allowed for row in chats)
+                 and len({row['id'] for row in chats}) == len(chats)
+                 and original in {row['id'] for row in chats}
+                 and {row['text'] for row in chats} == {'X', 'Y'}
+                 and output == document(chats))
+
+
 def verify_native_vectors(fixture):
     if (not isinstance(fixture, dict) or fixture.get('format') != FORMAT
             or fixture.get('status') != 'native-export'):
         raise ValueError('Native export is required; portable writers remain blocked')
     required = {'records': 19, 'conflicts': 2, 'restorations': 6, 'documents': 1,
-                'unicodeProbes': 3, 'malformedDates': 8, 'malformedDocuments': 4, 'envelopes': 3, 'knowledgeProbes': 3}
+                'unicodeProbes': 3, 'malformedDates': 8, 'malformedDocuments': 4, 'envelopes': 3, 'knowledgeProbes': 3, 'chatOrderProbes': 1, 'chatContentProbes': 1}
     if any(not isinstance(fixture.get(key), list) or len(fixture[key]) != count
            for key, count in required.items()):
         raise ValueError('Native export is incomplete')
@@ -226,6 +288,10 @@ def verify_native_vectors(fixture):
             if decrypt_remote_payload(_bytes(vector['encryptedBase64']), vector['passphrase']) != _bytes(vector['plaintextBase64']):
                 raise ValueError('Native envelope mismatch')
         verify_knowledge_coverage(fixture['knowledgeProbes'])
+        verify_chat_order_coverage(fixture['chatOrderProbes'])
+        verify_chat_content_coverage(fixture['chatContentProbes'])
+        check_convergence(fixture['chatContentProbes'])
+        check_convergence(fixture['chatOrderProbes'])
         check_convergence(fixture['unicodeProbes'])
         check_convergence(fixture['knowledgeProbes'])
     except (KeyError, TypeError, AttributeError, IndexError) as exc:

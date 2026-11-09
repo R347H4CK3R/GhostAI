@@ -296,6 +296,16 @@ class SimulatorUpgradeTests(unittest.TestCase):
 
     @unittest.skipUnless(os.name == 'posix', 'Process-group cleanup requires POSIX')
     def test_zombie_group_permission_error_needs_confirmed_disappearance(self):
+        self.assert_zombie_group_permission_error_needs_confirmed_disappearance()
+
+    @unittest.skipUnless(os.name == 'posix', 'Process-group cleanup requires POSIX')
+    def test_zombie_group_permission_error_with_wnowait_but_without_waitid(self):
+        # macOS Python exposes WNOWAIT even when it does not expose waitid.
+        with patch.dict(os.__dict__, WNOWAIT=0):
+            os.__dict__.pop('waitid', None)
+            self.assert_zombie_group_permission_error_needs_confirmed_disappearance()
+
+    def assert_zombie_group_permission_error_needs_confirmed_disappearance(self):
         """A real child exits; only Darwin's zombie-group EPERM is simulated."""
         runner = check.Runner(self.root, 10)
         real_killpg = os.killpg
@@ -311,8 +321,9 @@ class SimulatorUpgradeTests(unittest.TestCase):
         def darwin_killpg(group, requested_signal):
             nonlocal denied_probe
             if requested_signal == signal.SIGKILL:
-                # The leader must still belong to us and be unreaped here.
-                if hasattr(os, 'WNOWAIT'):
+                # Observe without reaping only when the complete waitid API exists.
+                # Some POSIX builds expose WNOWAIT but do not expose waitid.
+                if all(hasattr(os, name) for name in ('waitid', 'P_PID', 'WEXITED', 'WNOWAIT', 'WNOHANG')):
                     deadline = time.monotonic() + 2
                     while True:
                         exited = os.waitid(os.P_PID, group, os.WEXITED | os.WNOWAIT | os.WNOHANG)
