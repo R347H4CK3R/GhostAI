@@ -303,8 +303,197 @@ import Security
         let receipt = try XCTUnwrap(jobs.first?["resultReceipt"] as? [String: Any], "A terminal response must be retained with its job, not only in transient view state")
         XCTAssertEqual(receipt["jobID"] as? String, job)
         XCTAssertEqual(receipt["summaryPreview"] as? String, "Synthetic read-only observation")
-        XCTAssertEqual(receipt["responseSHA256"] as? String, PairedExecutionCrypto.sha256Hex(body))
+        XCTAssertEqual(receipt["responseSHA256"] as? String, try PairedExecutionCrypto.sha256Hex(body))
         XCTAssertTrue(restartedNetwork.requests.isEmpty)
+    }
+    private func receiptFixture() throws -> PairedDesktopRecord {
+        let manifest = try reviewedSubmission()
+        var value = fixture()
+        value.jobs = [PairedDesktopJob(projectID: project, submissionID: manifest.submissionID,
+            jobID: job, status: "running", reviewedSubmission: manifest)]
+        return value
+    }
+    private func resultBody(status: String = "completed", summary: Any = "Synthetic observation",
+                            cancelled: Bool = false, iterations: Int = 2, error: Any = NSNull()) throws -> Data {
+        try JSONSerialization.data(withJSONObject: ["v": 1, "job_id": job, "status": status,
+            "cancel_requested": cancelled, "counters": ["iterations": iterations, "tool_calls": 1, "io_bytes": 12, "output_bytes": 20],
+            "summary": summary, "error_code": error, "artifacts": [Any]()] as [String: Any], options: [.sortedKeys])
+    }
+    private func savedJob(_ record: PairedDesktopRecord?) throws -> [String: Any] {
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(XCTUnwrap(record))) as? [String: Any])
+        return try XCTUnwrap((object["jobs"] as? [[String: Any]])?.first)
+    }
+    private func savedReceipt(_ record: PairedDesktopRecord?) throws -> [String: Any] {
+        try XCTUnwrap(savedJob(record)["resultReceipt"] as? [String: Any])
+    }
+    func testReceiptPreservesUnicodeBoundaryAndFullSummaryIdentity() async throws {
+        let text = String(repeating: "🙂", count: 80)
+        let vault = try MemoryPairingVault(receiptFixture()); let network = RecordingPairingTransport()
+        let body = try resultBody(summary: text)
+        network.respond = { _ in PairedDesktopResponse(status: 200, body: body) }
+        await client(vault, network).refreshJob(job)
+        let receipt = try savedReceipt(vault.record)
+        XCTAssertEqual(receipt["summaryPreview"] as? String, String(repeating: "🙂", count: 64))
+        XCTAssertEqual(receipt["summaryByteCount"] as? Int, text.utf8.count)
+        XCTAssertEqual(receipt["summarySHA256"] as? String, try PairedExecutionCrypto.sha256Hex(Data(text.utf8)))
+        XCTAssertEqual(receipt["responseByteCount"] as? Int, body.count)
+    }
+    func testReceiptDistinguishesNullAndEmptySummary() async throws {
+        let summaries: [Any] = [NSNull(), ""]
+        for summary in summaries {
+            let vault = try MemoryPairingVault(receiptFixture()); let network = RecordingPairingTransport()
+            let body = try resultBody(summary: summary)
+            network.respond = { _ in PairedDesktopResponse(status: 200, body: body) }
+            await client(vault, network).refreshJob(job)
+            let receipt = try savedReceipt(vault.record)
+            if summary is NSNull {
+                XCTAssertNil(receipt["summaryPreview"]); XCTAssertNil(receipt["summaryByteCount"]); XCTAssertNil(receipt["summarySHA256"])
+            } else {
+                XCTAssertEqual(receipt["summaryPreview"] as? String, ""); XCTAssertEqual(receipt["summaryByteCount"] as? Int, 0)
+                XCTAssertEqual(receipt["summarySHA256"] as? String, try PairedExecutionCrypto.sha256Hex(Data()))
+            }
+        }
+    }
+    func testReceiptRejectsTerminalRegressionOrChangedResultWithoutReplacingHistory() async throws {
+        for next in [try resultBody(status: "running"), try resultBody(status: "failed"),
+                     try resultBody(summary: "Changed result"), try resultBody(iterations: 3)] {
+            let vault = try MemoryPairingVault(receiptFixture()); let network = RecordingPairingTransport()
+            let first = try resultBody()
+            network.respond = { _ in PairedDesktopResponse(status: 200, body: first) }
+            await client(vault, network).refreshJob(job)
+            let previous = try savedJob(vault.record)
+            network.respond = { _ in PairedDesktopResponse(status: 200, body: next) }
+            let restarted = client(vault, network); await restarted.refreshJob(job)
+            XCTAssertEqual(try savedJob(vault.record) as NSDictionary, previous as NSDictionary)
+            XCTAssertEqual(restarted.message, PairedDesktopFailure.malformed.localizedDescription)
+            XCTAssertFalse(restarted.storageUnavailable)
+        }
+    }
+    func testReceiptAcceptsEquivalentTerminalJSONAndLaterCancellationFlag() async throws {
+        let vault = try MemoryPairingVault(receiptFixture()); let network = RecordingPairingTransport()
+        let first = try resultBody()
+        network.respond = { _ in PairedDesktopResponse(status: 200, body: first) }
+        await client(vault, network).refreshJob(job)
+        let reformatted = Data(" \n".utf8) + first
+        network.respond = { _ in PairedDesktopResponse(status: 200, body: reformatted) }
+        await client(vault, network).refreshJob(job)
+        XCTAssertEqual(try savedReceipt(vault.record)["responseSHA256"] as? String, try PairedExecutionCrypto.sha256Hex(reformatted))
+        let cancellation = try resultBody(cancelled: true)
+        network.respond = { _ in PairedDesktopResponse(status: 200, body: cancellation) }
+        await client(vault, network).cancelJob(job)
+        let receipt = try savedReceipt(vault.record)
+        XCTAssertEqual(receipt["cancelRequested"] as? Bool, true)
+        XCTAssertEqual(receipt["status"] as? String, "completed", "A cancellation request must not relabel earlier completion")
+    }
+    func testReceiptAllowsRunningToStartingDuringHostRecovery() async throws {
+        let vault = try MemoryPairingVault(receiptFixture()); let network = RecordingPairingTransport()
+        for status in ["running", "starting"] {
+            let body = try resultBody(status: status, summary: NSNull())
+            network.respond = { _ in PairedDesktopResponse(status: 200, body: body) }
+            await client(vault, network).refreshJob(job)
+            XCTAssertEqual(try savedReceipt(vault.record)["status"] as? String, status)
+        }
+    }
+    func testReceiptSaveFailureKeepsPriorObservationAndStatus() async throws {
+        let vault = try MemoryPairingVault(receiptFixture()); let network = RecordingPairingTransport()
+        let initial = try resultBody(status: "running", summary: NSNull())
+        network.respond = { _ in PairedDesktopResponse(status: 200, body: initial) }
+        await client(vault, network).refreshJob(job)
+        let previous = try savedJob(vault.record)
+        let completion = try resultBody()
+        network.respond = { _ in vault.failWrites = true; return PairedDesktopResponse(status: 200, body: completion) }
+        let restarted = client(vault, network); await restarted.refreshJob(job)
+        XCTAssertTrue(restarted.storageUnavailable)
+        XCTAssertEqual(try savedJob(vault.record) as NSDictionary, previous as NSDictionary)
+        XCTAssertEqual(vault.record?.nextSequence, 3, "The sent request's sequence stays consumed after a save failure")
+        XCTAssertNil(restarted.jobDetails[job])
+    }
+    func testReceiptRejectsCountersBeyondReviewedLimitsBeforeReplacingStatus() async throws {
+        let vault = try MemoryPairingVault(receiptFixture()); let network = RecordingPairingTransport()
+        let body = try resultBody(iterations: 9)
+        network.respond = { _ in PairedDesktopResponse(status: 200, body: body) }
+        let model = client(vault, network); await model.refreshJob(job)
+        XCTAssertEqual(vault.record?.jobs.first?.status, "running")
+        XCTAssertNil(try savedJob(vault.record)["resultReceipt"])
+        XCTAssertEqual(model.message, PairedDesktopFailure.malformed.localizedDescription)
+    }
+    func testReceiptReservationRejectsNewSubmissionBeforeOutboxOrSequence() async throws {
+        var value = fixture()
+        for index in 1...7 {
+            let suffix = String(format: "%012d", index)
+            let manifest = try reviewedSubmission(id: "99999999-9999-4999-8999-" + suffix, goal: String(repeating: "x", count: 8192))
+            value.jobs.append(PairedDesktopJob(projectID: project, submissionID: manifest.submissionID,
+                jobID: "88888888-8888-4888-8888-" + suffix, status: "completed", reviewedSubmission: manifest))
+        }
+        let vault = MemoryPairingVault(value); let network = RecordingPairingTransport(); let model = client(vault, network)
+        await model.submit(projectID: project, goal: String(repeating: "y", count: 8192), limits: .defaults)
+        XCTAssertTrue(network.requests.isEmpty); XCTAssertNil(vault.record?.outbox)
+        XCTAssertEqual(vault.record?.nextSequence, 1); XCTAssertEqual(vault.record?.jobs, value.jobs)
+        XCTAssertFalse(model.storageUnavailable)
+    }
+    func testNearFullLegacyHistoryRejectsReceiptReadAndCancelBeforeNetwork() async throws {
+        var value = fixture()
+        for index in 1...8 {
+            let suffix = String(format: "%012d", index)
+            let manifest = try reviewedSubmission(id: "99999999-9999-4999-8999-" + suffix, goal: String(repeating: "x", count: 8192))
+            value.jobs.append(PairedDesktopJob(projectID: project, submissionID: manifest.submissionID,
+                jobID: index == 1 ? job : "88888888-8888-4888-8888-" + suffix, status: "running", reviewedSubmission: manifest))
+        }
+        let base = value
+        for count in stride(from: 1, through: 8192, by: 32) {
+            var candidate = base
+            candidate.archivedSubmissions = [try reviewedSubmission(goal: String(repeating: "z", count: count))]
+            if try JSONEncoder().encode(candidate).count > PairedDesktopRecord.maximumBytes { break }
+            value = candidate
+        }
+        try value.validate()
+        XCTAssertGreaterThan(try JSONEncoder().encode(value).count, PairedDesktopRecord.maximumBytes - 128)
+        for cancel in [false, true] {
+            let vault = MemoryPairingVault(value); let network = RecordingPairingTransport(); let model = client(vault, network)
+            if cancel { await model.cancelJob(job) } else { await model.refreshJob(job) }
+            XCTAssertTrue(network.requests.isEmpty); XCTAssertEqual(vault.record?.nextSequence, value.nextSequence)
+            XCTAssertEqual(vault.record?.jobs, value.jobs); XCTAssertEqual(vault.record?.archivedSubmissions, value.archivedSubmissions)
+            XCTAssertFalse(model.storageUnavailable); XCTAssertNotNil(model.message)
+        }
+    }
+    func testReceiptWithForeignIdentityMalformedHashTimeOrPreviewCannotLoad() async throws {
+        let vault = try MemoryPairingVault(receiptFixture()); let network = RecordingPairingTransport()
+        let body = try resultBody()
+        network.respond = { _ in PairedDesktopResponse(status: 200, body: body) }
+        await client(vault, network).refreshJob(job)
+        let receipt = try savedReceipt(vault.record)
+        for (field, invalid) in [("projectID", host as Any), ("submissionID", device as Any), ("jobID", host as Any),
+                                 ("responseSHA256", "not-a-hash" as Any), ("observedAtMilliseconds", -1 as Any),
+                                 ("summaryPreview", String(repeating: "x", count: 257) as Any)] {
+            var changed = receipt; changed[field] = invalid
+            var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(XCTUnwrap(vault.record))) as? [String: Any])
+            var jobs = try XCTUnwrap(object["jobs"] as? [[String: Any]])
+            jobs[0]["resultReceipt"] = changed; object["jobs"] = jobs
+            let corrupted = try JSONSerialization.data(withJSONObject: object)
+            XCTAssertThrowsError(try JSONDecoder().decode(PairedDesktopRecord.self, from: corrupted).validate(), field)
+        }
+    }
+    func testReceiptEscapingStaysBoundedAndPreservesControlByteHash() async throws {
+        let text = String(repeating: "\u{0}", count: 512)
+        let vault = try MemoryPairingVault(receiptFixture()); let network = RecordingPairingTransport()
+        let body = try resultBody(summary: text, error: String(repeating: "\u{0}", count: 128))
+        network.respond = { _ in PairedDesktopResponse(status: 200, body: body) }
+        await client(vault, network).refreshJob(job)
+        let receipt = try savedReceipt(vault.record)
+        XCTAssertEqual(receipt["summaryPreview"] as? String, String(repeating: "\u{0}", count: 256))
+        XCTAssertEqual(receipt["summarySHA256"] as? String, try PairedExecutionCrypto.sha256Hex(Data(text.utf8)))
+        XCTAssertLessThanOrEqual(try JSONEncoder().encode(XCTUnwrap(vault.record)).count, PairedDesktopRecord.maximumBytes)
+        XCTAssertNoThrow(try vault.record?.validate())
+    }
+    func testBackgroundResponseCannotCreateReceiptOrChangeStatus() async throws {
+        let value = try receiptFixture(); let vault = MemoryPairingVault(value); let network = RecordingPairingTransport()
+        let model = client(vault, network); let body = try resultBody()
+        network.respond = { [self] _ in
+            model.setScreen(id: screen, visible: false, foreground: false)
+            return PairedDesktopResponse(status: 200, body: body)
+        }
+        await model.refreshJob(job)
+        XCTAssertEqual(vault.record?.jobs, value.jobs); XCTAssertNil(model.jobDetails[job])
     }
     func testArchiveRequiresConfirmationAndRetainsOriginal() async throws {
         let vault = MemoryPairingVault(fixture()); let network = RecordingPairingTransport(); let model = client(vault, network)
