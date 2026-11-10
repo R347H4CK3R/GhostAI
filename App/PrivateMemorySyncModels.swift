@@ -198,6 +198,7 @@ enum PrivateMemorySyncMerge {
         let l = Dictionary(uniqueKeysWithValues: local.map { (key($0), $0) })
         let r = Dictionary(uniqueKeysWithValues: remote.map { (key($0), $0) })
         var result: [UUID: T] = [:]
+        var noteConflicts: [(UUID, T)] = []
         for id in Set(l.keys).union(r.keys).sorted(by: { $0.uuidString < $1.uuidString }) {
             guard !deleted.contains(kind + ":" + id.uuidString.lowercased()) else { continue }
             guard let left = l[id] else { result[id] = r[id]; continue }
@@ -235,8 +236,31 @@ enum PrivateMemorySyncMerge {
             let conflictID = try conflictID(kind: kind, originalID: id, canonical: ordered[1].1)
             if !deleted.contains(kind + ":" + conflictID.uuidString.lowercased()) {
                 let copy = replacingID(ordered[1].0, conflictID)
-                if let existing = l[conflictID] ?? r[conflictID], try PrivateMemorySyncPolicy.canonical(existing) != PrivateMemorySyncPolicy.canonical(copy) { throw PrivateMemorySyncFailure.conflict }
-                result[conflictID] = copy
+                if kind == "note" {
+                    // Merge existing note identities first. A previously generated
+                    // conflict is an editable record, not an empty destination.
+                    noteConflicts.append((conflictID, copy))
+                } else {
+                    // Chat identity/order and knowledge-mirror behavior are unchanged.
+                    if let existing = l[conflictID] ?? r[conflictID], try PrivateMemorySyncPolicy.canonical(existing) != PrivateMemorySyncPolicy.canonical(copy) { throw PrivateMemorySyncFailure.conflict }
+                    result[conflictID] = copy
+                }
+            }
+        }
+        // The outer loop and this queue use deterministic original-ID order, so
+        // exchanging devices cannot change which collision-preservation ID is used.
+        for (initialID, initialCopy) in noteConflicts {
+            var id = initialID, copy = initialCopy, visited = Set<UUID>()
+            while !deleted.contains(kind + ":" + id.uuidString.lowercased()) {
+                guard visited.insert(id).inserted,
+                      visited.count <= PrivateMemorySyncPolicy.maximumRecords else { throw PrivateMemorySyncFailure.conflict }
+                guard let existing = result[id] else { result[id] = copy; break }
+                let data = try PrivateMemorySyncPolicy.canonical(copy)
+                if try PrivateMemorySyncPolicy.canonical(existing) == data { break }
+                // Preserve both the edited historical copy and this distinct source
+                // version under a new stable identity, never overwrite either one.
+                id = try conflictID(kind: kind, originalID: id, canonical: data)
+                copy = replacingID(copy, id)
             }
         }
         return Array(result.values)

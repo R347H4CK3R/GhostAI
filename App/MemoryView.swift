@@ -162,8 +162,12 @@ struct MemoryView: View {
                 // Capture the presented ID: dismissal can clear the binding before this action runs.
                 Button("Delete note", role: .destructive) { store.forget(id); pendingDelete = nil }
                 Button("Cancel", role: .cancel) { pendingDelete = nil }
-            } message: { _ in
-                Text("This removes the note from your saved memory. If included in private sync, the deletion is sent when sync next succeeds. Encrypted older versions can remain in remote history.")
+            } message: { id in
+                if let note = store.saved.notes.first(where: { $0.id == id }), let checklist = EditableChecklist.decode(note) {
+                    Text("Checklist: \(checklist.goal)\nThis removes only this editable copy, not its original Luma snapshot. If included in private sync, deletion is sent when sync next succeeds. Encrypted older versions can remain in remote history.")
+                } else {
+                    Text("This removes the note from your saved memory. If included in private sync, the deletion is sent when sync next succeeds. Encrypted older versions can remain in remote history.")
+                }
             }
         }
     }
@@ -210,7 +214,8 @@ struct MemoryView: View {
                 ShareLink(item: memory.text) { Label("Export", systemImage: "square.and.arrow.up") }
                 Spacer()
                 Button("Delete", role: .destructive) { pendingDelete = memory.id }
-                    .accessibilityLabel("Delete note: " + String(memory.text.prefix(60)))
+                    .accessibilityLabel(EditableChecklist.decode(memory).map { "Delete checklist: " + String($0.goal.prefix(80)) }
+                        ?? "Delete note: " + String(memory.text.prefix(60)))
             }
             .font(.subheadline).buttonStyle(.borderless).frame(minHeight: 44)
         }

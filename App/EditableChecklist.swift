@@ -55,8 +55,11 @@ struct EditableChecklist: Codable, Sendable {
         } catch { return nil }
     }
     func note(project: String, importedAt: Date) throws -> MemoryNote {
+        // The legacy snapshot body can contain its own separators. Include the
+        // original structured fields so different goal/step splits never collapse.
+        // This identity is generated only on import; editing keeps the outer ID.
         let id = ConversationImportPolicy.stableID([project, "jarvis-editable-checklist-v1",
-            origin.snapshotID.uuidString.lowercased(), origin.source])
+            origin.snapshotID.uuidString.lowercased(), origin.source, goal, step, done ? "true" : "false"])
         let value = MemoryNote(id: id, project: project,
             text: Self.header + String(decoding: try payload(), as: UTF8.self), source: Self.source, savedAt: importedAt)
         guard Self.decode(value) != nil else { throw ConversationImportFailure.malformed }

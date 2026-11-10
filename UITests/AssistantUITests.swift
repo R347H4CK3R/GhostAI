@@ -298,7 +298,8 @@ import XCTest
         XCTAssertTrue(option.waitForExistence(timeout: 5), "The separate Luma copy option must exist")
         XCTAssertTrue(revealInContent(option, in: app), "Luma import must offer a separate reviewed editable-copy choice")
         XCTAssertEqual(option.value as? String, "0")
-        option.tap(); XCTAssertEqual(option.value as? String, "1")
+        option.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        XCTAssertEqual(option.value as? String, "1")
         app.buttons["conversationImport.close"].tap()
         XCTAssertTrue(revealInContent(open, in: app, searchUpIfMissing: true)); open.tap()
         XCTAssertTrue(revealInContent(format, in: app)); format.tap()
@@ -319,14 +320,22 @@ import XCTest
         XCTAssertTrue(goal.waitForExistence(timeout: 5))
         XCTAssertEqual(goal.value as? String, "Synthetic editable goal")
         XCTAssertEqual(step.value as? String, "Verify the original snapshot")
+        appendAtEnd("\nReviewed goal", to: goal, expected: "Synthetic editable goal\nReviewed goal", app: app)
+        app.buttons["checklist.keyboardDone"].tap()
+        XCTAssertTrue(revealInContent(step, in: app))
+        appendAtEnd("\nReviewed step", to: step, expected: "Verify the original snapshot\nReviewed step", app: app)
+        app.buttons["checklist.keyboardDone"].tap()
         let done = app.switches["checklist.done"]
-        XCTAssertTrue(revealInContent(done, in: app)); XCTAssertEqual(done.value as? String, "0"); done.tap()
+        XCTAssertTrue(revealInContent(done, in: app)); XCTAssertEqual(done.value as? String, "0")
+        done.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        XCTAssertEqual(done.value as? String, "1")
         let save = app.buttons["checklist.save"]
         XCTAssertTrue(save.isEnabled); save.tap()
         XCTAssertTrue(app.buttons["checklist.cancel"].waitForNonExistence(timeout: 5))
         XCTAssertTrue(revealInContent(edit, in: app, searchUpIfMissing: true)); edit.tap()
         XCTAssertTrue(done.waitForExistence(timeout: 5)); XCTAssertEqual(done.value as? String, "1")
-        XCTAssertEqual(goal.value as? String, "Synthetic editable goal")
+        XCTAssertEqual(goal.value as? String, "Synthetic editable goal\nReviewed goal")
+        XCTAssertEqual(step.value as? String, "Verify the original snapshot\nReviewed step")
         app.buttons["checklist.cancel"].tap()
         let original = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Luma checklist snapshot (reference only, not an executable job)")).firstMatch
         XCTAssertTrue(revealInContent(original, in: app, readOnlyText: true, searchUpIfMissing: true))
@@ -339,11 +348,23 @@ import XCTest
         app.tabBars.buttons["Memory"].tap()
         let edit = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "checklist.edit.")).firstMatch
         XCTAssertTrue(revealInContent(edit, in: app)); edit.tap()
+        let goal = app.descendants(matching: .any).matching(identifier: "checklist.goal").firstMatch
+        XCTAssertTrue(goal.waitForExistence(timeout: 5))
+        appendAtEnd("\nDiscard this goal", to: goal, expected: "Synthetic editable goal\nDiscard this goal", app: app)
+        app.buttons["checklist.keyboardDone"].tap()
+        let step = app.descendants(matching: .any).matching(identifier: "checklist.step").firstMatch
+        XCTAssertTrue(revealInContent(step, in: app))
+        appendAtEnd("\nDiscard this step", to: step, expected: "Verify the original snapshot\nDiscard this step", app: app)
+        app.buttons["checklist.keyboardDone"].tap()
         let done = app.switches["checklist.done"]
-        XCTAssertTrue(done.waitForExistence(timeout: 5)); done.tap()
+        XCTAssertTrue(revealInContent(done, in: app))
+        done.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        XCTAssertEqual(done.value as? String, "1")
         app.buttons["checklist.cancel"].tap()
         XCTAssertTrue(revealInContent(edit, in: app, searchUpIfMissing: true)); edit.tap()
         XCTAssertTrue(done.waitForExistence(timeout: 5)); XCTAssertEqual(done.value as? String, "0")
+        XCTAssertEqual(goal.value as? String, "Synthetic editable goal")
+        XCTAssertEqual(step.value as? String, "Verify the original snapshot")
         app.buttons["checklist.cancel"].tap()
         let unsupported = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Synthetic future checklist payload is preserved")).firstMatch
         XCTAssertTrue(revealInContent(unsupported, in: app, readOnlyText: true))
@@ -363,6 +384,15 @@ import XCTest
         XCTAssertTrue(alert.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Synthetic editable goal")).firstMatch.exists)
         alert.buttons["Cancel"].tap()
         XCTAssertTrue(revealInContent(edit, in: app, searchUpIfMissing: true))
+    }
+
+    private func appendAtEnd(_ suffix: String, to field: XCUIElement, expected: String, app: XCUIApplication) {
+        field.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        // The bottom-right of a multiline field places the insertion point after its text.
+        field.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.95)).tap()
+        app.typeText(suffix)
+        waitForExactText(expected, in: field, app: app)
     }
 
     private func waitForExactText(_ text: String, in field: XCUIElement, app: XCUIApplication,

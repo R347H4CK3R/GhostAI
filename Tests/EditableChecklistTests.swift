@@ -121,6 +121,13 @@ final class EditableChecklistTests: XCTestCase {
             XCTAssertEqual(try repeated.encoded(), try forward.encoded())
             let stale = try PrivateMemorySyncMerge.merge(base: prior, local: forward, remote: prior)
             XCTAssertEqual(try stale.encoded(), try forward.encoded())
+            let preservedZulu = try XCTUnwrap(forward.notes.first { EditableChecklist.decode($0)?.goal == "Zulu" })
+            XCTAssertNotEqual(preservedZulu.id, echo.id)
+            var deletion = remote
+            deletion.tombstones = ["note:" + preservedZulu.id.uuidString.lowercased()]
+            let afterDeletion = try PrivateMemorySyncMerge.merge(base: prior, local: local, remote: deletion)
+            XCTAssertEqual(Set(afterDeletion.notes.compactMap { EditableChecklist.decode($0)?.goal }), ["Echo", "Mike"])
+            XCTAssertEqual(afterDeletion.tombstones, deletion.tombstones)
         }
     }
 
@@ -270,11 +277,11 @@ final class EditableChecklistTests: XCTestCase {
         // ASCII filler gives an exact independent byte increment, not a mock capacity check.
         state.notes += (0..<240).map { _ in MemoryNote(project: "General", text: String(repeating: "a", count: 20_000), source: "User note", savedAt: early) }
         while true {
-            let remaining = 4_999_900 - (try MemoryBackup.encode(state)).count
+            let remaining = 4_999_900 - (try JSONEncoder().encode(state)).count
             if remaining <= 200 { break }
             let new = MemoryNote(project: "General", text: "", source: "User note", savedAt: early)
             state.notes.append(new)
-            let room = 4_999_900 - (try MemoryBackup.encode(state)).count
+            let room = 4_999_900 - (try JSONEncoder().encode(state)).count
             guard room >= 0 else { XCTFail("Fixture exceeded its own budget"); return }
             state.notes[state.notes.count - 1].text = String(repeating: "a", count: min(20_000, room))
         }
