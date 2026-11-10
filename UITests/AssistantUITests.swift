@@ -386,6 +386,32 @@ import XCTest
         XCTAssertTrue(revealInContent(edit, in: app, searchUpIfMissing: true))
     }
 
+    func testChecklistEditorSurvivesBackgroundWithoutVoiceRequest() {
+        let app = launchChatFixture("checklists")
+        app.tabBars.buttons["Memory"].tap()
+        let edit = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "checklist.edit.")).firstMatch
+        XCTAssertTrue(revealInContent(edit, in: app)); edit.tap()
+        let goal = app.descendants(matching: .any).matching(identifier: "checklist.goal").firstMatch
+        XCTAssertTrue(goal.waitForExistence(timeout: 5))
+        appendAtEnd("\nKeep this unsaved draft", to: goal, expected: "Synthetic editable goal\nKeep this unsaved draft", app: app)
+        app.buttons["checklist.keyboardDone"].tap()
+        backgroundAndReturn(app)
+        XCTAssertTrue(goal.waitForExistence(timeout: 5))
+        XCTAssertEqual(goal.value as? String, "Synthetic editable goal\nKeep this unsaved draft")
+        XCTAssertFalse(app.buttons["chatStartVoiceCall"].exists)
+        app.buttons["checklist.cancel"].tap()
+    }
+
+    private func backgroundAndReturn(_ app: XCUIApplication) {
+        XCUIDevice.shared.press(.home)
+        let background = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            app.state == .runningBackground || app.state == .runningBackgroundSuspended
+        }, object: app)
+        XCTAssertEqual(XCTWaiter.wait(for: [background], timeout: 5), .completed,
+                       "The app must remain alive after backgrounding; actual state: \(app.state.rawValue)")
+        app.activate()
+    }
+
     func testVoiceRequestWaitsForChecklistSaveWithoutLosingDraft() {
         verifyChecklistVoiceDeferral(dismissal: .save, repeatRequest: true)
     }
@@ -411,9 +437,7 @@ import XCTest
         app.buttons["checklist.keyboardDone"].tap()
         let voiceStart = app.buttons["chatStartVoiceCall"]
         for _ in 0..<(repeatRequest ? 2 : 1) {
-            XCUIDevice.shared.press(.home)
-            XCTAssertTrue(app.wait(for: .runningBackground, timeout: 5))
-            app.activate()
+            backgroundAndReturn(app)
             XCTAssertTrue(goal.waitForExistence(timeout: 5), "Voice navigation must not dismiss an unsaved checklist")
             XCTAssertEqual(goal.value as? String, reviewedGoal)
             XCTAssertFalse(voiceStart.exists, "Voice controls must wait until this editor actually dismisses")
