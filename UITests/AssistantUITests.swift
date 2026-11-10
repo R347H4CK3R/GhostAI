@@ -172,7 +172,7 @@ import XCTest
         let review = app.buttons["planning.reviewQuestion"]
         XCTAssertTrue(revealInContent(review, in: app)); review.tap()
         let question = app.staticTexts["planning.question.preview"]
-        XCTAssertTrue(question.waitForExistence(timeout: 5))
+        XCTAssertTrue(revealInContent(question, in: app, readOnlyText: true))
         XCTAssertTrue(question.label.contains("Choose my next safe step"))
         XCTAssertTrue(question.label.contains("Synthetic release"))
         XCTAssertTrue(question.label.contains("untrusted"))
@@ -206,18 +206,27 @@ import XCTest
         app.buttons["planning.keyboardDone"].tap()
         XCTAssertTrue(revealInContent(review, in: app)); review.tap()
         let question = app.staticTexts["planning.question.preview"]
-        XCTAssertTrue(question.waitForExistence(timeout: 5)); let originalQuestion = question.label
-        XCTAssertTrue(revealInContent(choose, in: app)); choose.tap()
+        XCTAssertTrue(revealInContent(question, in: app, readOnlyText: true)); let originalQuestion = question.label
+        XCTAssertTrue(revealInContent(choose, in: app, searchUpIfMissing: true)); choose.tap()
         let cancel = app.buttons["planning.reference.cancel"]
         XCTAssertTrue(cancel.waitForExistence(timeout: 5)); cancel.tap()
+        XCTAssertTrue(revealInContent(question, in: app, readOnlyText: true))
         XCTAssertEqual(question.label, originalQuestion, "Cancelling the picker must preserve the already reviewed selection")
         let remove = app.buttons["planning.reference.remove"]
-        XCTAssertTrue(revealInContent(remove, in: app)); remove.tap()
+        XCTAssertTrue(revealInContent(remove, in: app, searchUpIfMissing: true)); remove.tap()
         XCTAssertTrue(question.waitForNonExistence(timeout: 5))
         XCTAssertFalse(app.buttons["planning.ask"].exists)
+        // Traverse the former review region before preparing a replacement.
+        // An offscreen List row alone is not proof that removal invalidated it.
+        let followingSection = app.staticTexts["Bring your Luma notes with you"]
+        XCTAssertTrue(revealInContent(followingSection, in: app, checkingContent: {
+            XCTAssertFalse(question.exists, "Removing the reference must invalidate the previous question")
+            XCTAssertFalse(app.buttons["planning.ask"].exists, "The old question must no longer be sendable")
+        }))
+        XCTAssertTrue(revealInContent(goal, in: app, searchUpIfMissing: true))
         XCTAssertEqual(goal.value as? String, "My own planning goal")
         XCTAssertTrue(revealInContent(review, in: app)); review.tap()
-        XCTAssertTrue(question.waitForExistence(timeout: 5))
+        XCTAssertTrue(revealInContent(question, in: app, readOnlyText: true))
         XCTAssertFalse(question.label.contains("Synthetic release"))
         app.navigationBars.buttons.element(boundBy: 0).tap()
         XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Synthetic reply: Help me plan")).firstMatch.exists)
@@ -315,11 +324,14 @@ import XCTest
         attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
     }
 
-    private func revealInContent(_ element: XCUIElement, in app: XCUIApplication) -> Bool {
+    private func revealInContent(_ element: XCUIElement, in app: XCUIApplication,
+                                 readOnlyText: Bool = false, searchUpIfMissing: Bool = false,
+                                 checkingContent: (() -> Void)? = nil) -> Bool {
         // iOS 26 can report a List row as hittable behind the navigation bar.
         // Scroll only inside the unobscured content, and require the whole target
         // to be below navigation and above the keyboard/tab bar before tapping.
         for attempt in 0...8 {
+            checkingContent?()
             let bounds = app.frame
             let navigation = app.navigationBars.firstMatch
             let tabs = app.tabBars.firstMatch
@@ -332,8 +344,17 @@ import XCTest
             guard bottom - top > 80 else { return false }
             let frame = element.exists ? element.frame : .zero
             if !frame.isEmpty && frame.minY >= top && frame.maxY <= bottom && element.isHittable { return true }
-            guard attempt < 8 else { return false }
-            let moveDown = !frame.isEmpty && frame.minY < top
+            // The exact question can be taller than one screen. Materialize its
+            // List row by scrolling before reading its complete accessible label.
+            // This exception is only for static text, never for a tap target.
+            if readOnlyText && !frame.isEmpty && element.elementType == .staticText &&
+                frame.minX >= bounds.minX && frame.maxX <= bounds.maxX &&
+                min(frame.maxY, bottom) - max(frame.minY, top) >= 80 && element.isHittable { return true }
+            guard attempt < 8 else {
+                saveFailureDiagnostics(app, name: "Content visibility failure: \(element.identifier)")
+                return false
+            }
+            let moveDown = frame.isEmpty ? searchUpIfMissing : frame.minY < top
             let upper = top + (bottom - top) * 0.25
             let lower = top + (bottom - top) * 0.75
             let origin = app.coordinate(withNormalizedOffset: .zero)
