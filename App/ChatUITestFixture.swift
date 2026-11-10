@@ -4,7 +4,7 @@ import Foundation
 /// Explicit, synthetic UI-test input. Release builds contain none of this code.
 /// All persistence is bypassed while enabled; no saved user data is read or changed.
 struct ChatUITestFixture {
-    enum Scenario: String { case success, pending, empty, library }
+    enum Scenario: String { case success, pending, empty, library, planning }
     let scenario: Scenario
 
     static func fromLaunchArguments(_ arguments: [String] = ProcessInfo.processInfo.arguments) -> ChatUITestFixture? {
@@ -23,6 +23,11 @@ struct ChatUITestFixture {
         if scenario == .library {
             notes.append(MemoryNote(project: "GitHub account 42: sample-owner/A-long-readable-workspace-name-for-accessibility-layout",
                                     text: "Synthetic long workspace note", source: "UI test fixture"))
+        }
+        if scenario == .planning {
+            notes.append(MemoryNote(id: UUID(uuidString: "99999999-1111-4111-8111-111111111111")!, project: "General",
+                text: "Luma checklist snapshot (reference only, not an executable job)\nGoal: Synthetic release\nStatus: Not completed\nStep: Verify the saved source",
+                source: "Luma checklist snapshot · Synthetic fixture · source task-1 · no source timestamp; date is import time"))
         }
         return SavedState(notes: notes, chats: chats)
     }

@@ -147,6 +147,49 @@ import XCTest
         XCTAssertEqual(field.value as? String, "General project draft")
     }
 
+    func testSavedLumaReferenceRequiresExplicitReviewAndPreservesTypedDraft() {
+        let app = launchChatFixture("planning")
+        let field = composer(in: app)
+        field.tap(); app.typeText("Keep this separate chat draft")
+        waitForExactText("Keep this separate chat draft", in: field, app: app)
+        app.buttons["chatKeyboardDone"].tap()
+        app.buttons["planning.open"].tap()
+        let choose = app.buttons["planning.reference.choose"]
+        XCTAssertTrue(revealInContent(choose, in: app), "Planning must offer an explicit saved-reference selection"); choose.tap()
+        XCTAssertTrue(app.navigationBars["Saved planning reference"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["Synthetic workspace for draft isolation"].exists)
+        let selected = app.buttons["planning.reference.select.99999999-1111-4111-8111-111111111111"]
+        XCTAssertTrue(selected.waitForExistence(timeout: 5)); selected.tap()
+        let goal = app.descendants(matching: .any).matching(identifier: "planning.goal").firstMatch
+        XCTAssertTrue(goal.waitForExistence(timeout: 5))
+        let enteredGoal = goal.value as? String ?? ""
+        XCTAssertTrue(enteredGoal.isEmpty || enteredGoal == (goal.placeholderValue ?? ""), "Reference prose must not become an automatically trusted goal")
+        XCTAssertFalse(app.buttons["planning.ask"].exists)
+        XCTAssertTrue(revealInContent(goal, in: app)); goal.tap()
+        app.typeText("Choose my next safe step")
+        waitForExactText("Choose my next safe step", in: goal, app: app)
+        app.buttons["planning.keyboardDone"].tap()
+        let review = app.buttons["planning.reviewQuestion"]
+        XCTAssertTrue(revealInContent(review, in: app)); review.tap()
+        let question = app.staticTexts["planning.question.preview"]
+        XCTAssertTrue(question.waitForExistence(timeout: 5))
+        XCTAssertTrue(question.label.contains("Choose my next safe step"))
+        XCTAssertTrue(question.label.contains("Synthetic release"))
+        XCTAssertTrue(question.label.contains("untrusted"))
+        XCTAssertLessThanOrEqual(question.label.count, 2000)
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Synthetic reply: Help me plan")).firstMatch.exists)
+        saveScreenshot(app, name: "Reviewed Luma reference and exact planning question")
+        let ask = app.buttons["planning.ask"]
+        XCTAssertTrue(revealInContent(ask, in: app)); ask.tap()
+        let reply = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Synthetic reply: Help me plan")).firstMatch
+        XCTAssertTrue(reply.waitForExistence(timeout: 10))
+        XCTAssertTrue(reply.label.contains("Synthetic release"))
+        XCTAssertEqual(field.value as? String, "Keep this separate chat draft")
+        app.tabBars.buttons["Memory"].tap()
+        let original = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Luma checklist snapshot (reference only, not an executable job)")).firstMatch
+        XCTAssertTrue(revealInContent(original, in: app), "Planning must preserve the imported original")
+    }
+
     func testPlanningSavesReviewedChecklistAndPreservesTypedDraft() {
         let app = launchChatFixture("success")
         let field = composer(in: app)
