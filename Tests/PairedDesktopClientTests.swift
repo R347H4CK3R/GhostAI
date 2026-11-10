@@ -195,6 +195,23 @@ import Security
         XCTAssertEqual(network.requests.map(\.body), [original.body, original.body])
         XCTAssertEqual(vault.record?.jobs.first?.reviewedSubmission, original); XCTAssertNil(vault.record?.outbox)
     }
+    func testNewManifestCapacityRejectionDoesNotCreateUnresolvedOutbox() async throws {
+        var value = fixture()
+        for index in 1...8 {
+            let suffix = String(format: "%012d", index)
+            let manifest = try reviewedSubmission(id: "99999999-9999-4999-8999-" + suffix, goal: String(repeating: "x", count: 8192))
+            value.jobs.append(PairedDesktopJob(projectID: project, submissionID: manifest.submissionID,
+                jobID: "88888888-8888-4888-8888-" + suffix, status: "completed", reviewedSubmission: manifest))
+        }
+        try value.validate()
+        XCTAssertLessThan(try JSONEncoder().encode(value).count, PairedDesktopRecord.maximumBytes)
+        let vault = MemoryPairingVault(value); let network = RecordingPairingTransport(); let model = client(vault, network)
+        await model.submit(projectID: project, goal: String(repeating: "y", count: 8192), limits: .defaults)
+        XCTAssertTrue(network.requests.isEmpty); XCTAssertNil(vault.record?.outbox)
+        XCTAssertEqual(vault.record?.nextSequence, value.nextSequence); XCTAssertEqual(vault.record?.jobs, value.jobs)
+        XCTAssertEqual(model.message, PairedDesktopFailure.limit.localizedDescription)
+        XCTAssertFalse(model.storageUnavailable); XCTAssertTrue(model.canSubmit)
+    }
     func testManifestCapacityIsReservedBeforeSequenceAllocationOrNetwork() async throws {
         var value = fixture()
         // Fill with legitimate bounded history, leaving the loaded outbox intact.

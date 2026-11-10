@@ -146,7 +146,11 @@ protocol PairedDesktopTransport: AnyObject {
             let limitObject = try JSONSerialization.jsonObject(with: JSONEncoder().encode(limits))
             let body = try Self.encode(["v": 1, "project_id": projectID, "submission_id": submission, "goal": goal, "requested_write_paths": [String](), "limits": limitObject])
             guard body.count <= 16384 else { throw PairedDesktopFailure.limit }
-            value.outbox = PairedDesktopSubmission(projectID: projectID, submissionID: submission, permissionRevision: grant.permissionRevision, body: body)
+            let outbox = PairedDesktopSubmission(projectID: projectID, submissionID: submission, permissionRevision: grant.permissionRevision, body: body)
+            value.outbox = outbox
+            // Reject a new unsent request without creating an unresolved outbox
+            // or misreporting finite capacity as unavailable secure storage.
+            try value.validateAcceptanceCapacity(for: outbox)
             try self.persist(value); try await self.submitOutbox()
         }
     }
