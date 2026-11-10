@@ -350,6 +350,21 @@ import XCTest
         XCTAssertFalse(app.buttons["checklist.edit.99999999-2222-8222-8222-222222222222"].exists)
     }
 
+    func testEditableChecklistDeletionIdentifiesTheGoalAndCancelPreservesIt() {
+        let app = launchChatFixture("checklists")
+        app.tabBars.buttons["Memory"].tap()
+        let edit = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "checklist.edit.")).firstMatch
+        XCTAssertTrue(revealInContent(edit, in: app))
+        let delete = app.buttons["Delete checklist: Synthetic editable goal"]
+        XCTAssertTrue(delete.waitForExistence(timeout: 5), "Accessible deletion must identify which checklist will be removed")
+        XCTAssertTrue(revealInContent(delete, in: app)); delete.tap()
+        let alert = app.alerts.firstMatch
+        XCTAssertTrue(alert.waitForExistence(timeout: 5))
+        XCTAssertTrue(alert.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Synthetic editable goal")).firstMatch.exists)
+        alert.buttons["Cancel"].tap()
+        XCTAssertTrue(revealInContent(edit, in: app, searchUpIfMissing: true))
+    }
+
     private func waitForExactText(_ text: String, in field: XCUIElement, app: XCUIApplication,
                                   file: StaticString = #filePath, line: UInt = #line) {
         let matches = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", text), object: field)

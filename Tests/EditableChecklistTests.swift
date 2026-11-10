@@ -71,6 +71,59 @@ final class EditableChecklistTests: XCTestCase {
         XCTAssertNotEqual(try copy(renamed).id, currentCopy.id)
     }
 
+    func testAmbiguousLegacySnapshotBodyCannotCollapseDistinctStructuredEditableCopies() throws {
+        let first = try preview(goal: "a\nStatus: Not completed\nStep: b", step: "c")
+        let second = try preview(goal: "a", step: "b\nStatus: Not completed\nStep: c")
+        let a = try selected(first), b = try selected(second)
+        XCTAssertEqual(a.notes[0].text, b.notes[0].text, "The legacy snapshot format is intentionally unchanged")
+        XCTAssertEqual(a.notes[0].id, b.notes[0].id)
+        let ac = try copy(a), bc = try copy(b)
+        XCTAssertNotEqual(ac.id, bc.id, "Structured fields, not an ambiguous flattened body, identify the editable version")
+        let changedA = try edited(ac, goal: "Reviewed first", step: "Keep the first edit")
+        let current = SavedState(notes: [a.notes[0], changedA], chats: [])
+        let additions = try selected(second, into: current)
+        XCTAssertEqual(additions.notes.count, 1, "The distinct second version must not disappear during sequential import")
+        let combined = MemoryBackup.merge(additions, into: current)
+        XCTAssertEqual(combined.notes.count, 3)
+        XCTAssertEqual(Set(combined.notes.compactMap { EditableChecklist.decode($0)?.goal }), ["Reviewed first", "a"])
+        XCTAssertTrue(try selected(first, into: combined).notes.isEmpty)
+        XCTAssertTrue(try selected(second, into: combined).notes.isEmpty)
+    }
+
+    func testEditingAHistoricalConflictCannotBeOverwrittenByRegeneratedConflictPayload() throws {
+        for sortsBefore in [true, false] {
+            var fixture: (PrivateMemorySyncDocument, MemoryNote, MemoryNote)?
+            // Exercise both UUID processing orders without depending on one hash constant.
+            for index in 0..<64 {
+                let seed = try copy(selected(preview(goal: "Initial", sourceID: "task-\(index)")))
+                let alpha = try edited(seed, goal: "Alpha", step: "Verify the source", done: false)
+                let zulu = try edited(seed, goal: "Zulu", step: "Verify the source", done: false)
+                let prior = try PrivateMemorySyncMerge.merge(base: document(SavedState(notes: [seed], chats: [])),
+                    local: document(SavedState(notes: [alpha], chats: [])), remote: document(SavedState(notes: [zulu], chats: [])))
+                let primary = try XCTUnwrap(prior.notes.first { $0.id == seed.id })
+                let conflict = try XCTUnwrap(prior.notes.first { $0.id != seed.id })
+                if (conflict.id.uuidString < primary.id.uuidString) == sortsBefore {
+                    fixture = (prior, primary, conflict); break
+                }
+            }
+            let (prior, primary, conflict) = try XCTUnwrap(fixture)
+            XCTAssertEqual(EditableChecklist.decode(primary)?.goal, "Alpha")
+            XCTAssertEqual(EditableChecklist.decode(conflict)?.goal, "Zulu")
+            let local = document(SavedState(notes: [try edited(primary, goal: "Zulu", step: "Verify the source", done: false), conflict], chats: []))
+            let echo = try edited(conflict, goal: "Echo", step: "Verify the source", done: false)
+            let remote = document(SavedState(notes: [try edited(primary, goal: "Mike", step: "Verify the source", done: false), echo], chats: []))
+            let forward = try PrivateMemorySyncMerge.merge(base: prior, local: local, remote: remote)
+            XCTAssertEqual(Set(forward.notes.compactMap { EditableChecklist.decode($0)?.goal }), ["Echo", "Mike", "Zulu"])
+            XCTAssertEqual(try canonical(XCTUnwrap(forward.notes.first { $0.id == echo.id })), try canonical(echo))
+            let reverse = try PrivateMemorySyncMerge.merge(base: prior, local: remote, remote: local)
+            XCTAssertEqual(try forward.encoded(), try reverse.encoded())
+            let repeated = try PrivateMemorySyncMerge.merge(base: forward, local: forward, remote: reverse)
+            XCTAssertEqual(try repeated.encoded(), try forward.encoded())
+            let stale = try PrivateMemorySyncMerge.merge(base: prior, local: forward, remote: prior)
+            XCTAssertEqual(try stale.encoded(), try forward.encoded())
+        }
+    }
+
     func testEditsPreserveIdentityOriginalProvenanceAndCreationDate() throws {
         let state = try selected(preview()), original = try copy(state)
         let changed = try edited(original, goal: "  Café\nnext  ", step: "Step\nwith delimiters: · source ", done: true)
