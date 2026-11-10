@@ -6,23 +6,34 @@ import FoundationModels
 @main @MainActor struct AsterionVeyraApp: App {
     @StateObject private var store: AssistantStore
     @StateObject private var credentials: GitHubCredentialStore
+    @StateObject private var preferences = AssistantPreferences.forApplication()
     // Shared by all windows: one durable identity, counter and outbox owner.
     @StateObject private var pairedDesktop = PairedDesktopClient()
     init() {
+        #if DEBUG
+        if ChatUITestFixture.fromLaunchArguments() != nil, ProcessInfo.processInfo.arguments.contains("--uitest-open-voice-controls") {
+            VoiceEntryRequest.shared.request()
+        }
+        #endif
         let store = AssistantStore()
         _store = StateObject(wrappedValue: store)
         _credentials = StateObject(wrappedValue: GitHubCredentialStore(onSessionEnded: { [weak store] in
             store?.switchProject("General")
         }))
     }
-    var body: some Scene { WindowGroup { MainView().environmentObject(store).environmentObject(credentials).environmentObject(pairedDesktop) } }
+    var body: some Scene { WindowGroup { MainView(preferences: preferences).environmentObject(store).environmentObject(credentials).environmentObject(pairedDesktop).environmentObject(preferences) } }
 }
 struct MainView: View {
     @EnvironmentObject var store: AssistantStore
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var diagnostics = DiagnosticsController()
-    @State private var selectedTab = "assistant"
+    @ObservedObject private var preferences: AssistantPreferences
+    @State private var selectedTab: String
     @ObservedObject private var voiceEntry = VoiceEntryRequest.shared
+    init(preferences: AssistantPreferences) {
+        self.preferences = preferences
+        _selectedTab = State(initialValue: preferences.value.startScreen.rawValue)
+    }
     var body: some View {
         TabView(selection: $selectedTab) {
             ChatView(isSelected: selectedTab == "assistant").tabItem { Label("Assistant", systemImage: "sparkles") }.tag("assistant")
@@ -50,7 +61,7 @@ struct MainView: View {
         }
         .tint(.cyan)
         .preferredColorScheme(.dark)
-        .alert("Jarvis", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) {
+        .alert(preferences.value.name, isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) {
             Button("OK") { store.error = nil }
         } message: { Text(store.error ?? "") }
     }

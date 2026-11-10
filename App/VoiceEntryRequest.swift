@@ -5,8 +5,8 @@ import SwiftUI
     static let shared = VoiceEntryRequest()
     @Published private(set) var pending = false
     func request() { pending = true }
-    func consume() -> Bool {
-        guard pending else { return false }
+    func consume(canPresent: Bool = true) -> Bool {
+        guard canPresent, pending else { return false }
         pending = false
         return true
     }

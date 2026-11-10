@@ -5,6 +5,7 @@ struct ChatView: View {
     var isSelected = true
     @State private var showingPlanning = false
     @EnvironmentObject var store: AssistantStore
+    @EnvironmentObject private var preferences: AssistantPreferences
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var voice = VoiceController()
     @ObservedObject private var voiceEntry = VoiceEntryRequest.shared
@@ -14,7 +15,11 @@ struct ChatView: View {
     @State private var submittedQuestion: String?
     @State private var failedQuestion: String?
     @State private var inlineError: String?
-    @State private var showVoiceSettings = false
+    private enum AssistantSheet: String, Identifiable {
+        case voice, preferences, computer
+        var id: String { rawValue }
+    }
+    @State private var activeSheet: AssistantSheet?
     @State private var voiceConversation = false
     @State private var awaitingVoiceReply = false
     @State private var speakReplies = true
@@ -32,7 +37,7 @@ struct ChatView: View {
         NavigationStack {
             transcript
                 .safeAreaInset(edge: .bottom, spacing: 0) { composer }
-                .navigationTitle("Jarvis")
+                .navigationTitle(preferences.value.name)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
@@ -41,7 +46,7 @@ struct ChatView: View {
                     }
                     ToolbarItem(placement: .principal) {
                         VStack(spacing: 2) {
-                            Label("Jarvis", systemImage: "sparkles").font(.subheadline.weight(.semibold))
+                            Label(preferences.value.name, systemImage: preferences.value.avatar.symbol).font(.subheadline.weight(.semibold))
                             Text(store.connectionState.shortLabel + " · " + store.project).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                                 .accessibilityIdentifier("chatConnectionSummary")
                         }.accessibilityElement(children: .combine)
@@ -49,6 +54,21 @@ struct ChatView: View {
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         Menu {
+                            Button("Computers", systemImage: "desktopcomputer") {
+                                composerFocused = false; endVoiceConversation(); activeSheet = .computer
+                            }
+                            Button("Edit name & avatar", systemImage: "pencil") {
+                                composerFocused = false; endVoiceConversation(); activeSheet = .preferences
+                            }
+                            if preferences.value.startScreen == .assistant {
+                                Label("Assistant is start screen", systemImage: "checkmark")
+                            } else {
+                                Button("Set as start screen", systemImage: "house") {
+                                    do { try preferences.save(name: preferences.value.name, avatar: preferences.value.avatar, startScreen: .assistant) }
+                                    catch { inlineError = error.localizedDescription }
+                                }
+                            }
+                            Divider()
                             if !store.answer.isEmpty { ShareLink("Export answer", item: store.answer) }
                             Button("Voice settings", systemImage: "waveform") { openVoiceSettings() }
                             Button("Clear chat", role: .destructive) { confirmClear = true }
@@ -67,7 +87,21 @@ struct ChatView: View {
                 }
                 .onChange(of: isSelected) { _, selected in if selected { consumeVoiceEntry() } }
                 .onChange(of: scenePhase) { _, phase in if phase == .active { consumeVoiceEntry() } }
-                .sheet(isPresented: $showVoiceSettings) { voiceSettings }
+                .sheet(item: $activeSheet, onDismiss: consumeVoiceEntry) { sheet in
+                    switch sheet {
+                    case .voice: voiceSettings
+                    case .preferences: AssistantPreferencesView(preferences: preferences)
+                    case .computer:
+                        NavigationStack {
+                            PairedDesktopView()
+                                .toolbar {
+                                    ToolbarItem(placement: .confirmationAction) {
+                                        Button("Done") { activeSheet = nil }.accessibilityIdentifier("assistantComputer.done")
+                                    }
+                                }
+                        }
+                    }
+                }
                 .onAppear { consumeVoiceEntry() }
                 .onChange(of: voiceEntry.pending) { _, pending in if pending { consumeVoiceEntry() } }
                 .confirmationDialog("Delete this project’s chat history?", isPresented: $confirmClear) {
@@ -213,7 +247,7 @@ struct ChatView: View {
 
     private func message(_ text: String, isUser: Bool, source: String? = nil) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(isUser ? "You" : "Jarvis").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            Text(isUser ? "You" : preferences.value.name).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
             if !isUser, let source { Text(source).font(.caption2).foregroundStyle(.secondary) }
             Text(text).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
         }.padding(14).frame(maxWidth: .infinity, alignment: .leading)
@@ -235,10 +269,10 @@ struct ChatView: View {
                 Button { openVoiceSettings() } label: {
                     Image(systemName: "phone.fill").font(.title3).frame(width: 44, height: 44)
                 }.accessibilityLabel("Voice call and settings").accessibilityHint("Open controls for an on-device voice conversation.").accessibilityIdentifier("chatVoiceSettings")
-                TextField("Message Jarvis", text: draft, axis: .vertical)
+                TextField("Message \(preferences.value.name)", text: draft, axis: .vertical)
                     .lineLimit(1...4).padding(.vertical, 12)
                     .focused($composerFocused)
-                    .accessibilityLabel("Message Jarvis")
+                    .accessibilityLabel("Message \(preferences.value.name)")
                     .accessibilityHint("Write a message for the selected project. Swipe down in the conversation or use Done to dismiss the keyboard.")
                     .accessibilityIdentifier("chatComposer")
                 if store.busy {
@@ -276,7 +310,7 @@ struct ChatView: View {
                             inlineError = nil
                             voiceConversation = true
                             voice.allowsBackgroundVoice = backgroundVoice
-                            showVoiceSettings = false
+                            activeSheet = nil
                             beginVoiceTurn()
                         }
                     } label: {
@@ -286,7 +320,7 @@ struct ChatView: View {
                         .tint(voiceConversation ? .red : .cyan)
                         .disabled(store.busy && !voiceConversation)
                         .accessibilityIdentifier("chatStartVoiceCall")
-                    Text("Talk back and forth with Jarvis using this device’s microphone and speaker. This is an in-app voice conversation, not a telephone call. Microphone and speech permission are requested when you start.")
+                    Text("Talk back and forth with \(preferences.value.name) using this device’s microphone and speaker. This is an in-app voice conversation, not a telephone call. Microphone and speech permission are requested when you start.")
                         .font(.caption).foregroundStyle(.secondary)
                     Button {
                         if voice.state == .speaking { endVoiceConversation() }
@@ -311,7 +345,7 @@ struct ChatView: View {
             }.navigationTitle("Voice call").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("Done") { showVoiceSettings = false }.accessibilityIdentifier("voiceSettingsDone")
+                        Button("Done") { activeSheet = nil }.accessibilityIdentifier("voiceSettingsDone")
                     }
                 }
         }
@@ -333,9 +367,9 @@ struct ChatView: View {
     }
     private func consumeVoiceEntry() {
         guard isSelected, scenePhase == .active else { return }
-        if voiceEntry.consume() { showingPlanning = false; openVoiceSettings() }
+        if voiceEntry.consume(canPresent: activeSheet == nil) { showingPlanning = false; openVoiceSettings() }
     }
-    private func openVoiceSettings() { composerFocused = false; showVoiceSettings = true }
+    private func openVoiceSettings() { composerFocused = false; activeSheet = .voice }
     private func submitPlannedQuestion(_ text: String) -> Bool {
         endVoiceConversation()
         composerFocused = false
