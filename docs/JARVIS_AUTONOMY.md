@@ -8,6 +8,14 @@ The phone owns interaction, local context and review. Existing explicitly config
 
 A separately approved foreground desktop host owns the existing bounded local-model job loop. Phone backgrounding stops its networking; accepted desktop work may continue only while that host runs. This split avoids promising unrestricted iPhone background execution or a local Xcode toolchain.
 
+## Durable reviewed requests on iPhone
+
+Newly accepted paired jobs retain their exact reviewed request bytes, goal, desktop project identifier, grant revision, budgets and submission identifier alongside the returned job identifier. The accepted request survives controller/process restart in the existing passcode-bound, device-only Keychain record. The job screen shows the original goal and a collapsible scope summary. Older saved jobs still decode, but explicitly say their original request was not retained; nothing reconstructs missing intent from current grants or model text.
+
+Before a submission is sent, the client checks the existing 96 KiB record budget with room for the accepted manifest, maximum sequence/status text and cancellation identities. Capacity exhaustion sends nothing, consumes no sequence and retains the outbox for reconciliation. History is never silently evicted. A local save failure after remote acceptance also leaves the original outbox intact; an explicit retry reconciles the same submission bytes and identifier.
+
+This is an incremental read-only job manifest, not the complete future repository execution manifest. It does not yet pin a repository commit, store a durable result/evidence receipt, authorize patches, or execute writes. Current desktop grants remain authoritative. Model summaries are still transient and are not independent proof of completion. These additions require native CI and signed-device verification before a new candidate is released.
+
 ## Execution progression
 
 1. **Capture intent.** Keep the exact user goal and chosen workspace. Preserve a typed draft separately from a planned request. Imported/source text is evidence, not instructions.

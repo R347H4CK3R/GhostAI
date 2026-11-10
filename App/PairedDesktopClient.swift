@@ -156,6 +156,7 @@ protocol PairedDesktopTransport: AnyObject {
         // Reserve local reconciliation capacity before consuming a sequence or
         // sending an archived/loaded operation that the desktop could accept.
         guard value.jobs.count < 20 else { throw PairedDesktopFailure.limit }
+        try value.validateAcceptanceCapacity(for: outbox)
         let response = try await signed(route: "/v1/jobs/submit", body: outbox.body)
         guard response.status == 202, var current = record else { throw PairedDesktopFailure.malformed }
         let object = try PairedDesktopJSON.parse(response.body); try object.exact(["v", "job_id", "submission_id", "status", "permission_revision"])
@@ -165,7 +166,7 @@ protocol PairedDesktopTransport: AnyObject {
               PairedDesktopJob.statuses.contains(status), current.jobs.count < 20 else { throw PairedDesktopFailure.malformed }
         let jobID = try PairedExecutionWire.canonicalUUID(object.string("job_id"))
         guard !current.jobs.contains(where: { $0.jobID == jobID }) else { throw PairedDesktopFailure.malformed }
-        current.jobs.append(PairedDesktopJob(projectID: outbox.projectID, submissionID: outbox.submissionID, jobID: jobID, status: status))
+        current.jobs.append(PairedDesktopJob(projectID: outbox.projectID, submissionID: outbox.submissionID, jobID: jobID, status: status, reviewedSubmission: outbox))
         current.outbox = nil; try persist(current); message = "The desktop durably accepted the job. Acceptance does not mean completion."
     }
     func archiveSubmission(_ submissionID: String, confirmedMayAlreadyBeAccepted: Bool) {

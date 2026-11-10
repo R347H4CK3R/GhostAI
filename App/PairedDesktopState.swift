@@ -47,6 +47,15 @@ struct PairedDesktopSubmission: Codable, Equatable, Identifiable {
     let projectID: String; let submissionID: String; let permissionRevision: Int64
     let body: Data // Immutable exact wire bytes across all retries.
     var id: String { submissionID }
+    func reviewedGoal() throws -> String {
+        try validate(); return try PairedDesktopJSON.parse(body).string("goal")
+    }
+    func reviewedLimits() throws -> PairedDesktopLimits {
+        try validate(); let limits = try PairedDesktopJSON.parse(body).value("limits")
+        return try PairedDesktopLimits(maxIterations: Int(limits.integer("max_iterations")),
+            maxToolCalls: Int(limits.integer("max_tool_calls")), maxSeconds: Int(limits.integer("max_seconds")),
+            maxIOBytes: Int(limits.integer("max_io_bytes")), maxOutputBytes: Int(limits.integer("max_output_bytes")))
+    }
     func validate() throws {
         _ = try PairedExecutionWire.canonicalUUID(projectID); _ = try PairedExecutionWire.canonicalUUID(submissionID)
         guard body.count <= 16384, permissionRevision > 0 else { throw PairedDesktopFailure.storage }
@@ -65,6 +74,9 @@ struct PairedDesktopSubmission: Codable, Equatable, Identifiable {
 struct PairedDesktopJob: Codable, Equatable, Identifiable {
     let projectID: String; let submissionID: String; let jobID: String
     var status: String; var cancellationBody: Data?
+    // Optional only for records accepted by older app versions. Never reconstruct
+    // old intent from current grants, chat, or model prose. No execution authority.
+    var reviewedSubmission: PairedDesktopSubmission?
     var id: String { jobID }
     var isTerminal: Bool { Self.terminal.contains(status) }
     static let terminal: Set<String> = ["completed", "refused", "exhausted", "cancelled", "failed", "awaiting_approval", "expired"]
@@ -73,6 +85,7 @@ struct PairedDesktopJob: Codable, Equatable, Identifiable {
 struct PairedDesktopRecord: Codable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
     enum Phase: String, Codable { case beginning, pending, active, rePairRequired }
     static let maximumArchivedSubmissions = 2
+    static let maximumBytes = 96 * 1024
     var version = 1
     let hostID: String; let origin: String; let pin: String; let privateKey: Data
     var beginBody: Data?
@@ -107,11 +120,19 @@ struct PairedDesktopRecord: Codable, CustomStringConvertible, CustomDebugStringC
             guard try String(PairedExecutionCrypto.sha256Hex(frame).prefix(16)) == safetyCode else { throw PairedDesktopFailure.storage }
         }
         guard Set(grants.map(\.projectID)).count == grants.count, Set(jobs.map(\.jobID)).count == jobs.count,
+              Set(jobs.map(\.submissionID)).count == jobs.count,
               Set(archivedSubmissions.map(\.submissionID)).count == archivedSubmissions.count else { throw PairedDesktopFailure.storage }
         for grant in grants { try grant.validate() }
         for job in jobs {
             _ = try PairedExecutionWire.canonicalUUID(job.projectID); _ = try PairedExecutionWire.canonicalUUID(job.submissionID); _ = try PairedExecutionWire.canonicalUUID(job.jobID)
             guard PairedDesktopJob.statuses.contains(job.status) else { throw PairedDesktopFailure.storage }
+            if let manifest = job.reviewedSubmission {
+                try manifest.validate()
+                guard manifest.projectID == job.projectID, manifest.submissionID == job.submissionID else { throw PairedDesktopFailure.storage }
+                if let archived = archivedSubmissions.first(where: { $0.submissionID == job.submissionID }) {
+                    guard archived == manifest else { throw PairedDesktopFailure.storage }
+                }
+            }
             if let body = job.cancellationBody {
                 guard body.count <= 1024 else { throw PairedDesktopFailure.storage }
                 let value = try PairedDesktopJSON.parse(body); try value.exact(["v", "project_id", "job_id", "cancellation_id"])
@@ -123,6 +144,26 @@ struct PairedDesktopRecord: Codable, CustomStringConvertible, CustomDebugStringC
             guard prior == outbox else { throw PairedDesktopFailure.storage }
         }
         for submission in archivedSubmissions + [outbox].compactMap({ $0 }) { try submission.validate() }
+    }
+    /// Reserve the exact accepted manifest, largest status/sequence and future
+    /// cancellation identities before sending. Never solve capacity by eviction.
+    func validateAcceptanceCapacity(for submission: PairedDesktopSubmission) throws {
+        guard jobs.count < 20, outbox == submission else { throw PairedDesktopFailure.limit }
+        var pending = self; pending.nextSequence = Int64.max
+        guard try JSONEncoder().encode(pending).count <= Self.maximumBytes else { throw PairedDesktopFailure.limit }
+        var accepted = pending; accepted.outbox = nil; accepted.phase = .rePairRequired
+        accepted.jobs.append(PairedDesktopJob(projectID: submission.projectID, submissionID: submission.submissionID,
+            jobID: UUID().uuidString.lowercased(), status: "awaiting_approval", reviewedSubmission: submission))
+        for index in accepted.jobs.indices {
+            accepted.jobs[index].status = "awaiting_approval"
+            if accepted.jobs[index].cancellationBody == nil {
+                accepted.jobs[index].cancellationBody = try JSONSerialization.data(withJSONObject: [
+                    "v": 1, "project_id": accepted.jobs[index].projectID, "job_id": accepted.jobs[index].jobID,
+                    "cancellation_id": UUID().uuidString.lowercased()], options: [.sortedKeys, .withoutEscapingSlashes])
+            }
+        }
+        try accepted.validate()
+        guard try JSONEncoder().encode(accepted).count <= Self.maximumBytes else { throw PairedDesktopFailure.limit }
     }
 }
 protocol PairedDesktopVault {
@@ -146,7 +187,7 @@ struct PairedDesktopSystemKeychain: PairedDesktopKeychainAPI {
 /// Atomic identity/counter/outbox. Passcode-bound class cannot be backed up or
 /// migrated, unlike WhenUnlockedThisDeviceOnly's same-device restore behavior.
 struct PairedDesktopKeychain: PairedDesktopVault {
-    private let maximumBytes = 96 * 1024
+    private let maximumBytes = PairedDesktopRecord.maximumBytes
     let api: PairedDesktopKeychainAPI
     init(api: PairedDesktopKeychainAPI = PairedDesktopSystemKeychain()) { self.api = api }
     private var query: [String: Any] {

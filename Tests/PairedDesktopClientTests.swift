@@ -120,6 +120,113 @@ import Security
         await client(vault, network).submit(projectID: project, goal: "Synthetic", limits: .defaults)
         XCTAssertNil(vault.record?.outbox); XCTAssertEqual(vault.record?.jobs.first?.jobID, job)
     }
+    func testAcceptedJobRetainsExactReviewedRequestAcrossRelaunch() async throws {
+        let vault = MemoryPairingVault(fixture()); let network = RecordingPairingTransport()
+        network.respond = { [self] request in
+            let object = try JSONSerialization.jsonObject(with: request.body) as! [String: Any]
+            return PairedDesktopResponse(status: 202, body: try JSONSerialization.data(withJSONObject:
+                ["v": 1, "job_id": job, "submission_id": object["submission_id"]!, "status": "queued", "permission_revision": 1]))
+        }
+        var limits = PairedDesktopLimits.defaults; limits.maxToolCalls = 3; limits.maxSeconds = 15
+        await client(vault, network).submit(projectID: project, goal: "Inspect my selected repository.\nDo not change files.", limits: limits)
+        let original = try XCTUnwrap(network.requests.first).body
+        // A real Codable round trip, not just a shared in-memory controller.
+        let persisted = try JSONEncoder().encode(XCTUnwrap(vault.record))
+        let restartedVault = MemoryPairingVault(try JSONDecoder().decode(PairedDesktopRecord.self, from: persisted))
+        let restartedNetwork = RecordingPairingTransport()
+        let restarted = client(restartedVault, restartedNetwork)
+        let accepted = try XCTUnwrap(restarted.record?.jobs.first)
+        let manifest = try XCTUnwrap(accepted.reviewedSubmission)
+        XCTAssertEqual(manifest.body, original); XCTAssertEqual(manifest.permissionRevision, 1)
+        XCTAssertEqual(try manifest.reviewedGoal(), "Inspect my selected repository.\nDo not change files.")
+        XCTAssertEqual(try manifest.reviewedLimits(), limits)
+        XCTAssertNil(restarted.record?.outbox); XCTAssertTrue(restartedNetwork.requests.isEmpty)
+        XCTAssertEqual(accepted.status, "queued")
+    }
+    func testLegacyJobsDecodeWithoutInventingReviewedIntent() throws {
+        let old: [String: Any] = ["projectID": project, "submissionID": "77777777-7777-4777-8777-777777777777", "jobID": job, "status": "completed"]
+        let decoded = try JSONDecoder().decode(PairedDesktopJob.self, from: JSONSerialization.data(withJSONObject: old))
+        XCTAssertNil(decoded.reviewedSubmission)
+        var value = fixture(); value.jobs = [decoded]
+        XCTAssertNoThrow(try value.validate())
+    }
+    private func reviewedSubmission(id: String = "77777777-7777-4777-8777-777777777777", goal: String = "Synthetic") throws -> PairedDesktopSubmission {
+        let limits = try JSONSerialization.jsonObject(with: JSONEncoder().encode(PairedDesktopLimits.defaults))
+        let body = try JSONSerialization.data(withJSONObject: ["v": 1, "project_id": project, "submission_id": id,
+            "goal": goal, "requested_write_paths": [String](), "limits": limits], options: [.sortedKeys])
+        return PairedDesktopSubmission(projectID: project, submissionID: id, permissionRevision: 1, body: body)
+    }
+    func testManifestCannotBeAttachedToAnotherJobIdentity() throws {
+        let manifest = try reviewedSubmission()
+        for wrongProject in [false, true] {
+            var value = fixture()
+            value.jobs = [PairedDesktopJob(projectID: wrongProject ? host : project,
+                submissionID: wrongProject ? manifest.submissionID : device, jobID: job, status: "queued", reviewedSubmission: manifest)]
+            XCTAssertThrowsError(try value.validate())
+        }
+    }
+    func testHistoricalManifestSurvivesCurrentGrantChanges() throws {
+        let manifest = try reviewedSubmission()
+        var value = fixture()
+        value.jobs = [PairedDesktopJob(projectID: project, submissionID: manifest.submissionID, jobID: job,
+            status: "completed", reviewedSubmission: manifest)]
+        value.grants = [] // Revocation never rewrites the historical grant revision.
+        XCTAssertNoThrow(try value.validate())
+        let decoded = try JSONDecoder().decode(PairedDesktopRecord.self, from: JSONEncoder().encode(value))
+        XCTAssertEqual(decoded.jobs.first?.reviewedSubmission, manifest)
+    }
+    func testAcceptedManifestStorageFailureRetainsOriginalOutboxForReconciliation() async throws {
+        let vault = MemoryPairingVault(fixture()); let network = RecordingPairingTransport(); let model = client(vault, network)
+        network.respond = { [self] request in
+            vault.failWrites = true // Desktop accepts; local persistence then fails.
+            let object = try JSONSerialization.jsonObject(with: request.body) as! [String: Any]
+            return PairedDesktopResponse(status: 202, body: try JSONSerialization.data(withJSONObject:
+                ["v": 1, "job_id": job, "submission_id": object["submission_id"]!, "status": "queued", "permission_revision": 1]))
+        }
+        await model.submit(projectID: project, goal: "Keep original intent", limits: .defaults)
+        let original = try XCTUnwrap(vault.record?.outbox)
+        XCTAssertTrue(model.storageUnavailable); XCTAssertTrue(vault.record?.jobs.isEmpty == true)
+        vault.failWrites = false
+        network.respond = { [self] _ in
+            PairedDesktopResponse(status: 202, body: try JSONSerialization.data(withJSONObject:
+                ["v": 1, "job_id": job, "submission_id": original.submissionID, "status": "running", "permission_revision": 1]))
+        }
+        await client(vault, network).retrySubmission()
+        XCTAssertEqual(network.requests.map(\.body), [original.body, original.body])
+        XCTAssertEqual(vault.record?.jobs.first?.reviewedSubmission, original); XCTAssertNil(vault.record?.outbox)
+    }
+    func testManifestCapacityIsReservedBeforeSequenceAllocationOrNetwork() async throws {
+        var value = fixture()
+        // Fill with legitimate bounded history, leaving the loaded outbox intact.
+        for index in 1...7 {
+            let suffix = String(format: "%012d", index)
+            let manifest = try reviewedSubmission(id: "99999999-9999-4999-8999-" + suffix,
+                goal: String(repeating: "x", count: 8192))
+            value.jobs.append(PairedDesktopJob(projectID: project, submissionID: manifest.submissionID,
+                jobID: "88888888-8888-4888-8888-" + suffix, status: "completed", reviewedSubmission: manifest))
+        }
+        value.outbox = try reviewedSubmission(goal: String(repeating: "y", count: 8192))
+        // Approach the real encoded Keychain limit without constructing a record
+        // that the production loader itself would already reject.
+        let base = value
+        for count in stride(from: 1, through: 8192, by: 64) {
+            var candidate = base
+            let manifest = try reviewedSubmission(id: "99999999-9999-4999-8999-000000000008", goal: String(repeating: "z", count: count))
+            candidate.jobs.append(PairedDesktopJob(projectID: project, submissionID: manifest.submissionID,
+                jobID: "88888888-8888-4888-8888-000000000008", status: "completed", reviewedSubmission: manifest))
+            if try JSONEncoder().encode(candidate).count > PairedDesktopRecord.maximumBytes { break }
+            value = candidate
+        }
+        try value.validate()
+        XCTAssertLessThanOrEqual(try JSONEncoder().encode(value).count, PairedDesktopRecord.maximumBytes)
+        XCTAssertGreaterThan(try JSONEncoder().encode(value).count, PairedDesktopRecord.maximumBytes - 128)
+        let vault = MemoryPairingVault(value); let network = RecordingPairingTransport(); let model = client(vault, network)
+        await model.retrySubmission()
+        XCTAssertTrue(network.requests.isEmpty); XCTAssertEqual(vault.record?.nextSequence, value.nextSequence)
+        XCTAssertEqual(vault.record?.outbox, value.outbox); XCTAssertEqual(vault.record?.jobs, value.jobs)
+        XCTAssertEqual(model.message, PairedDesktopFailure.limit.localizedDescription)
+        XCTAssertFalse(model.storageUnavailable)
+    }
     func testWrongSubmissionResponseRetainsOutbox() async {
         let vault = MemoryPairingVault(fixture()); let network = RecordingPairingTransport()
         network.respond = { [self] _ in PairedDesktopResponse(status: 202, body: Data("{\"v\":1,\"job_id\":\"\(job)\",\"submission_id\":\"77777777-7777-4777-8777-777777777777\",\"status\":\"queued\",\"permission_revision\":1}".utf8)) }

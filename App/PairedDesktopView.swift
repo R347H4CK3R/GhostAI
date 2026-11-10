@@ -191,6 +191,22 @@ struct PairedDesktopView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(job.status.replacingOccurrences(of: "_", with: " ").capitalized).font(.headline)
                         Text(job.jobID).font(.caption).textSelection(.enabled)
+                        if let manifest = job.reviewedSubmission,
+                           let goal = try? manifest.reviewedGoal(), let limits = try? manifest.reviewedLimits() {
+                            Text(goal).font(.body).textSelection(.enabled)
+                            DisclosureGroup("Original reviewed scope") {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Project: \(manifest.projectID)")
+                                    Text("Read-only · permission revision \(manifest.permissionRevision)")
+                                    Text("Limits: \(limits.maxIterations) iterations · \(limits.maxToolCalls) tool calls · \(limits.maxSeconds) seconds")
+                                    Text("I/O: \(limits.maxIOBytes) bytes · output: \(limits.maxOutputBytes) bytes")
+                                    Text("Submission: \(manifest.submissionID)")
+                                    Text("This is the request originally reviewed, not a new permission or proof of completion. Current desktop grants still control access.")
+                                }.font(.caption).textSelection(.enabled)
+                            }
+                        } else {
+                            Text("Original goal and limits were not retained by the older app. Check this job on the desktop; no intent has been reconstructed.").font(.caption)
+                        }
                         if let details = model.jobDetails[job.jobID], !details.isEmpty { Text(details).font(.footnote).textSelection(.enabled) }
                         HStack {
                             Button("Check status") { Task { await model.refreshJob(job.jobID) } }
