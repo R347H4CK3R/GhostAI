@@ -192,13 +192,14 @@ import XCTest
                 return
             }
             let frame = element.exists ? element.frame : .zero
+            let offset = revealDragOffset(for: frame, top: top, bottom: bottom)
+            print("Library reveal attempt \(attempt): target=\(frame), safe top=\(top), bottom=\(bottom), bounds=\(bounds), requested offset=\(offset)")
             if !frame.isEmpty && frame.minY >= top && frame.maxY <= bottom &&
                 frame.minX >= bounds.minX && frame.maxX <= bounds.maxX && element.isHittable { return }
             guard attempt < 10 else { break }
             // Center known targets rather than repeatedly overshooting a tall
             // accessibility row with a fixed swipe. All visibility requirements
             // above and the existing ten-gesture limit stay unchanged.
-            let offset = revealDragOffset(for: frame, top: top, bottom: bottom)
             let upper = top + (bottom - top) * 0.2
             let lower = top + (bottom - top) * 0.8
             let origin = list.coordinate(withNormalizedOffset: .zero)
@@ -206,7 +207,11 @@ import XCTest
             let startY = offset > 0 ? upper : lower
             let start = origin.withOffset(CGVector(dx: x, dy: startY - list.frame.minY))
             let end = origin.withOffset(CGVector(dx: x, dy: startY + offset - list.frame.minY))
-            start.press(forDuration: 0.05, thenDragTo: end)
+            // A default-speed release can fling the list beyond the measured
+            // correction on iOS 26.2. Settle the finger before lifting it so
+            // deceleration cannot repeatedly bounce a tall row past the viewport.
+            start.press(forDuration: 0.05, thenDragTo: end,
+                        withVelocity: .slow, thenHoldForDuration: 0.2)
         }
         failReveal("Expected the whole target below navigation and above the keyboard/tab bar", in: app, file: file, line: line)
     }
