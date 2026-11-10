@@ -125,6 +125,24 @@ import XCTest
         saveScreenshot(app, name: "Latest memory note clears the floating tab bar")
     }
 
+    func testRevealMeasuredDragCentersClippedRowsWithoutOvershooting() {
+        // Captured on the failed iOS 26.3 accessibility-size run: a 336.7-point
+        // row fits in 519 points, but fixed 311.4-point swipes oscillated around it.
+        let top: CGFloat = 264, bottom: CGFloat = 783
+        for y in [CGFloat(494.3), CGFloat(182.9)] {
+            let frame = CGRect(x: 16, y: y, width: 370, height: 336.7)
+            let offset = revealDragOffset(for: frame, top: top, bottom: bottom)
+            let moved = frame.offsetBy(dx: 0, dy: offset)
+            XCTAssertLessThan(abs(offset), (bottom - top) * 0.6)
+            XCTAssertEqual(moved.midY, (top + bottom) / 2, accuracy: 0.01)
+            XCTAssertGreaterThanOrEqual(moved.minY, top)
+            XCTAssertLessThanOrEqual(moved.maxY, bottom)
+        }
+        XCTAssertEqual(revealDragOffset(for: .zero, top: top, bottom: bottom), -311.4, accuracy: 0.01)
+        let distant = CGRect(x: 16, y: 1200, width: 370, height: 336.7)
+        XCTAssertEqual(revealDragOffset(for: distant, top: top, bottom: bottom), -311.4, accuracy: 0.01)
+    }
+
     private func launchFixture(largeText: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["--uitest-chat", "library"]
@@ -177,16 +195,26 @@ import XCTest
             if !frame.isEmpty && frame.minY >= top && frame.maxY <= bottom &&
                 frame.minX >= bounds.minX && frame.maxX <= bounds.maxX && element.isHittable { return }
             guard attempt < 10 else { break }
-            let moveDown = !frame.isEmpty && frame.minY < top
+            // Center known targets rather than repeatedly overshooting a tall
+            // accessibility row with a fixed swipe. All visibility requirements
+            // above and the existing ten-gesture limit stay unchanged.
+            let offset = revealDragOffset(for: frame, top: top, bottom: bottom)
             let upper = top + (bottom - top) * 0.2
             let lower = top + (bottom - top) * 0.8
             let origin = list.coordinate(withNormalizedOffset: .zero)
             let x = bounds.midX - list.frame.minX
-            let start = origin.withOffset(CGVector(dx: x, dy: (moveDown ? upper : lower) - list.frame.minY))
-            let end = origin.withOffset(CGVector(dx: x, dy: (moveDown ? lower : upper) - list.frame.minY))
+            let startY = offset > 0 ? upper : lower
+            let start = origin.withOffset(CGVector(dx: x, dy: startY - list.frame.minY))
+            let end = origin.withOffset(CGVector(dx: x, dy: startY + offset - list.frame.minY))
             start.press(forDuration: 0.05, thenDragTo: end)
         }
         failReveal("Expected the whole target below navigation and above the keyboard/tab bar", in: app, file: file, line: line)
+    }
+    private func revealDragOffset(for frame: CGRect, top: CGFloat, bottom: CGFloat) -> CGFloat {
+        let maximum = (bottom - top) * 0.6
+        guard !frame.isEmpty else { return -maximum }
+        let towardCenter = (top + bottom) / 2 - frame.midY
+        return min(maximum, max(-maximum, towardCenter))
     }
     private func failReveal(_ message: String, in app: XCUIApplication, file: StaticString, line: UInt) {
         // Automatic XCTest snapshots can contain only the root app on iOS 26.
