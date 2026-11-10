@@ -8,12 +8,15 @@ import FoundationModels
     @StateObject private var credentials: GitHubCredentialStore
     @StateObject private var preferences = AssistantPreferences.forApplication()
     // Shared by all windows: one durable identity, counter and outbox owner.
-    @StateObject private var pairedDesktop = PairedDesktopClient()
+    @StateObject private var pairedDesktop: PairedDesktopClient
     init() {
         #if DEBUG
+        _pairedDesktop = StateObject(wrappedValue: AssistantControlsUITestFixture.pairedDesktop())
         if ChatUITestFixture.fromLaunchArguments() != nil, ProcessInfo.processInfo.arguments.contains("--uitest-open-voice-controls") {
             VoiceEntryRequest.shared.request()
         }
+        #else
+        _pairedDesktop = StateObject(wrappedValue: PairedDesktopClient())
         #endif
         let store = AssistantStore()
         _store = StateObject(wrappedValue: store)
