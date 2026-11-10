@@ -286,6 +286,28 @@ import XCTest
         saveScreenshot(app, name: "Jarvis planning failure retains retry prompt")
     }
 
+    func testLumaEditableCopiesRequireSeparateOptInThatResetsOnClose() {
+        let app = launchChatFixture("planning")
+        app.tabBars.buttons["Memory"].tap()
+        let open = app.buttons["conversationImport.open"]
+        XCTAssertTrue(revealInContent(open, in: app)); open.tap()
+        let format = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "ChatGPT conversations JSON")).firstMatch
+        XCTAssertTrue(revealInContent(format, in: app)); format.tap()
+        app.buttons["Luma plain backup JSON"].tap()
+        let option = app.switches["conversationImport.editableChecklists"]
+        XCTAssertTrue(revealInContent(option, in: app), "Luma import must offer a separate reviewed editable-copy choice")
+        XCTAssertEqual(option.value as? String, "0")
+        option.tap(); XCTAssertEqual(option.value as? String, "1")
+        app.buttons["conversationImport.close"].tap()
+        XCTAssertTrue(revealInContent(open, in: app, searchUpIfMissing: true)); open.tap()
+        XCTAssertTrue(revealInContent(format, in: app)); format.tap()
+        app.buttons["Luma plain backup JSON"].tap()
+        XCTAssertTrue(revealInContent(option, in: app)); XCTAssertEqual(option.value as? String, "0")
+        app.buttons["conversationImport.close"].tap()
+        let original = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Luma checklist snapshot (reference only, not an executable job)")).firstMatch
+        XCTAssertTrue(revealInContent(original, in: app, searchUpIfMissing: true))
+    }
+
     private func waitForExactText(_ text: String, in field: XCUIElement, app: XCUIApplication,
                                   file: StaticString = #filePath, line: UInt = #line) {
         let matches = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", text), object: field)
