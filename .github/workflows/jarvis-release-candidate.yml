@@ -188,6 +188,13 @@ jobs:
         EXPECTED_NOTES_SHA256: ${{ needs.ios.outputs.notes_sha256 }}
         EXPECTED_SUMS_SHA256: ${{ needs.ios.outputs.sums_sha256 }}
       run: python3 scripts/jarvis_release.py finalize
+    - name: Advance opt-in Jarvis preview source
+      env:
+        GH_TOKEN: ${{ github.token }}
+        EXPECTED_IPA_SHA256: ${{ needs.ios.outputs.ipa_sha256 }}
+        EXPECTED_NOTES_SHA256: ${{ needs.ios.outputs.notes_sha256 }}
+        EXPECTED_SUMS_SHA256: ${{ needs.ios.outputs.sums_sha256 }}
+      run: python3 scripts/jarvis_preview_source.py
 'on':
   push:
     branches:

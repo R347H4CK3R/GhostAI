@@ -386,6 +386,64 @@ import XCTest
         XCTAssertTrue(revealInContent(edit, in: app, searchUpIfMissing: true))
     }
 
+    func testVoiceRequestWaitsForChecklistSaveWithoutLosingDraft() {
+        verifyChecklistVoiceDeferral(dismissal: .save, repeatRequest: true)
+    }
+
+    func testVoiceRequestWaitsForChecklistCancelWithoutSavingDraft() {
+        verifyChecklistVoiceDeferral(dismissal: .cancel)
+    }
+
+    func testVoiceRequestWaitsForInteractiveChecklistDismissalWithoutSavingDraft() {
+        verifyChecklistVoiceDeferral(dismissal: .swipe)
+    }
+
+    private enum ChecklistDismissal: Equatable { case save, cancel, swipe }
+    private func verifyChecklistVoiceDeferral(dismissal: ChecklistDismissal, repeatRequest: Bool = false) {
+        let app = launchChatFixture("checklists", extraArguments: ["--uitest-checklist-voice-on-return"])
+        app.tabBars.buttons["Memory"].tap()
+        let edit = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "checklist.edit.")).firstMatch
+        XCTAssertTrue(revealInContent(edit, in: app)); edit.tap()
+        let goal = app.descendants(matching: .any).matching(identifier: "checklist.goal").firstMatch
+        XCTAssertTrue(goal.waitForExistence(timeout: 5))
+        let reviewedGoal = "Synthetic editable goal\nKeep this unsaved draft"
+        appendAtEnd("\nKeep this unsaved draft", to: goal, expected: reviewedGoal, app: app)
+        app.buttons["checklist.keyboardDone"].tap()
+        let voiceStart = app.buttons["chatStartVoiceCall"]
+        for _ in 0..<(repeatRequest ? 2 : 1) {
+            XCUIDevice.shared.press(.home)
+            XCTAssertTrue(app.wait(for: .runningBackground, timeout: 5))
+            app.activate()
+            XCTAssertTrue(goal.waitForExistence(timeout: 5), "Voice navigation must not dismiss an unsaved checklist")
+            XCTAssertEqual(goal.value as? String, reviewedGoal)
+            XCTAssertFalse(voiceStart.exists, "Voice controls must wait until this editor actually dismisses")
+            XCTAssertFalse(app.alerts.firstMatch.exists, "A navigation request must not ask for microphone permission")
+        }
+        saveScreenshot(app, name: "Voice request preserves the unsaved checklist editor")
+        switch dismissal {
+        case .save: app.buttons["checklist.save"].tap()
+        case .cancel: app.buttons["checklist.cancel"].tap()
+        case .swipe:
+            let navigation = app.navigationBars["Edit checklist"]
+            XCTAssertTrue(navigation.exists)
+            navigation.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+                .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.96)))
+        }
+        XCTAssertTrue(voiceStart.waitForExistence(timeout: 8), "The queued request must survive dismissal and open voice controls")
+        XCTAssertEqual(voiceStart.label, "Start voice call")
+        XCTAssertFalse(app.alerts.firstMatch.exists)
+        app.buttons["voiceSettingsDone"].tap()
+        XCTAssertTrue(app.tabBars.buttons["Assistant"].isSelected)
+        app.tabBars.buttons["Memory"].tap()
+        XCTAssertTrue(revealInContent(edit, in: app, searchUpIfMissing: true)); edit.tap()
+        XCTAssertTrue(goal.waitForExistence(timeout: 5))
+        XCTAssertEqual(goal.value as? String, dismissal == .save ? reviewedGoal : "Synthetic editable goal")
+        app.buttons["checklist.cancel"].tap()
+        XCTAssertTrue(app.buttons["checklist.cancel"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.tabBars.buttons["Memory"].isSelected, "The same request must not navigate a second time")
+        XCTAssertFalse(voiceStart.exists)
+    }
+
     private func appendAtEnd(_ suffix: String, to field: XCUIElement, expected: String, app: XCUIApplication) {
         field.tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
@@ -414,9 +472,9 @@ import XCTest
         saveScreenshot(app, name: name)
     }
 
-    private func launchChatFixture(_ scenario: String) -> XCUIApplication {
+    private func launchChatFixture(_ scenario: String, extraArguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["--uitest-chat", scenario]
+        app.launchArguments = ["--uitest-chat", scenario] + extraArguments
         app.launch()
         XCTAssertTrue(app.buttons["chatSend"].waitForExistence(timeout: 15))
         return app

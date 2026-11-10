@@ -163,7 +163,8 @@ remote state, or actual user-data retention. Physical-device voice,
 background behavior and signing have not been verified by this workflow. Online models,
 network services, platform permissions and paired desktop execution still require their
 normal setup; no provider credentials or external services are bundled. This prerelease
-does not change the update feed, latest stable release, or default branch.
+does not change the stable update feeds, latest stable release, or default branch.
+The separate opt-in Jarvis Preview source advances only after verified publication.
 ''', encoding='utf-8')
     manifest = checksum_manifest([path, notes])
     sums = Path('SHA256SUMS'); sums.write_text(manifest, encoding='utf-8')
