@@ -177,17 +177,53 @@ import XCTest
         XCTAssertTrue(question.label.contains("Synthetic release"))
         XCTAssertTrue(question.label.contains("untrusted"))
         XCTAssertLessThanOrEqual(question.label.count, 2000)
+        let reviewedQuestion = question.label
         XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Synthetic reply: Help me plan")).firstMatch.exists)
         saveScreenshot(app, name: "Reviewed Luma reference and exact planning question")
         let ask = app.buttons["planning.ask"]
         XCTAssertTrue(revealInContent(ask, in: app)); ask.tap()
         let reply = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Synthetic reply: Help me plan")).firstMatch
         XCTAssertTrue(reply.waitForExistence(timeout: 10))
-        XCTAssertTrue(reply.label.contains("Synthetic release"))
+        XCTAssertEqual(reply.label, "Synthetic reply: " + reviewedQuestion)
         XCTAssertEqual(field.value as? String, "Keep this separate chat draft")
         app.tabBars.buttons["Memory"].tap()
         let original = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Luma checklist snapshot (reference only, not an executable job)")).firstMatch
         XCTAssertTrue(revealInContent(original, in: app), "Planning must preserve the imported original")
+    }
+
+    func testSavedReferencePickerCancellationAndRemovalInvalidateOnlyTheReview() {
+        let app = launchChatFixture("planning")
+        app.buttons["planning.open"].tap()
+        let choose = app.buttons["planning.reference.choose"]
+        XCTAssertTrue(revealInContent(choose, in: app)); choose.tap()
+        let selected = app.buttons["planning.reference.select.99999999-1111-4111-8111-111111111111"]
+        XCTAssertTrue(selected.waitForExistence(timeout: 5)); selected.tap()
+        let goal = app.descendants(matching: .any).matching(identifier: "planning.goal").firstMatch
+        let review = app.buttons["planning.reviewQuestion"]
+        XCTAssertFalse(review.isEnabled, "A selected note does not replace a user-entered goal")
+        XCTAssertTrue(revealInContent(goal, in: app)); goal.tap(); app.typeText("My own planning goal")
+        waitForExactText("My own planning goal", in: goal, app: app)
+        app.buttons["planning.keyboardDone"].tap()
+        XCTAssertTrue(revealInContent(review, in: app)); review.tap()
+        let question = app.staticTexts["planning.question.preview"]
+        XCTAssertTrue(question.waitForExistence(timeout: 5)); let originalQuestion = question.label
+        XCTAssertTrue(revealInContent(choose, in: app)); choose.tap()
+        let cancel = app.buttons["planning.reference.cancel"]
+        XCTAssertTrue(cancel.waitForExistence(timeout: 5)); cancel.tap()
+        XCTAssertEqual(question.label, originalQuestion, "Cancelling the picker must preserve the already reviewed selection")
+        let remove = app.buttons["planning.reference.remove"]
+        XCTAssertTrue(revealInContent(remove, in: app)); remove.tap()
+        XCTAssertTrue(question.waitForNonExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["planning.ask"].exists)
+        XCTAssertEqual(goal.value as? String, "My own planning goal")
+        XCTAssertTrue(revealInContent(review, in: app)); review.tap()
+        XCTAssertTrue(question.waitForExistence(timeout: 5))
+        XCTAssertFalse(question.label.contains("Synthetic release"))
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Synthetic reply: Help me plan")).firstMatch.exists)
+        app.tabBars.buttons["Memory"].tap()
+        let original = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Luma checklist snapshot (reference only, not an executable job)")).firstMatch
+        XCTAssertTrue(revealInContent(original, in: app))
     }
 
     func testPlanningSavesReviewedChecklistAndPreservesTypedDraft() {

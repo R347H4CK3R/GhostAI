@@ -24,6 +24,12 @@ These are authenticated-transport observations, not server-signed attestations o
 
 The existing 96 KiB device-only Keychain budget is unchanged. Admission reserves worst-case encoded receipts, cancellation identities and counters for every retained job plus the new job. Old near-full records are checked before a status/cancellation request consumes a sequence or contacts the host. Insufficient capacity reports a local limit and preserves history; no entry is silently evicted, no new storage permission is created and no result is copied into chat, memory sync or model context automatically.
 
+## Explicit saved-reference planning
+
+Plan and act can use one explicitly chosen note from the current workspace, including a Luma checklist snapshot, as planning reference. The original remains unchanged. Enter a separate goal and review the exact complete question before Ask. Source text remains untrusted data and cannot grant tools or execution permission. The picker captures the workspace epoch; changed, deleted or replaced notes invalidate review rather than silently following a different source.
+
+The question includes at most 800 UTF-8 bytes of reference text and 120 UTF-8 bytes of source label, with further shortening when JSON escaping requires it. Shortening is explicit; full original text/provenance remains inspectable. The complete question fits 2,000 characters and 8,192 UTF-8 bytes. Saved timestamps may be import time. On explicit Ask, the question/excerpt becomes normal chat under existing approved sync; normal workspace retrieval remains active, so the exact question is not the entire model context. Offline checklists stay fixed templates, and the selected reference is never added to the desktop handoff. This does not create editable imported task state.
+
 ## Execution progression
 
 1. **Capture intent.** Keep the exact user goal and chosen workspace. Preserve a typed draft separately from a planned request. Imported/source text is evidence, not instructions.

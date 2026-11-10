@@ -2,11 +2,12 @@
 
 The visible assistant name is Jarvis. The app identifier, storage paths, signing identity requirements and model boundaries remain unchanged. This is an independently implemented personality and interface, not a copy of ChatGPT’s model or private conversations.
 
-This branch adds original native planning and Luma-backup compatibility to Veyra. It is a source candidate, not a verified merged/released app. No private Luma source, conversations, credentials or model weights are embedded.
+This branch adds original native planning and Luma-backup compatibility to Veyra. The published baseline is unsigned Jarvis 0.4.0 build9 at bffedc5; it passed the full native and release gates in run https://github.com/R347H4CK3R/GhostAI/actions/runs/42784957256. New source changes still require their own exact-commit verification. No private Luma source, conversations, credentials or model weights are embedded.
 
 ## Available in this candidate's source
 
 - Assistant → Plan and act: four original offline planning templates, reviewed save into existing workspace memory, and exact question preview before using the existing local assistant. Templates are not AI output and saving one does not execute or schedule it.
+- Plan and act → Use a saved reference: choose one current-workspace note, including a Luma snapshot, and review a bounded exact question before asking. Originals remain unchanged; no live checklist state or automatic action is created. Stale notes/workspaces invalidate review. The sent excerpt is saved in normal chat and follows existing approved sync.
 - An explicit goal handoff to the existing paired, read-only desktop job screen. The exact read-only goal is prefilled, but workspace/limits/submission review remain required. Opening the screen refreshes existing approved pairing status; no saved notes transfer implicitly. This does not expand permissions.
 - Memory → Import conversations or memories → Luma plain backup JSON: selected notes and checklist status are previewed and imported additively as reference notes. Luma itself is untouched. Encrypted backups are unsupported. Existing file-reader, structural JSON validation, destination-epoch and canonical capacity checks remain in force.
 - Siri/Shortcuts: Open voice controls routes to the Assistant voice sheet. It does not silently start recording. Start voice call and device permissions are still required. Existing voice turn-taking and optional supported active-background-audio behavior are preserved.

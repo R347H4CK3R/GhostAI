@@ -27,7 +27,8 @@ struct ChatUITestFixture {
         if scenario == .planning {
             notes.append(MemoryNote(id: UUID(uuidString: "99999999-1111-4111-8111-111111111111")!, project: "General",
                 text: "Luma checklist snapshot (reference only, not an executable job)\nGoal: Synthetic release\nStatus: Not completed\nStep: Verify the saved source",
-                source: "Luma checklist snapshot · Synthetic fixture · source task-1 · no source timestamp; date is import time"))
+                source: "Luma checklist snapshot · Synthetic fixture · source task-1 · no source timestamp; date is import time",
+                savedAt: Date(timeIntervalSince1970: 1_700_000_000)))
         }
         return SavedState(notes: notes, chats: chats)
     }
