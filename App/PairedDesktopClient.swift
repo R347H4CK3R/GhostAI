@@ -204,6 +204,7 @@ protocol PairedDesktopTransport: AnyObject {
     func cancelJob(_ jobID: String) async {
         await perform {
             guard var value = self.record, let index = value.jobs.firstIndex(where: { $0.jobID == jobID }) else { throw PairedDesktopFailure.malformed }
+            try value.validateResultCapacity(for: jobID)
             if value.jobs[index].cancellationBody == nil {
                 value.jobs[index].cancellationBody = try Self.encode(["v": 1, "project_id": value.jobs[index].projectID, "job_id": jobID, "cancellation_id": UUID().uuidString.lowercased()]); try self.persist(value)
             }
@@ -212,18 +213,16 @@ protocol PairedDesktopTransport: AnyObject {
         }
     }
     private func readJob(route: String, body: Data, jobID: String) async throws {
+        guard let current = record else { throw PairedDesktopFailure.malformed }
+        try current.validateResultCapacity(for: jobID)
         let response = try await signed(route: route, body: body)
         guard response.status == 200, var value = record, let index = value.jobs.firstIndex(where: { $0.jobID == jobID }) else { throw PairedDesktopFailure.malformed }
-        let object = try PairedDesktopJSON.parse(response.body); try object.exact(["v", "job_id", "status", "cancel_requested", "counters", "summary", "error_code", "artifacts"])
-        let status = try object.string("status")
-        guard try object.integer("v") == 1, try object.string("job_id") == jobID, PairedDesktopJob.statuses.contains(status),
-              case let .bool(cancelled) = try object.value("cancel_requested"), try object.array("artifacts").isEmpty else { throw PairedDesktopFailure.malformed }
-        let counters = try object.value("counters"); try counters.exact(["iterations", "tool_calls", "io_bytes", "output_bytes"])
-        for name in ["iterations", "tool_calls", "io_bytes", "output_bytes"] { guard try counters.integer(name) >= 0 else { throw PairedDesktopFailure.malformed } }
-        let summary = try object.optionalString("summary", maximum: 262144); let error = try object.optionalString("error_code", maximum: 128)
-        value.jobs[index].status = status; try persist(value)
-        jobDetails[jobID] = [summary, error.map { "Desktop result code: \($0)" }, cancelled ? "Cancellation requested. Earlier reads cannot be undone." : nil].compactMap { $0 }.joined(separator: "\n\n")
-        message = "Status refreshed. A model summary is not independent proof of completion."
+        let parsed = try PairedDesktopResultReceipt.parse(response.body, for: value.jobs[index], observedAtMilliseconds: nowMilliseconds)
+        let receipt = parsed.receipt
+        value.jobs[index].status = receipt.status; value.jobs[index].resultReceipt = receipt; try persist(value)
+        jobDetails[jobID] = [parsed.summary, receipt.errorCode.map { "Desktop result code: \($0)" },
+            receipt.cancelRequested ? "Cancellation requested. Earlier reads cannot be undone." : nil].compactMap { $0 }.joined(separator: "\n\n")
+        message = "Desktop response saved. The reported status and model text are not independently verified proof of completion."
     }
     private func signed(route: String, body: Data) async throws -> PairedDesktopResponse {
         guard var value = record, let device = value.deviceID, value.phase == .pending || value.phase == .active else { throw PairedDesktopFailure.rePair }

@@ -40,7 +40,7 @@ struct PairedDesktopView: View {
             if let previewError { Section("Descriptor not accepted") { Text(previewError).font(.footnote) } }
             if model.record != nil || model.storageUnavailable {
                 Section("Remove access") {
-                    Text("Revoke this device on the desktop first. That is authoritative for future requests and effects. Forgetting here deletes only this phone’s key, job references and retained submissions, not desktop jobs or data.").font(.caption)
+                    Text("Revoke this device on the desktop first. That is authoritative for future requests and effects. Forgetting here deletes only this phone’s key, job references, saved response previews and retained submissions, not desktop jobs or data.").font(.caption)
                     Button("Forget local pairing", role: .destructive) { forgetConfirmation = true }.disabled(model.busy)
                 }
             }
@@ -107,6 +107,7 @@ struct PairedDesktopView: View {
             Text("Continue requires a device passcode and creates a P-256 signing key. Key, counter and pending submissions are stored together in this device’s non-synchronizing, passcode-bound Keychain, usable only while unlocked and excluded from backups. Passcode removal may destroy the whole record. This app will not change device settings.")
             Text("Your chosen device name and pairing proof go only to this desktop after certificate checks. This descriptor does not contain project grants: compare the safety code and review exact workspaces, local model and read-only grants on the desktop before approving there.")
             Text("Later submitted goals and desktop file reads are visible to that desktop and its selected local model. Results return here. No phone notes, chats or GitHub credentials are shared. Revoke the identity on the desktop to stop future access; deleting the local key does not revoke access or erase copied data.").font(.caption)
+            Text("A bounded response preview, reported usage and byte fingerprints stay with the job in this phone’s device-only pairing record. They are excluded from backups and are not independently verified evidence of execution.").font(.caption)
             Button("Create device-only key and request pairing") {
                 guard let reviewed = reviewedPreviewToken, reviewed == token, model.previewToken == token,
                       verifiedDisplay, directlyInstalled else { return }
@@ -207,7 +208,12 @@ struct PairedDesktopView: View {
                         } else {
                             Text("Original goal and limits were not retained by the older app. Check this job on the desktop; no intent has been reconstructed.").font(.caption)
                         }
-                        if let details = model.jobDetails[job.jobID], !details.isEmpty { Text(details).font(.footnote).textSelection(.enabled) }
+                        if let receipt = job.resultReceipt { savedReceipt(receipt) }
+                        else { Text("No detailed desktop response is saved yet. Check status to retain a bounded observation.").font(.caption).foregroundStyle(.secondary) }
+                        if let details = model.jobDetails[job.jobID], !details.isEmpty {
+                            Text("Current response · not saved in full").font(.caption).foregroundStyle(.secondary)
+                            Text(details).font(.footnote).textSelection(.enabled)
+                        }
                         HStack {
                             Button("Check status") { Task { await model.refreshJob(job.jobID) } }
                             if !job.isTerminal { Button(job.cancellationBody == nil ? "Request cancellation" : "Retry cancellation") { Task { await model.cancelJob(job.jobID) } } }
@@ -217,6 +223,29 @@ struct PairedDesktopView: View {
                 Text("Jobs continue after this screen closes only while the desktop host runs. Cancellation is cooperative and cannot undo earlier reads. Model summaries are not verified proof. History is bounded and never silently evicted.").font(.caption)
             }
         }
+    }
+    private func savedReceipt(_ receipt: PairedDesktopResultReceipt) -> some View {
+        DisclosureGroup("Saved desktop response") {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Observed on this phone: \(receipt.observedAt.formatted(date: .abbreviated, time: .standard))")
+                Text("Desktop reported: \(receipt.status.replacingOccurrences(of: "_", with: " "))")
+                if !PairedDesktopJob.terminal.contains(receipt.status) { Text("This observation is not a final result.") }
+                if let preview = receipt.summaryPreview {
+                    Text("Model text preview").font(.caption.weight(.semibold))
+                    Text(preview).font(.footnote)
+                    if receipt.summaryIsTruncated {
+                        Text("Only \(preview.utf8.count) of \(receipt.summaryByteCount ?? 0) UTF-8 bytes are saved here. Inspect the desktop for the full summary.")
+                    }
+                } else { Text("This response contained no model summary.") }
+                if let error = receipt.errorCode { Text("Desktop result code: \(error)") }
+                if receipt.cancelRequested { Text("Cancellation was requested. This does not undo reads or change an earlier result.") }
+                Text("Reported usage: \(receipt.counters.iterations) iterations · \(receipt.counters.toolCalls) tool calls")
+                Text("I/O: \(receipt.counters.ioBytes) bytes · output: \(receipt.counters.outputBytes) bytes")
+                Text("Response SHA-256 · \(receipt.responseByteCount) bytes")
+                Text(receipt.responseSHA256).font(.system(.caption2, design: .monospaced))
+                Text("This is the last response observed by this phone, not a server-signed receipt, independently verified work or permission to run anything. Its time is the phone’s observation time, not the desktop’s completion time.")
+            }.font(.caption).textSelection(.enabled)
+        }.accessibilityIdentifier("pairedDesktop.receipt.\(receipt.jobID)")
     }
     private func composer(_ record: PairedDesktopRecord) -> some View {
         Section("Review a read-only job") {

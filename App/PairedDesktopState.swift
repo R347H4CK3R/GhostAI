@@ -3,7 +3,7 @@ import Security
 import CryptoKit
 
 enum PairedDesktopFailure: Error, LocalizedError {
-    case storage, malformed, unavailable, rejected, untrusted, cancelled, busy, rePair, limit, outbox, archiveFull, enrollmentExpired, stalePreview
+    case storage, malformed, unavailable, rejected, untrusted, cancelled, busy, rePair, limit, receiptCapacity, outbox, archiveFull, enrollmentExpired, stalePreview
     var errorDescription: String? {
         switch self {
         case .storage: return "Pairing storage is unavailable or has a weaker policy. A device passcode is required. Unlock the device and retry. No record is replaced automatically. Passcode removal may destroy the identity; revoke it on the desktop before explicitly pairing again."
@@ -15,6 +15,7 @@ enum PairedDesktopFailure: Error, LocalizedError {
         case .busy: return "A desktop request is already in progress."
         case .rePair: return "The desktop rejected this identity or sequence. Requests stopped. Revoke locally on the desktop and explicitly re-pair; counters are never guessed or reset."
         case .limit: return "The request or local record exceeds a finite limit. No new work was sent."
+        case .receiptCapacity: return "This phone's retained pairing history has no room for another desktop response. Nothing was requested or removed. Inspect the job on your desktop; existing history is preserved."
         case .outbox: return "An earlier submission is unresolved. Retry it or explicitly archive it after checking the desktop before starting another task."
         case .archiveFull: return "The retained submission archive is full. No history was evicted and the outbox is preserved."
         case .enrollmentExpired: return "This invitation expired locally. Approval polling stopped even if the desktop is offline. The identity is preserved until explicit forget/re-pair."
@@ -77,6 +78,7 @@ struct PairedDesktopJob: Codable, Equatable, Identifiable {
     // Optional only for records accepted by older app versions. Never reconstruct
     // old intent from current grants, chat, or model prose. No execution authority.
     var reviewedSubmission: PairedDesktopSubmission?
+    var resultReceipt: PairedDesktopResultReceipt?
     var id: String { jobID }
     var isTerminal: Bool { Self.terminal.contains(status) }
     static let terminal: Set<String> = ["completed", "refused", "exhausted", "cancelled", "failed", "awaiting_approval", "expired"]
@@ -133,6 +135,7 @@ struct PairedDesktopRecord: Codable, CustomStringConvertible, CustomDebugStringC
                     guard archived == manifest else { throw PairedDesktopFailure.storage }
                 }
             }
+            if let receipt = job.resultReceipt { try receipt.validate(for: job) }
             if let body = job.cancellationBody {
                 guard body.count <= 1024 else { throw PairedDesktopFailure.storage }
                 let value = try PairedDesktopJSON.parse(body); try value.exact(["v", "project_id", "job_id", "cancellation_id"])
@@ -154,16 +157,26 @@ struct PairedDesktopRecord: Codable, CustomStringConvertible, CustomDebugStringC
         var accepted = pending; accepted.outbox = nil; accepted.phase = .rePairRequired
         accepted.jobs.append(PairedDesktopJob(projectID: submission.projectID, submissionID: submission.submissionID,
             jobID: UUID().uuidString.lowercased(), status: "awaiting_approval", reviewedSubmission: submission))
-        for index in accepted.jobs.indices {
-            accepted.jobs[index].status = "awaiting_approval"
-            if accepted.jobs[index].cancellationBody == nil {
-                accepted.jobs[index].cancellationBody = try JSONSerialization.data(withJSONObject: [
-                    "v": 1, "project_id": accepted.jobs[index].projectID, "job_id": accepted.jobs[index].jobID,
-                    "cancellation_id": UUID().uuidString.lowercased()], options: [.sortedKeys, .withoutEscapingSlashes])
-            }
-        }
+        for index in accepted.jobs.indices { try accepted.reserveResult(at: index) }
         try accepted.validate()
         guard try JSONEncoder().encode(accepted).count <= Self.maximumBytes else { throw PairedDesktopFailure.limit }
+    }
+    /// Existing records did not reserve receipt space. Refuse before consuming
+    /// a sequence or sending, without evicting history or poisoning storage.
+    func validateResultCapacity(for jobID: String) throws {
+        guard let index = jobs.firstIndex(where: { $0.jobID == jobID }) else { throw PairedDesktopFailure.malformed }
+        var candidate = self; candidate.nextSequence = Int64.max; candidate.phase = .rePairRequired
+        try candidate.reserveResult(at: index); try candidate.validate()
+        guard try JSONEncoder().encode(candidate).count <= Self.maximumBytes else { throw PairedDesktopFailure.receiptCapacity }
+    }
+    private mutating func reserveResult(at index: Int) throws {
+        jobs[index].status = "awaiting_approval"
+        jobs[index].resultReceipt = try PairedDesktopResultReceipt.capacityReservation(for: jobs[index])
+        if jobs[index].cancellationBody == nil {
+            jobs[index].cancellationBody = try JSONSerialization.data(withJSONObject: [
+                "v": 1, "project_id": jobs[index].projectID, "job_id": jobs[index].jobID,
+                "cancellation_id": UUID().uuidString.lowercased()], options: [.sortedKeys, .withoutEscapingSlashes])
+        }
     }
 }
 protocol PairedDesktopVault {
@@ -207,6 +220,14 @@ struct PairedDesktopKeychain: PairedDesktopVault {
             guard case let .object(fields) = try PairedDesktopJSON.parse(data) else { throw PairedDesktopFailure.storage }
             let required: Set<String> = ["version", "hostID", "origin", "pin", "privateKey", "safetyCode", "expiresAt", "phase", "grants", "nextSequence", "jobs", "archivedSubmissions"]
             guard required.isSubset(of: Set(fields.keys)), Set(fields.keys).isSubset(of: required.union(["beginBody", "deviceID", "outbox"])) else { throw PairedDesktopFailure.storage }
+            guard case let .array(jobs) = fields["jobs"] else { throw PairedDesktopFailure.storage }
+            for job in jobs {
+                guard case let .object(jobFields) = job else { throw PairedDesktopFailure.storage }
+                if let receipt = jobFields["resultReceipt"] {
+                    if case .null = receipt { continue } // Legacy optional Codable representation.
+                    try PairedDesktopResultReceipt.validatePersistedShape(receipt)
+                }
+            }
             let value = try JSONDecoder().decode(PairedDesktopRecord.self, from: data); try value.validate(); return value
         } catch { throw PairedDesktopFailure.storage }
     }

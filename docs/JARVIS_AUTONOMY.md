@@ -14,7 +14,15 @@ Newly accepted paired jobs retain their exact reviewed request bytes, goal, desk
 
 Before a submission is sent, the client checks the existing 96 KiB record budget with room for the accepted manifest, maximum sequence/status text and cancellation identities. Capacity exhaustion sends nothing and consumes no sequence. A new request is rejected before creating an outbox; an existing outbox remains intact for reconciliation. History is never silently evicted. A local save failure after remote acceptance also leaves the original outbox intact; an explicit retry reconciles the same submission bytes and identifier.
 
-This is an incremental read-only job manifest, not the complete future repository execution manifest. It does not yet pin a repository commit, store a durable result/evidence receipt, authorize patches, or execute writes. Current desktop grants remain authoritative. Model summaries are still transient and are not independent proof of completion. These additions require native CI and signed-device verification before a new candidate is released.
+This is an incremental read-only job manifest, not the complete future repository execution manifest. It does not yet pin a repository commit, authorize patches, or execute writes. Current desktop grants remain authoritative. These additions require native CI and signed-device verification before a new candidate is released.
+
+## Bounded saved desktop observations
+
+Status refreshes retain an optional response receipt beside the job, atomically with its reported status. It binds job, project and submission identities, phone observation time, reported counters and cancellation flag, error code, a summary preview of at most 256 UTF-8 bytes, the full summary's byte count/hash, and the exact response's byte count/hash. The preview ends at a Unicode-scalar boundary and truncation is explicit. Full summaries remain transient. Older jobs have no fabricated receipt; their next valid status check can save one.
+
+These are authenticated-transport observations, not server-signed attestations or independent proof that the model's answer is correct. The display remains available locally after restart. A later response cannot replace an observed terminal result with conflicting status, counters, summary or error, or regress a terminal job to running. Equivalent JSON formatting and a later cancellation-request flag are allowed without pretending an earlier completion was undone. Nonterminal running-to-starting recovery remains valid. Failed or backgrounded requests do not update the saved observation or timestamp.
+
+The existing 96 KiB device-only Keychain budget is unchanged. Admission reserves worst-case encoded receipts, cancellation identities and counters for every retained job plus the new job. Old near-full records are checked before a status/cancellation request consumes a sequence or contacts the host. Insufficient capacity reports a local limit and preserves history; no entry is silently evicted, no new storage permission is created and no result is copied into chat, memory sync or model context automatically.
 
 ## Execution progression
 
