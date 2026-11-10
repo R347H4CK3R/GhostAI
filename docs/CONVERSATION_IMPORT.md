@@ -118,3 +118,15 @@ After a successful canonical save, use the normal `captureSavedState` hook if co
 - [ ] Exercise the native document picker, cancellation, per-item review/back navigation, subset import, duplicate reimport, deletion/reimport acknowledgment, and account switching on the simulator/device.
 
 All checked-in examples are synthetic. Real user exports, private memory, credentials and source paths must never be included in public tests or commits.
+
+## Optional editable Luma checklist copies
+
+When **Luma plain backup JSON** is selected, **Create editable checklist copies** is off by default. Enabling it and selecting a task imports the same immutable snapshot as before plus a separate editable Jarvis copy. Full review shows the original source and the precise goal, step and completion fields. Changing this option clears import acknowledgment. Existing live or restored edits win a reimport; different original source content/provenance may produce a separate copy. No source file or Luma installation is modified.
+
+In Memory, recognized copies display as checklists with **Edit checklist**. Change goal, step or completion, then Save. Cancel/dismiss does not save. Goal and step retain exact whitespace/Unicode within the original 300/400 UTF-16-unit limits. An editor opened before a workspace switch, deletion or change to that exact record cannot overwrite the newer state. Concurrent synced edits may remain as distinct editable copies; do not assume one copy per embedded source ID. The original provenance is immutable and visible inside the editor. The copy's date is creation/import time, not a last-modified time.
+
+Previously imported snapshots remain references. To create editable copies from them, select the original Luma backup again with the option enabled. The app deliberately does not split legacy snapshot strings into fields, because original fields can contain newlines or the same separators.
+
+Copies use a strict version-1 JSON envelope inside an ordinary existing MemoryNote. The outer UUID is the live identity; an embedded snapshot UUID is provenance only. This preserves existing JSON/encrypted backups, encrypted private sync, restoration markers and older clients, which can display the envelope as note text. Unsupported, malformed or future envelopes remain visible ordinary notes and are not rewritten. Copies share the existing 5 MB / 10,000-note budget. Existing approved sync scope applies; this is not a new sync consent or a new destination.
+
+Editable completion is a user-recorded status, not proof an action ran. There are no schedules, reminders, automatic actions, task execution permissions, or claims of full Luma parity.

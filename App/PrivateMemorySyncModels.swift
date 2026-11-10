@@ -209,7 +209,8 @@ enum PrivateMemorySyncMerge {
                 var merged = lc; merged.date = min(lc.date, rc.date)
                 if let value = merged as? T { result[id] = value; continue }
             }
-            // Independently imported/restored Luma checklist snapshots have the
+            // Independently imported/restored Luma snapshots and typed editable
+            // copies have the
             // same identity and provenance, but a device-local fallback import time.
             // Match exact UTF-8, not String's canonical Unicode equivalence, so
             // provenance bytes and encoded results cannot depend on device order.
@@ -217,7 +218,7 @@ enum PrivateMemorySyncMerge {
             if let ln = left as? MemoryNote, let rn = right as? MemoryNote,
                ln.project.utf8.elementsEqual(rn.project.utf8),
                ln.text.utf8.elementsEqual(rn.text.utf8), ln.source.utf8.elementsEqual(rn.source.utf8),
-               LumaBackupImport.usesChecklistImportTime(ln) {
+               (LumaBackupImport.usesChecklistImportTime(ln) || EditableChecklist.usesImportTime(ln)) {
                 var merged = ln; merged.savedAt = min(ln.savedAt, rn.savedAt)
                 if let value = merged as? T { result[id] = value; continue }
             }

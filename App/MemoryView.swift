@@ -13,6 +13,7 @@ struct MemoryView: View {
     @State private var pendingImport: Data?
     @State private var encryptedTransfer = false
     @State private var conversationImport: ConversationImportRoute?
+    @State private var checklistEditor: ChecklistEditorRoute?
     var body: some View {
         NavigationStack {
             List {
@@ -109,8 +110,23 @@ struct MemoryView: View {
                     }
                 }.id(route.id)
             }
+            .sheet(item: $checklistEditor) { route in
+                if let checklist = EditableChecklist.decode(route.note) {
+                    EditableChecklistView(note: route.note, checklist: checklist, onSave: { goal, step, done in
+                        guard checklistEditor?.id == route.id else {
+                            throw AppFailure.message("This editor is no longer active. Reopen the checklist.")
+                        }
+                        try store.saveChecklist(route.note, goal: goal, step: step, done: done,
+                                                expectedWorkspaceEpoch: route.workspaceEpoch)
+                        checklistEditor = nil
+                    }, onCancel: {
+                        if checklistEditor?.id == route.id { checklistEditor = nil }
+                    }).id(route.id)
+                }
+            }
             .onChange(of: store.workspaceEpoch) { _, epoch in
                 if let route = conversationImport, route.workspaceEpoch != epoch { conversationImport = nil }
+                if let route = checklistEditor, route.workspaceEpoch != epoch { checklistEditor = nil }
             }
             .sheet(isPresented: $encryptedTransfer) {
                 EncryptedTransferView(backupData: { try store.backupData() }, importBackup: { data in
@@ -168,7 +184,24 @@ struct MemoryView: View {
     }
     private func noteRow(_ memory: MemoryNote) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(memory.text).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+            if let checklist = EditableChecklist.decode(memory) {
+                Label(checklist.done ? "Completed checklist" : "Checklist · to do",
+                      systemImage: checklist.done ? "checkmark.circle.fill" : "circle")
+                    .font(.caption.weight(.semibold)).foregroundStyle(checklist.done ? Color.green : Color.secondary)
+                Text(checklist.goal).font(.headline).textSelection(.enabled)
+                Text(checklist.step).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                Button {
+                    guard !store.loadFailed, checklistEditor == nil else { return }
+                    checklistEditor = ChecklistEditorRoute(note: memory, workspaceEpoch: store.workspaceEpoch)
+                } label: { Label("Edit checklist", systemImage: "square.and.pencil") }
+                .disabled(store.loadFailed).buttonStyle(.borderless)
+                .accessibilityIdentifier("checklist.edit." + memory.id.uuidString.lowercased())
+                Text("Independent editable copy. Original provenance is available in the editor. Completion does not prove an action ran.")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else {
+                // Unknown/future envelopes remain ordinary visible notes; never drop them.
+                Text(memory.text).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+            }
             ViewThatFits(in: .horizontal) {
                 HStack { Text(memory.source); Spacer(); Text(memory.savedAt, style: .date) }
                 VStack(alignment: .leading, spacing: 4) { Text(memory.source); Text(memory.savedAt, style: .date) }
@@ -183,6 +216,11 @@ struct MemoryView: View {
         }
         .padding(.vertical, 6)
         .privacySensitive()
+    }
+    private struct ChecklistEditorRoute: Identifiable {
+        let id = UUID()
+        let note: MemoryNote
+        let workspaceEpoch: UUID
     }
     /// The sheet owns an immutable destination and snapshot, never a live approval binding.
     struct ConversationImportRoute: Identifiable {

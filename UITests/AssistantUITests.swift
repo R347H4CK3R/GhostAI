@@ -295,6 +295,7 @@ import XCTest
         XCTAssertTrue(revealInContent(format, in: app)); format.tap()
         app.buttons["Luma plain backup JSON"].tap()
         let option = app.switches["conversationImport.editableChecklists"]
+        XCTAssertTrue(option.waitForExistence(timeout: 5), "The separate Luma copy option must exist")
         XCTAssertTrue(revealInContent(option, in: app), "Luma import must offer a separate reviewed editable-copy choice")
         XCTAssertEqual(option.value as? String, "0")
         option.tap(); XCTAssertEqual(option.value as? String, "1")
@@ -306,6 +307,47 @@ import XCTest
         app.buttons["conversationImport.close"].tap()
         let original = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Luma checklist snapshot (reference only, not an executable job)")).firstMatch
         XCTAssertTrue(revealInContent(original, in: app, searchUpIfMissing: true))
+    }
+
+    func testEditableChecklistSaveKeepsOriginalSnapshotAndCompletionSurvivesReopening() {
+        let app = launchChatFixture("checklists")
+        app.tabBars.buttons["Memory"].tap()
+        let edit = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "checklist.edit.")).firstMatch
+        XCTAssertTrue(revealInContent(edit, in: app)); edit.tap()
+        let goal = app.descendants(matching: .any).matching(identifier: "checklist.goal").firstMatch
+        let step = app.descendants(matching: .any).matching(identifier: "checklist.step").firstMatch
+        XCTAssertTrue(goal.waitForExistence(timeout: 5))
+        XCTAssertEqual(goal.value as? String, "Synthetic editable goal")
+        XCTAssertEqual(step.value as? String, "Verify the original snapshot")
+        let done = app.switches["checklist.done"]
+        XCTAssertTrue(revealInContent(done, in: app)); XCTAssertEqual(done.value as? String, "0"); done.tap()
+        let save = app.buttons["checklist.save"]
+        XCTAssertTrue(save.isEnabled); save.tap()
+        XCTAssertTrue(app.buttons["checklist.cancel"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(revealInContent(edit, in: app, searchUpIfMissing: true)); edit.tap()
+        XCTAssertTrue(done.waitForExistence(timeout: 5)); XCTAssertEqual(done.value as? String, "1")
+        XCTAssertEqual(goal.value as? String, "Synthetic editable goal")
+        app.buttons["checklist.cancel"].tap()
+        let original = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Luma checklist snapshot (reference only, not an executable job)")).firstMatch
+        XCTAssertTrue(revealInContent(original, in: app, readOnlyText: true, searchUpIfMissing: true))
+        XCTAssertTrue(original.label.contains("Status: Not completed"))
+        saveScreenshot(app, name: "Editable Luma copy saved while original snapshot stays unchanged")
+    }
+
+    func testEditableChecklistCancelDiscardsChangesAndUnknownVersionRemainsVisible() {
+        let app = launchChatFixture("checklists")
+        app.tabBars.buttons["Memory"].tap()
+        let edit = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "checklist.edit.")).firstMatch
+        XCTAssertTrue(revealInContent(edit, in: app)); edit.tap()
+        let done = app.switches["checklist.done"]
+        XCTAssertTrue(done.waitForExistence(timeout: 5)); done.tap()
+        app.buttons["checklist.cancel"].tap()
+        XCTAssertTrue(revealInContent(edit, in: app, searchUpIfMissing: true)); edit.tap()
+        XCTAssertTrue(done.waitForExistence(timeout: 5)); XCTAssertEqual(done.value as? String, "0")
+        app.buttons["checklist.cancel"].tap()
+        let unsupported = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Synthetic future checklist payload is preserved")).firstMatch
+        XCTAssertTrue(revealInContent(unsupported, in: app, readOnlyText: true))
+        XCTAssertFalse(app.buttons["checklist.edit.99999999-2222-8222-8222-222222222222"].exists)
     }
 
     private func waitForExactText(_ text: String, in field: XCUIElement, app: XCUIApplication,

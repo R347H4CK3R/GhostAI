@@ -43,7 +43,10 @@ enum LumaBackupImport {
             let uuid = ConversationImportPolicy.stableID([project, "luma-task-v1", id, body])
             let memory = ConversationImportMemory(id: uuid, text: body,
                 source: "Luma checklist snapshot · \(filename) · source \(id) · no source timestamp; date is import time", date: importedAt)
-            groups.append(group(memory, title: "\(status): \(String(goal.prefix(80)))"))
+            var item = group(memory, title: "\(status): \(String(goal.prefix(80)))")
+            item.editableChecklist = EditableChecklist(goal: goal, step: step, done: done.boolValue,
+                origin: .init(snapshotID: uuid, text: body, source: memory.source))
+            groups.append(item)
         }
         return ConversationImportPreview(project: project, filename: filename, kind: .lumaBackup,
             sourceItems: notes.count + tasks.count, groups: groups, skipped: [:], omittedBranchNodes: 0,

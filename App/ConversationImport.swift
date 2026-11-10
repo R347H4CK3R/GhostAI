@@ -65,6 +65,7 @@ struct ConversationImportGroup: Identifiable, Sendable {
     let memory: ConversationImportMemory?
     let omittedBranchNodes: Int
     let skippedMessages: Int
+    var editableChecklist: EditableChecklist? = nil
     var recordCount: Int { messages.count + (memory == nil ? 0 : 1) }
 }
 
@@ -83,7 +84,8 @@ struct ConversationImportPreview: Sendable {
     /// Explicit acknowledgment is required on EVERY import: canonical SavedState has no
     /// tombstones, so this preview cannot infer a previous deletion. The owning store
     /// separately checks configured sync history and remaps explicit restoration copies.
-    func selection(ids: Set<UUID>, into current: SavedState, acknowledgeRestoringDeleted: Bool) throws -> SavedState {
+    func selection(ids: Set<UUID>, into current: SavedState, acknowledgeRestoringDeleted: Bool,
+                   includeEditableChecklists: Bool = false) throws -> SavedState {
         guard acknowledgeRestoringDeleted else { throw ConversationImportFailure.acknowledgment }
         guard !ids.isEmpty, ids.isSubset(of: Set(groups.map(\.id))) else { throw ConversationImportFailure.selection }
         let existingNotes = Set(current.notes.map(\.id)), existingChats = Set(current.chats.map(\.id))
@@ -91,6 +93,10 @@ struct ConversationImportPreview: Sendable {
         for group in groups where ids.contains(group.id) {
             if let note = group.memory, !existingNotes.contains(note.id) {
                 notes.append(MemoryNote(id: note.id, project: project, text: note.text, source: note.source, savedAt: note.date))
+            }
+            if includeEditableChecklists, let checklist = group.editableChecklist, let snapshot = group.memory {
+                let copy = try checklist.note(project: project, importedAt: snapshot.date)
+                if !existingNotes.contains(copy.id) { notes.append(copy) }
             }
             for message in group.messages where !existingChats.contains(message.id) {
                 chats.append(ChatEntry(id: message.id, project: project, role: message.role, text: message.text, date: message.date))

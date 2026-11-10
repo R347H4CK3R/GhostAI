@@ -209,6 +209,24 @@ struct SelectedRepositoryContext: Sendable {
             try persist(next)
         } catch { self.error = error.localizedDescription }
     }
+    /// Only explicit editor Save reaches this transaction. A captured note is a
+    /// compare-and-save precondition, not authorization supplied by imported prose.
+    func saveChecklist(_ reviewed: MemoryNote, goal: String, step: String, done: Bool,
+                       expectedWorkspaceEpoch: UUID) throws {
+        guard !loadFailed, workspaceEpoch == expectedWorkspaceEpoch,
+              project.utf8.elementsEqual(reviewed.project.utf8) else {
+            throw AppFailure.message("The workspace changed or memory is unreadable. Reopen the checklist before saving.")
+        }
+        let matches = saved.notes.indices.filter { saved.notes[$0].id == reviewed.id }
+        guard matches.count == 1, let index = matches.first,
+              try PrivateMemorySyncPolicy.canonical(saved.notes[index]) == PrivateMemorySyncPolicy.canonical(reviewed) else {
+            throw AppFailure.message("This checklist changed or was deleted. Reopen it to review the current version; nothing was overwritten.")
+        }
+        let replacement = try EditableChecklist.edit(reviewed, goal: goal, step: step, done: done)
+        var next = saved; next.notes[index] = replacement
+        _ = try MemoryBackup.encode(next)
+        try persist(next)
+    }
     func forget(_ id: UUID) {
         do { var next = saved; next.notes.removeAll { $0.id == id }; try persist(next) }
         catch { self.error = error.localizedDescription }

@@ -4,7 +4,7 @@ import Foundation
 /// Explicit, synthetic UI-test input. Release builds contain none of this code.
 /// All persistence is bypassed while enabled; no saved user data is read or changed.
 struct ChatUITestFixture {
-    enum Scenario: String { case success, pending, empty, library, planning }
+    enum Scenario: String { case success, pending, empty, library, planning, checklists }
     let scenario: Scenario
 
     static func fromLaunchArguments(_ arguments: [String] = ProcessInfo.processInfo.arguments) -> ChatUITestFixture? {
@@ -29,6 +29,20 @@ struct ChatUITestFixture {
                 text: "Luma checklist snapshot (reference only, not an executable job)\nGoal: Synthetic release\nStatus: Not completed\nStep: Verify the saved source",
                 source: "Luma checklist snapshot · Synthetic fixture · source task-1 · no source timestamp; date is import time",
                 savedAt: Date(timeIntervalSince1970: 1_700_000_000)))
+        }
+        if scenario == .checklists {
+            let json: [String: Any] = ["version": 1, "memories": [], "tasks": [["id": "synthetic-task",
+                "goal": "Synthetic editable goal", "text": "Verify the original snapshot", "done": false]]]
+            if let bytes = try? JSONSerialization.data(withJSONObject: json),
+               let preview = try? ConversationImporter.preview(bytes, kind: .lumaBackup, filename: "Synthetic.json",
+                   project: "General", importedAt: Date(timeIntervalSince1970: 1_700_000_000)),
+               let selected = try? preview.selection(ids: Set(preview.groups.map(\.id)), into: SavedState(notes: [], chats: []),
+                   acknowledgeRestoringDeleted: true, includeEditableChecklists: true) {
+                notes += selected.notes
+            }
+            notes.append(MemoryNote(id: UUID(uuidString: "99999999-2222-8222-8222-222222222222")!, project: "General",
+                text: EditableChecklist.header + "{\"version\":2,\"goal\":\"Synthetic future checklist payload is preserved\"}",
+                source: EditableChecklist.source, savedAt: Date(timeIntervalSince1970: 1_600_000_000)))
         }
         return SavedState(notes: notes, chats: chats)
     }

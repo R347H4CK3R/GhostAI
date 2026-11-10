@@ -11,6 +11,7 @@ struct ConversationImportView: View {
     @State private var preview: ConversationImportPreview?
     @State private var selected = Set<UUID>()
     @State private var acknowledged = false
+    @State private var includeEditableChecklists = false
     @State private var showingPicker = false
     @State private var showingConfirmation = false
     @State private var reading = false
@@ -32,7 +33,11 @@ struct ConversationImportView: View {
                     ForEach(ConversationImportKind.allCases) { item in Text(item.label).tag(item) }
                 }.disabled(reading)
                 if kind == .lumaBackup {
-                    Text("Select a plain JSON backup exported by Luma. Notes and checklist status become local reference notes, not executable jobs or live tasks. Original Luma data is untouched. Encrypted backups are not accepted. Reimported edits become new snapshots; review older versions yourself. Unknown fields are not copied. Keep both apps and your backups until you verify the result.")
+                    Toggle("Create editable checklist copies", isOn: $includeEditableChecklists)
+                        .disabled(reading).accessibilityIdentifier("conversationImport.editableChecklists")
+                    Text("Optional: also create a separate editable copy of each selected task. You can change its goal, step and completion in Memory. Original snapshots remain untouched; reimport keeps existing edits. Copies are not scheduled or executable jobs and follow the same approved sync scope.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                    Text("Select a plain JSON backup exported by Luma. Notes and checklist status always remain as local reference snapshots. Editable copies are created only if you choose the separate option above. Original Luma data is untouched. Encrypted backups are not accepted. Reimported edits become new snapshots; review older versions yourself. Unknown fields are not copied. Keep both apps and your backups until you verify the result.")
                         .font(.footnote).foregroundStyle(.secondary)
                 } else if kind != .chatGPTConversations {
                     Text(kind == .memoryText
@@ -65,7 +70,13 @@ struct ConversationImportView: View {
                                         .font(.caption).foregroundStyle(.secondary)
                                 }
                             }
-                            NavigationLink("Review text and provenance") { ConversationImportDetail(group: group) }
+                            if includeEditableChecklists, group.editableChecklist != nil {
+                                Label("Also create an editable checklist copy", systemImage: "checklist")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            NavigationLink("Review text and provenance") {
+                                ConversationImportDetail(group: group, includeEditableChecklist: includeEditableChecklists)
+                            }
                                 .font(.footnote)
                         }
                     }
@@ -97,10 +108,11 @@ struct ConversationImportView: View {
             Button("Import selected items") { saveSelection() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("The selected text will be added to Memory and chat history in \(project), and to your encrypted private vault if configured and in scope. Existing records will not be overwritten. Known synced deletions are restored as new copy IDs; unavailable deletion history blocks import. No ChatGPT account is connected.")
+            Text("The selected snapshots\(includeEditableChecklists ? " and separate editable checklist copies" : "") will be added to Memory and chat history in \(project), and to your encrypted private vault if configured and in scope. Existing snapshots and edited copies will not be overwritten. Known synced deletions are restored as new copy IDs; unavailable deletion history blocks import. No ChatGPT account is connected.")
         }
         .onChange(of: project) { _, _ in reset() }
-        .onChange(of: kind) { _, _ in reset() }
+        .onChange(of: kind) { _, _ in reset(); includeEditableChecklists = false }
+        .onChange(of: includeEditableChecklists) { _, _ in acknowledged = false; showingConfirmation = false }
         .onDisappear { cancelReading() }
     }
 
@@ -108,6 +120,10 @@ struct ConversationImportView: View {
         Section("Preview · \(preview.filename)") {
             Text("\(preview.sourceItems) source items · \(preview.groups.count) importable items")
             Text("\(preview.groups.reduce(0) { $0 + $1.messages.count }) supported user/assistant text messages · \(preview.groups.filter { $0.memory != nil }.count) memory notes")
+            if includeEditableChecklists {
+                Text("Up to \(preview.groups.filter { $0.editableChecklist != nil }.count) additional editable checklist copies are available. Only selected tasks receive copies; existing live copies are kept.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
             Text("\(preview.omittedBranchNodes) alternate-branch nodes omitted. \(preview.missingTimestamps) records have no source timestamp and use the local import time.")
                 .font(.footnote).foregroundStyle(.secondary)
             ForEach(ConversationImportSkip.allCases, id: \.rawValue) { reason in
@@ -115,7 +131,7 @@ struct ConversationImportView: View {
                     Text("\(reason.label): \(count)").font(.footnote).foregroundStyle(.orange)
                 }
             }
-            Text(kind == .lumaBackup ? "Coverage includes supported Luma notes and checklist snapshots only. No credentials, models, app permissions, settings or running jobs are transferred." : "Coverage is for supported plain text on current_node’s ancestor branch only. Export metadata, tools/system messages, other branches and assets are not copied. Unknown structures may be skipped or rejected. This is not a full account migration.")
+            Text(kind == .lumaBackup ? "Coverage includes supported Luma notes, preserved checklist snapshots and optional editable copies only. No credentials, models, app permissions, settings or running jobs are transferred." : "Coverage is for supported plain text on current_node’s ancestor branch only. Export metadata, tools/system messages, other branches and assets are not copied. Unknown structures may be skipped or rejected. This is not a full account migration.")
                 .font(.footnote).foregroundStyle(.secondary)
         }
     }
@@ -141,14 +157,16 @@ struct ConversationImportView: View {
     }
     private func reviewImport(_ preview: ConversationImportPreview) {
         do {
-            _ = try preview.selection(ids: selected, into: savedState, acknowledgeRestoringDeleted: acknowledged)
+            _ = try preview.selection(ids: selected, into: savedState, acknowledgeRestoringDeleted: acknowledged,
+                                      includeEditableChecklists: includeEditableChecklists)
             showingConfirmation = true
         } catch { status = safeMessage(error) }
     }
     private func saveSelection() {
         guard let preview, preview.project == project else { reset(); return }
         do {
-            let incoming = try preview.selection(ids: selected, into: savedState, acknowledgeRestoringDeleted: acknowledged)
+            let incoming = try preview.selection(ids: selected, into: savedState, acknowledgeRestoringDeleted: acknowledged,
+                                      includeEditableChecklists: includeEditableChecklists)
             if incoming.notes.isEmpty && incoming.chats.isEmpty { status = "All selected record IDs already exist. Nothing was changed."; return }
             try onImport(incoming)
             let summary = "Import completed in \(project). Existing live or restored copies were kept without duplication."
@@ -171,6 +189,7 @@ struct ConversationImportView: View {
 
 private struct ConversationImportDetail: View {
     let group: ConversationImportGroup
+    let includeEditableChecklist: Bool
     var body: some View {
         List {
             Section("Source preview · untrusted plain text") {
@@ -182,6 +201,15 @@ private struct ConversationImportDetail: View {
                 Section("Memory note") {
                     Text(memory.source).font(.caption)
                     Text(memory.text).textSelection(.enabled)
+                }
+            }
+            if includeEditableChecklist, let checklist = group.editableChecklist {
+                Section("Separate editable copy · if selected") {
+                    Text("Goal: \(checklist.goal)")
+                    Text("Step: \(checklist.step)")
+                    Text(checklist.done ? "Completed in the source snapshot" : "Not completed in the source snapshot")
+                    Text("Only the new copy can be edited in Memory. Original source text/provenance stay attached. Saving or marking completion never runs a task.")
+                        .font(.footnote).foregroundStyle(.secondary)
                 }
             }
             ForEach(group.messages, id: \.id) { message in
