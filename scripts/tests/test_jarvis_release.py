@@ -31,6 +31,21 @@ class ReleaseTests(unittest.TestCase):
                     warnings.simplefilter('ignore', UserWarning)
                     z.writestr(extra, b'bad')
         return self.path
+    def test_release_snapshot_ignores_only_download_counter(self):
+        self.assertTrue(hasattr(self.m, 'release_snapshot'), 'Stable release comparison needed')
+        a={'id':1,'assets':[{'id':2,'download_count':0,'digest':'abc'}]}
+        b=copy.deepcopy(a);b['assets'][0]['download_count']=1
+        self.assertEqual(self.m.release_snapshot(a),self.m.release_snapshot(b))
+        b['assets'][0]['digest']='changed'
+        self.assertNotEqual(self.m.release_snapshot(a),self.m.release_snapshot(b))
+
+    def test_draft_lookup_rejects_missing_duplicate_or_changed_identity(self):
+        for pages in ([], [[]], [[{'id':1,'tag_name':'candidate'},{'id':2,'tag_name':'candidate'}]]):
+            with patch.object(self.m,'api',return_value=pages),self.assertRaises(ValueError):
+                self.m.draft_by_tag('candidate')
+        with patch.object(self.m,'api',side_effect=[[[{'id':1,'tag_name':'candidate'}]],{'id':2,'tag_name':'candidate'}]),self.assertRaises(ValueError):
+            self.m.draft_by_tag('candidate')
+
     def test_accepts_expected_ipa(self):
         self.assertEqual(self.m.validate_ipa(self.ipa(), 12), self.info)
     def test_rejects_wrong_identity_version_build_or_platform(self):
@@ -150,7 +165,11 @@ class ReleaseTests(unittest.TestCase):
             if path.startswith('git/ref/'):
                 return {'object':{'sha':'b'*40 if failure=='tag' and '/tags/' in path else 'a'*40,'type':'commit','url':f'https://api.github.com/repos/{self.m.REPOSITORY}/git/commits/'+'a'*40}}
             if path.startswith('releases/tags/'):
-                return {'draft':failure!='published','prerelease':True,'tag_name':'jarvis-v0.4.0-build-12','assets':[{'name':n} for n in ('Jarvis-unsigned.ipa','SHA256SUMS','VERIFICATION.md')]}
+                raise AssertionError('Draft lookup must not use published-only endpoint')
+            if path == 'releases?per_page=100':
+                return [[{'id':1234,'tag_name':'jarvis-v0.4.0-build-12'}]]
+            if path == 'releases/1234':
+                return {'id':1234,'draft':failure!='published','prerelease':True,'tag_name':'jarvis-v0.4.0-build-12','assets':[{'name':n} for n in ('Jarvis-unsigned.ipa','SHA256SUMS','VERIFICATION.md')]}
             raise AssertionError(path)
         def fake_gh(*args):
             calls.append(args)

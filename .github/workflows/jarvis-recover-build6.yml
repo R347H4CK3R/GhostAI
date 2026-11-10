@@ -1,0 +1,30 @@
+name: Recover verified Jarvis build 6 publication
+'on':
+  push:
+    branches: [recovery/jarvis-build-6]
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: jarvis-release-candidate
+  cancel-in-progress: false
+jobs:
+  recover:
+    if: github.repository == 'R347H4CK3R/GhostAI' && github.event.repository.private == false && github.ref == 'refs/heads/recovery/jarvis-build-6' && github.run_attempt == 1
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - name: Test publication guards
+      run: |
+        python3 -m unittest discover -s scripts/tests -p 'test_jarvis_release.py' -v
+        python3 -m unittest discover -s scripts/tests -p 'test_jarvis_recovery.py' -v
+    - name: Verify original evidence and publish exact existing draft
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: python3 scripts/jarvis_recover_build6.py

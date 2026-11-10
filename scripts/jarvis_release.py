@@ -184,6 +184,26 @@ does not change the update feed, latest stable release, or default branch.
             output.write(key+'='+hashlib.sha256(asset.read_bytes()).hexdigest()+'\n')
 
 
+def release_snapshot(release):
+    # Verification downloads may increment counters without changing release contents.
+    result = dict(release)
+    result['assets'] = [{k:v for k,v in asset.items() if k != 'download_count'}
+                        for asset in release.get('assets', [])]
+    return result
+
+
+def draft_by_tag(tag):
+    # The tag endpoint excludes drafts. Enumerate authenticated releases, then pin ID.
+    pages = api('releases?per_page=100', '--paginate', '--slurp')
+    matches = [r for page in pages for r in page if r.get('tag_name') == tag]
+    if len(matches) != 1 or type(matches[0].get('id')) is not int:
+        raise ValueError('Expected one uniquely identified candidate release')
+    release = api(f"releases/{matches[0]['id']}")
+    if release.get('id') != matches[0]['id'] or release.get('tag_name') != tag:
+        raise ValueError('Release identity changed')
+    return release
+
+
 def finalize(tag, sha, build):
     expected = {}
     for key, name in [('IPA_SHA256', ASSET), ('NOTES_SHA256', 'VERIFICATION.md'), ('SUMS_SHA256', 'SHA256SUMS')]:
@@ -194,7 +214,7 @@ def finalize(tag, sha, build):
     ref = api(f'git/ref/tags/{tag}')['object']
     if ref.get('type') != 'commit' or ref.get('sha') != sha:
         raise ValueError('Staged tag does not point at verified commit')
-    release = api(f'releases/tags/{tag}')
+    release = draft_by_tag(tag)
     assets = [a.get('name') for a in release.get('assets', [])]
     if (release.get('draft') is not True or release.get('prerelease') is not True
             or release.get('tag_name') != tag or len(assets) != 3 or set(assets) != set(expected)):
@@ -209,7 +229,7 @@ def finalize(tag, sha, build):
         validate_ipa(folder/ASSET, build)
     # Recheck identity immediately before publishing; never edit an existing public release.
     ref = api(f'git/ref/tags/{tag}')['object']
-    if ref.get('type') != 'commit' or ref.get('sha') != sha or api(f'releases/tags/{tag}').get('draft') is not True:
+    if ref.get('type') != 'commit' or ref.get('sha') != sha or release_snapshot(api(f"releases/{release['id']}")) != release_snapshot(release):
         raise ValueError('Draft or tag changed during verification')
     gh('release', 'edit', tag, '--repo', REPOSITORY, '--draft=false', '--prerelease', '--latest=false')
 
