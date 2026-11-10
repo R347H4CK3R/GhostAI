@@ -50,6 +50,16 @@ enum LumaBackupImport {
             missingTimestamps: tasks.count)
     }
 
+    /// Classifies metadata only; imported prose never grants authority. Restored
+    /// imports also use UUIDv8, while existing conflict copies use UUIDv5.
+    /// Do not parse the source label: filenames and source IDs can contain delimiters.
+    static func usesChecklistImportTime(_ note: MemoryNote) -> Bool {
+        note.id.uuid.6 >> 4 == 8
+            && note.text.hasPrefix("Luma checklist snapshot (reference only, not an executable job)\nGoal: ")
+            && note.source.hasPrefix("Luma checklist snapshot · ")
+            && note.source.hasSuffix(" · no source timestamp; date is import time")
+    }
+
     private static func text(_ value: Any?, limit: Int) throws -> String {
         guard let value = value as? String, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               value.utf16.count <= limit else { throw ConversationImportFailure.malformed }

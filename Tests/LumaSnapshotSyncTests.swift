@@ -58,6 +58,35 @@ final class LumaSnapshotSyncTests: XCTestCase {
         }
     }
 
+    func testCanonicallyEquivalentUnicodeDifferencesPreserveExactVersionsAndConverge() throws {
+        let composed = "Caf\u{00E9}", decomposed = "Cafe\u{0301}"
+        XCTAssertEqual(composed, decomposed, "Exercise Swift's canonical-equivalent String equality")
+        XCTAssertFalse(composed.utf8.elementsEqual(decomposed.utf8))
+        let sourceA = try imported(at: early, filename: composed + ".json").notes[1]
+        let sourceB = try imported(at: late, filename: decomposed + ".json").notes[1]
+        XCTAssertEqual(sourceA.id, sourceB.id)
+        var textA = sourceA; textA.text += "\n" + composed
+        var textB = textA; textB.text = sourceA.text + "\n" + decomposed; textB.savedAt = late
+        var projectA = sourceA; projectA.project = composed
+        var projectB = projectA; projectB.project = decomposed; projectB.savedAt = late
+        for (first, second) in [(sourceA, sourceB), (textA, textB), (projectA, projectB)] {
+            let result = try merged([first], [second])
+            XCTAssertEqual(result.notes.count, 2, "Distinct provenance/content bytes must retain both versions")
+            let reversed = try merged([second], [first])
+            XCTAssertEqual(try result.encoded(), try reversed.encoded(), "Device order must not change the encrypted document's plaintext")
+            let repeated = try PrivateMemorySyncMerge.merge(base: result, local: result, remote: reversed)
+            XCTAssertEqual(try repeated.encoded(), try result.encoded())
+            for expected in [first, second] {
+                XCTAssertTrue(result.notes.contains {
+                    $0.project.utf8.elementsEqual(expected.project.utf8)
+                        && $0.text.utf8.elementsEqual(expected.text.utf8)
+                        && $0.source.utf8.elementsEqual(expected.source.utf8)
+                        && $0.savedAt == expected.savedAt
+                }, "Preserve the exact source bytes and date for each genuine version")
+            }
+        }
+    }
+
     func testUnrelatedNotesAndLegacyConflictCopiesKeepDateConflictBehavior() throws {
         let state = try imported(at: early)
         let task = state.notes[1]

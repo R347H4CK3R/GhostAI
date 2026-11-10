@@ -209,6 +209,15 @@ enum PrivateMemorySyncMerge {
                 var merged = lc; merged.date = min(lc.date, rc.date)
                 if let value = merged as? T { result[id] = value; continue }
             }
+            // Independently imported/restored Luma checklist snapshots have the
+            // same identity and provenance, but a device-local fallback import time.
+            // Preserve genuine edits, other note kinds and existing conflict copies.
+            if let ln = left as? MemoryNote, let rn = right as? MemoryNote,
+               ln.project == rn.project, ln.text == rn.text, ln.source == rn.source,
+               LumaBackupImport.usesChecklistImportTime(ln) {
+                var merged = ln; merged.savedAt = min(ln.savedAt, rn.savedAt)
+                if let value = merged as? T { result[id] = value; continue }
+            }
             let ld = try PrivateMemorySyncPolicy.canonical(left), rd = try PrivateMemorySyncPolicy.canonical(right)
             if ld == rd { result[id] = left; continue }
             if let original = b[id] {

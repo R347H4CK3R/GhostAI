@@ -4,7 +4,7 @@ The user delegated continued one-app migration and preservation work. Independen
 
 ## Approach
 
-Reconcile only identical same-ID Luma checklist snapshots, choosing the earlier import time. Require equal project, text and source, the exact checklist body header and import-time provenance markers, and UUIDv8. This covers both imported and explicitly restored identities while leaving UUIDv5 legacy conflict copies alone. Source text is classification metadata, never authentication or permission.
+Reconcile only identical same-ID Luma checklist snapshots, choosing the earlier import time. Require byte-for-byte equal UTF-8 project, text and source, the exact checklist body header and import-time provenance markers, and UUIDv8. This covers both imported and explicitly restored identities while leaving UUIDv5 legacy conflict copies alone. Source text is classification metadata, never authentication or permission.
 
 Alternatives considered: generic timestamp reconciliation for every note changes unrelated note semantics; changing import identities or dates cannot repair existing independent imports and would obscure provenance; parsing source IDs is ambiguous because valid IDs and filenames can contain delimiters, and restored IDs intentionally differ. The narrow merge rule is the implementation choice under the delegated request.
 
