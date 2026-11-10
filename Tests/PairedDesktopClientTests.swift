@@ -283,6 +283,29 @@ import Security
         XCTAssertEqual(network.requests.count, 2); XCTAssertEqual(network.requests[0].body, network.requests[1].body)
         XCTAssertNotEqual(network.requests[0].headers["X-Veyra-Sequence"], network.requests[1].headers["X-Veyra-Sequence"])
     }
+    func testTerminalResultReceiptSurvivesCodableRelaunchWithoutNetwork() async throws {
+        let manifest = try reviewedSubmission()
+        var value = fixture()
+        value.jobs = [PairedDesktopJob(projectID: project, submissionID: manifest.submissionID,
+            jobID: job, status: "running", reviewedSubmission: manifest)]
+        let vault = MemoryPairingVault(value); let network = RecordingPairingTransport()
+        let body = try JSONSerialization.data(withJSONObject: ["v": 1, "job_id": job, "status": "completed",
+            "cancel_requested": false, "counters": ["iterations": 2, "tool_calls": 1, "io_bytes": 12, "output_bytes": 20],
+            "summary": "Synthetic read-only observation", "error_code": NSNull(), "artifacts": []] as [String: Any])
+        network.respond = { _ in PairedDesktopResponse(status: 200, body: body) }
+        await client(vault, network).refreshJob(job)
+        let encoded = try JSONEncoder().encode(XCTUnwrap(vault.record))
+        let restartedVault = MemoryPairingVault(try JSONDecoder().decode(PairedDesktopRecord.self, from: encoded))
+        let restartedNetwork = RecordingPairingTransport()
+        let restarted = client(restartedVault, restartedNetwork)
+        let saved = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(XCTUnwrap(restarted.record))) as? [String: Any])
+        let jobs = try XCTUnwrap(saved["jobs"] as? [[String: Any]])
+        let receipt = try XCTUnwrap(jobs.first?["resultReceipt"] as? [String: Any], "A terminal response must be retained with its job, not only in transient view state")
+        XCTAssertEqual(receipt["jobID"] as? String, job)
+        XCTAssertEqual(receipt["summaryPreview"] as? String, "Synthetic read-only observation")
+        XCTAssertEqual(receipt["responseSHA256"] as? String, PairedExecutionCrypto.sha256Hex(body))
+        XCTAssertTrue(restartedNetwork.requests.isEmpty)
+    }
     func testArchiveRequiresConfirmationAndRetainsOriginal() async throws {
         let vault = MemoryPairingVault(fixture()); let network = RecordingPairingTransport(); let model = client(vault, network)
         await model.submit(projectID: project, goal: "Uncertain", limits: .defaults); let original = try XCTUnwrap(vault.record?.outbox)
