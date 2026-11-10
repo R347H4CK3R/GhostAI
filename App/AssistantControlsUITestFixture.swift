@@ -5,7 +5,7 @@ import Foundation
 /// Release builds do not contain these fixture types or launch-argument handling.
 @MainActor enum AssistantControlsUITestFixture {
     static func pairedDesktop(launchArguments: [String] = ProcessInfo.processInfo.arguments,
-                              makeLive: () -> PairedDesktopClient = { PairedDesktopClient() }) -> PairedDesktopClient {
+                              makeLive: @MainActor () -> PairedDesktopClient = { PairedDesktopClient() }) -> PairedDesktopClient {
         guard ChatUITestFixture.fromLaunchArguments(launchArguments) != nil else { return makeLive() }
         return PairedDesktopClient(vault: RefusingUITestPairingVault(), transport: RefusingUITestPairingTransport())
     }
