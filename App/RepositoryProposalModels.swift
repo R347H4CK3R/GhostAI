@@ -159,6 +159,7 @@ struct RepositoryProposalReview: Equatable, Identifiable, Sendable {
     let id: UUID
     let source: RepositoryProposalSource
     let replacement: String
+    let changes: RepositoryProposalDiff
     let title: String
     let branch: String
     var original: String { source.original }
@@ -172,10 +173,16 @@ struct RepositoryProposalReview: Equatable, Identifiable, Sendable {
     init(source: RepositoryProposalSource, replacement: String, title: String) throws {
         try RepositoryProposalPolicy.validateText(replacement)
         try RepositoryProposalPolicy.validateTitle(title)
-        guard replacement != source.original else { throw RepositoryProposalFailure.sourceMismatch }
+        guard !replacement.utf8.elementsEqual(source.original.utf8) else { throw RepositoryProposalFailure.sourceMismatch }
         let id = UUID()
         self.id = id; self.source = source; self.replacement = replacement; self.title = title
+        changes = try RepositoryProposalDiff(original: source.original, replacement: replacement)
         branch = "veyra-proposal/" + id.uuidString.lowercased()
+    }
+
+    /// Swift String equality normalizes Unicode. Approval must bind actual bytes.
+    func matchesDraft(replacement: String, title: String) -> Bool {
+        self.replacement.utf8.elementsEqual(replacement.utf8) && self.title.utf8.elementsEqual(title.utf8)
     }
 
     func approve(fullReviewConfirmed: Bool, destinationConfirmed: Bool) throws -> RepositoryProposalApproval {

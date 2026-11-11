@@ -23,6 +23,56 @@ check = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(check)
 
 
+def _unreaped_process_status(group, timeout, popen):
+    """Test oracle: inspect one PID without waiting for/reaping that child."""
+    observer = popen(['ps', '-o', 'stat=', '-p', str(group)],
+                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    try:
+        try:
+            output, _ = observer.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            observer.kill()  # Only this direct observer child, never its group.
+            observer.communicate(timeout=1)
+            raise
+        return output.strip(), observer.returncode
+    finally:
+        # Popen.__exit__ can wait without a timeout if cleanup also times out.
+        # Close our read ends explicitly and propagate that bounded failure.
+        observer.stdout.close()
+        observer.stderr.close()
+
+
+class ProcessStatusObserverTests(unittest.TestCase):
+    def test_stalled_observer_cleanup_never_uses_an_unbounded_wait(self):
+        class StalledObserver:
+            def __init__(self):
+                self.stdout, self.stderr = io.StringIO(), io.StringIO()
+                self.timeouts, self.kills, self.unbounded_waits = [], 0, 0
+            def communicate(self, timeout):
+                self.timeouts.append(timeout)
+                raise subprocess.TimeoutExpired('synthetic ps', timeout)
+            def kill(self):
+                self.kills += 1
+            def __enter__(self):
+                return self
+            def __exit__(self, *_):
+                # Match Popen's context-manager contract on a failed cleanup.
+                self.wait()
+            def wait(self, timeout=None):
+                if timeout is None:
+                    self.unbounded_waits += 1
+                    raise AssertionError('unbounded observer wait')
+        observer = StalledObserver()
+        with self.assertRaises(subprocess.TimeoutExpired) as result:
+            _unreaped_process_status(123456, 0.05, lambda *args, **kwargs: observer)
+        self.assertEqual(result.exception.timeout, 1)
+        self.assertEqual(observer.timeouts, [0.05, 1])
+        self.assertEqual(observer.kills, 1)
+        self.assertEqual(observer.unbounded_waits, 0)
+        self.assertTrue(observer.stdout.closed)
+        self.assertTrue(observer.stderr.closed)
+
+
 class SimulatorUpgradeTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -311,15 +361,23 @@ class SimulatorUpgradeTests(unittest.TestCase):
         def darwin_killpg(group, requested_signal):
             nonlocal denied_probe
             if requested_signal == signal.SIGKILL:
-                # The leader must still belong to us and be unreaped here.
-                if hasattr(os, 'WNOWAIT'):
-                    deadline = time.monotonic() + 2
-                    while True:
-                        exited = os.waitid(os.P_PID, group, os.WEXITED | os.WNOWAIT | os.WNOHANG)
-                        if exited is not None or time.monotonic() >= deadline:
-                            break
-                        time.sleep(0.01)
-                    self.assertIsNotNone(exited)
+                # Observe the real owned zombie without reaping it. Darwin can
+                # expose WNOWAIT while Python has no waitid; POSIX ps works on
+                # both CI hosts and does not release the leader's reserved PID.
+                self.assertEqual(processes[0].pid, group)
+                self.assertIsNone(processes[0].returncode)
+                deadline = time.monotonic() + 2
+                status = ''
+                while (remaining := deadline - time.monotonic()) > 0:
+                    # Use the original Popen: the observer is not a Runner-owned
+                    # command/group and must not enter the fixture cleanup list.
+                    status, code = _unreaped_process_status(group, remaining, real_popen)
+                    self.assertEqual(code, 0, 'Owned child must still be observable')
+                    if status.startswith('Z'):
+                        break
+                    time.sleep(min(0.01, max(0, deadline - time.monotonic())))
+                self.assertTrue(status.startswith('Z'), 'Owned leader must have exited and remain unreaped')
+                self.assertIsNone(processes[0].returncode)
                 raise PermissionError(1, 'simulated Darwin zombie-only group')
             if requested_signal == 0 and not denied_probe:
                 denied_probe = True

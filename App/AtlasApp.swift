@@ -7,6 +7,10 @@ import FoundationModels
 @main @MainActor enum AsterionAppLauncher {
     static func main() {
         #if DEBUG
+        if RepositoryProposalReviewUITestFixture.isEnabled {
+            RepositoryProposalReviewUITestApp.main()
+            return
+        }
         if ChecklistLifecycleUITestFixture.fromLaunchArguments() != nil {
             ChecklistLifecycleUITestApp.main()
             return

@@ -17,6 +17,16 @@ The screen is self-contained. Existing files do not need to adopt a new shared s
 
 Editing the path, replacement or title invalidates the prepared review. Changes to the credential or installation acknowledgment clear publication acknowledgment. The final action also checks the current source, replacement, title, review identity and credential against the displayed snapshot. A read-session check runs at preparation and immediately before publication. Background/dismissal clears the token and approvals and cancels active work. Repository, pinned-commit or read-client identity changes close the screen to new requests and cancel active work while preserving its eventual status ledger. Reopen the screen for the new selection.
 
+## Local change preview
+
+The prepared immutable review includes a local changed-region comparison before the two complete files. It removes only identical leading/trailing lines; equal lines between separate edits remain inside the region. This is explicitly **not a minimal diff**. Old/new region counts are not minimal edit counts.
+
+Comparison and no-op detection use exact UTF-8 bytes, including line endings, without normalization. Canonically equivalent but byte-different replacements remain reviewable; any byte change to the live replacement or title invalidates the prepared review and cannot match its approval. Empty files have zero lines; a trailing LF terminates its preceding line. The preview distinguishes LF, CRLF and no final newline, and visibly escapes backslashes, tabs, standalone CR, Unicode line/paragraph separators and trailing ASCII spaces. Line numbers refer to the complete original or replacement.
+
+The first 12 old and 12 new region lines are displayed, independently bounded so one long side cannot hide the other. Each displayed line contains at most 240 UTF-8 bytes after escaping, clipped only between complete Unicode scalars/escape tokens. The preview reports omitted rows and shortened displayed rows separately. Both complete files remain unchanged and authoritative, and the complete-file acknowledgment is still required. The preview is not an executable patch or an automatic edit.
+
+No network request, credential, source persistence or publication is added by comparison. It uses the existing text eligibility checks. Native pure tests cover exact comparison, newline/Unicode distinctions, escaping and bounds; an isolated DEBUG UI fixture displays the real review component with synthetic source and no ordinary app stores, credentials or network.
+
 ## Write capability and consent boundary
 
 `RepositoryProposalAuthorization` wraps a new `GitHubAuthSession` but exposes a separate, repository-ID-bound capability type. It cannot accept an existing `GitHubConnection` or read-session token. There is no Keychain access, saved-token restoration, credential-generation, permission change or server-side token revocation in this feature. Unused token entry expires after 15 minutes without editing, and the publication credential session expires locally after 15 minutes and is revoked locally after any attempt, cancellation, background or dismissal. Swift strings cannot guarantee complete memory zeroization.

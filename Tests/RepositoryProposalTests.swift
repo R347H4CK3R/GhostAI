@@ -101,6 +101,39 @@ final class RepositoryProposalTests: XCTestCase {
         XCTAssertNoThrow(try review.approve(fullReviewConfirmed: true, destinationConfirmed: true))
     }
 
+    func testByteDifferentCanonicalUnicodeCanBeReviewedWithoutLosingOriginalBytes() async throws {
+        let original = "caf\u{00e9}\n"
+        let replacement = "cafe\u{0301}\n"
+        let source = try await RepositoryProposalSource.load(repository: repo, immutableCommit: pinned,
+            path: "README.md", reader: readerFor(text: original))
+        let review = try RepositoryProposalReview(source: source, replacement: replacement, title: "Normalize sample text")
+        XCTAssertEqual(Array(review.original.utf8), [99, 97, 102, 195, 169, 10])
+        XCTAssertEqual(Array(review.replacement.utf8), [99, 97, 102, 101, 204, 129, 10])
+        XCTAssertThrowsError(try review.approve(fullReviewConfirmed: false, destinationConfirmed: true))
+        XCTAssertNoThrow(try review.approve(fullReviewConfirmed: true, destinationConfirmed: true))
+    }
+
+    func testPreparedComparisonRemainsBoundToItsExactReviewAndApproval() async throws {
+        let review = try await makeReview()
+        let approval = try approved(review)
+        let other = try RepositoryProposalReview(source: review.source, replacement: "Another public edit.\n", title: review.title)
+        XCTAssertEqual(review.changes.rendered, "- old 1 | Hello, public example. ⟦LF⟧\n+ new 1 | Hello, reviewed public example. ⟦LF⟧")
+        XCTAssertNotEqual(review.changes.rendered, other.changes.rendered)
+        XCTAssertTrue(approval.matches(review)); XCTAssertFalse(approval.matches(other))
+        XCTAssertEqual(Array(review.original.utf8), Array(old.utf8))
+        XCTAssertEqual(Array(review.replacement.utf8), Array(new.utf8))
+    }
+
+    func testCanonicalEquivalentDraftChangeDoesNotMatchApprovedBytes() async throws {
+        let base = try await makeReview()
+        let review = try RepositoryProposalReview(source: base.source, replacement: "caf\u{00e9}\n", title: "Caf\u{00e9} sample")
+        XCTAssertTrue(review.matchesDraft(replacement: "caf\u{00e9}\n", title: "Caf\u{00e9} sample"))
+        XCTAssertFalse(review.matchesDraft(replacement: "cafe\u{0301}\n", title: "Caf\u{00e9} sample"))
+        XCTAssertFalse(review.matchesDraft(replacement: "caf\u{00e9}\n", title: "Cafe\u{0301} sample"))
+        XCTAssertFalse(review.matchesDraft(replacement: "different\n", title: review.title))
+        XCTAssertThrowsError(try RepositoryProposalReview(source: base.source, replacement: base.original, title: base.title))
+    }
+
     func testChangedReviewCannotPublishWithOldConsent() async throws {
         let review = try await makeReview()
         let other = try RepositoryProposalReview(source: review.source, replacement: "Another public edit.\n", title: review.title)
