@@ -1,0 +1,173 @@
+{
+  "tls": [
+    {
+      "name": "Verify native toolchain",
+      "seconds": 120,
+      "script": "test \"$(uname -m)\" = arm64\nxcodebuild -version | tee xcode-version.log\ngrep -q \"Xcode 26.2\" xcode-version.log\nxcodebuild -showsdks"
+    },
+    {
+      "name": "List runtimes",
+      "seconds": 60,
+      "script": "xcrun simctl list runtimes -j > runtime-list.json"
+    },
+    {
+      "name": "Install XcodeGen",
+      "seconds": 300,
+      "script": "command -v xcodegen >/dev/null || brew install xcodegen"
+    },
+    {
+      "name": "Generate project",
+      "seconds": 120,
+      "script": "xcodegen generate"
+    },
+    {
+      "name": "Boot owned test simulator",
+      "seconds": 360,
+      "script": "exec python3 \"$NATIVE_CONTROL/ci/codemagic_entry.py\" scripts/ci_simulator.py --receipt \"$NATIVE_CONTROL/native-evidence/boot-receipt.json\" --result test-simulator/result.json boot --output test-simulator --github-env \"$NATIVE_SIMULATOR_ENV\"",
+      "cooperative": true,
+      "receipt": "$NATIVE_CONTROL/native-evidence/boot-receipt.json"
+    },
+    {
+      "name": "Pairing TLS policy tests",
+      "seconds": 1500,
+      "script": "source \"$NATIVE_SIMULATOR_ENV\"\nset -euo pipefail\nxcodebuild -project AsterionVeyra.xcodeproj -scheme AsterionVeyra -destination \"platform=iOS Simulator,id=$SIMULATOR_ID\" -destination-timeout 120 -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 180 -only-testing:AsterionVeyraTests/PairedDesktopTransportTests -resultBundlePath PairingTLSResults.xcresult CODE_SIGNING_ALLOWED=NO test 2>&1 | tee pairing-tls-tests.log\n"
+    },
+    {
+      "name": "Export TLS attachments",
+      "seconds": 120,
+      "always": true,
+      "script": "if [ -d PairingTLSResults.xcresult ]; then xcrun xcresulttool export attachments --path PairingTLSResults.xcresult --output-path pairing-tls-screenshots; fi"
+    },
+    {
+      "name": "Shut down owned test simulator before upgrade",
+      "seconds": 120,
+      "script": "if [ -f test-simulator/ownership.json ]; then\n source \"$NATIVE_SIMULATOR_ENV\"\nexec python3 \"$NATIVE_CONTROL/ci/codemagic_entry.py\" scripts/ci_simulator.py --receipt \"$NATIVE_CONTROL/native-evidence/shutdown-receipt.json\" --result test-simulator/handoff/result.json shutdown --output test-simulator --simulator-id \"$SIMULATOR_ID\"\nfi",
+      "always": true,
+      "cooperative": true
+    }
+  ],
+  "native": [
+    {
+      "name": "Verify native toolchain",
+      "seconds": 120,
+      "script": "test \"$(uname -m)\" = arm64\nxcodebuild -version | tee xcode-version.log\ngrep -q \"Xcode 26.2\" xcode-version.log\nxcodebuild -showsdks"
+    },
+    {
+      "name": "List runtimes",
+      "seconds": 60,
+      "script": "xcrun simctl list runtimes -j > runtime-list.json"
+    },
+    {
+      "name": "Install XcodeGen",
+      "seconds": 300,
+      "script": "command -v xcodegen >/dev/null || brew install xcodegen"
+    },
+    {
+      "name": "Generate project",
+      "seconds": 120,
+      "script": "xcodegen generate"
+    },
+    {
+      "name": "Verify app icon source",
+      "seconds": 300,
+      "script": "python3 scripts/verify_app_icon.py\npython3 -m unittest discover -s scripts/tests -v\n"
+    },
+    {
+      "name": "Boot owned test simulator",
+      "seconds": 360,
+      "script": "exec python3 \"$NATIVE_CONTROL/ci/codemagic_entry.py\" scripts/ci_simulator.py --receipt \"$NATIVE_CONTROL/native-evidence/boot-receipt.json\" --result test-simulator/result.json boot --output test-simulator --github-env \"$NATIVE_SIMULATOR_ENV\"",
+      "cooperative": true,
+      "receipt": "$NATIVE_CONTROL/native-evidence/boot-receipt.json"
+    },
+    {
+      "name": "Compile simulator test bundles",
+      "seconds": 1500,
+      "script": "source \"$NATIVE_SIMULATOR_ENV\"\nset -euo pipefail\nxcodebuild -project AsterionVeyra.xcodeproj -scheme AsterionVeyra -destination \"platform=iOS Simulator,id=$SIMULATOR_ID\" -destination-timeout 120 -derivedDataPath simulator-build CODE_SIGNING_ALLOWED=NO build-for-testing 2>&1 | tee simulator-build.log\n"
+    },
+    {
+      "name": "Reduced checklist lifecycle controls",
+      "seconds": 480,
+      "script": "source \"$NATIVE_SIMULATOR_ENV\"\nset -euo pipefail\nxcodebuild -project AsterionVeyra.xcodeproj -scheme AsterionVeyra -destination \"platform=iOS Simulator,id=$SIMULATOR_ID\" -destination-timeout 120 -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 180 -derivedDataPath simulator-build -only-testing:AsterionVeyraTests/ChecklistLifecycleFixtureTests -only-testing:AsterionVeyraUITests/ChecklistLifecycleUITests -resultBundlePath ChecklistLifecycleResults.xcresult CODE_SIGNING_ALLOWED=NO test-without-building 2>&1 | tee checklist-lifecycle-tests.log\n"
+    },
+    {
+      "name": "Checklist interaction regressions",
+      "seconds": 720,
+      "script": "source \"$NATIVE_SIMULATOR_ENV\"\nset -euo pipefail\nxcodebuild -project AsterionVeyra.xcodeproj -scheme AsterionVeyra -destination \"platform=iOS Simulator,id=$SIMULATOR_ID\" -destination-timeout 120 -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 180 -derivedDataPath simulator-build -only-testing:AsterionVeyraUITests/AssistantUITests/testChecklistEditorSurvivesBackgroundWithoutVoiceRequest -only-testing:AsterionVeyraUITests/AssistantUITests/testVoiceRequestWaitsForChecklistCancelWithoutSavingDraft -only-testing:AsterionVeyraUITests/AssistantUITests/testVoiceRequestWaitsForChecklistSaveWithoutLosingDraft -only-testing:AsterionVeyraUITests/AssistantUITests/testVoiceRequestWaitsForInteractiveChecklistDismissalWithoutSavingDraft -resultBundlePath ChecklistInteractionResults.xcresult CODE_SIGNING_ALLOWED=NO test-without-building 2>&1 | tee checklist-interaction-tests.log\n"
+    },
+    {
+      "name": "Checklist privacy visual evidence",
+      "seconds": 480,
+      "script": "source \"$NATIVE_SIMULATOR_ENV\"\nset -euo pipefail\nxcodebuild -project AsterionVeyra.xcodeproj -scheme AsterionVeyra -destination \"platform=iOS Simulator,id=$SIMULATOR_ID\" -destination-timeout 120 -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 180 -derivedDataPath simulator-build -only-testing:AsterionVeyraUITests/ChecklistPrivacyUITests -resultBundlePath ChecklistPrivacyResults.xcresult CODE_SIGNING_ALLOWED=NO test-without-building 2>&1 | tee checklist-privacy-tests.log\n",
+      "after_success": "Compile simulator test bundles"
+    },
+    {
+      "name": "Unit tests",
+      "seconds": 2700,
+      "script": "source \"$NATIVE_SIMULATOR_ENV\"\nset -euo pipefail\nxcodebuild -project AsterionVeyra.xcodeproj -scheme AsterionVeyra -destination \"platform=iOS Simulator,id=$SIMULATOR_ID\" -destination-timeout 120 -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 180 -derivedDataPath simulator-build -resultBundlePath TestResults.xcresult CODE_SIGNING_ALLOWED=NO test-without-building 2>&1 | tee xcode-tests.log\n"
+    },
+    {
+      "name": "Export test screenshots",
+      "seconds": 120,
+      "script": "if [ -d TestResults.xcresult ]; then\n  xcrun xcresulttool export attachments --path TestResults.xcresult --output-path test-screenshots\nfi\nif [ -d ChecklistLifecycleResults.xcresult ]; then\n  xcrun xcresulttool export attachments --path ChecklistLifecycleResults.xcresult --output-path checklist-lifecycle-screenshots\nfi\nif [ -d ChecklistPrivacyResults.xcresult ]; then\n  xcrun xcresulttool export attachments --path ChecklistPrivacyResults.xcresult --output-path checklist-privacy-screenshots\nfi\nif [ -d ChecklistInteractionResults.xcresult ]; then\n  xcrun xcresulttool export attachments --path ChecklistInteractionResults.xcresult --output-path checklist-test-screenshots\nfi\n",
+      "always": true
+    },
+    {
+      "name": "Verify encrypted Swift-to-desktop transfer",
+      "seconds": 300,
+      "script": "python3 -m venv .verification-venv\n.verification-venv/bin/python -m pip install -r companion/requirements-sync.txt\n.verification-venv/bin/python Tests/verify_mobile_transfer.py test-screenshots\n.verification-venv/bin/python -m unittest scripts.tests.test_private_memory_sync_reference -v\n"
+    },
+    {
+      "name": "Shut down owned test simulator before upgrade",
+      "seconds": 120,
+      "script": "if [ -f test-simulator/ownership.json ]; then\n source \"$NATIVE_SIMULATOR_ENV\"\nexec python3 \"$NATIVE_CONTROL/ci/codemagic_entry.py\" scripts/ci_simulator.py --receipt \"$NATIVE_CONTROL/native-evidence/shutdown-receipt.json\" --result test-simulator/handoff/result.json shutdown --output test-simulator --simulator-id \"$SIMULATOR_ID\"\nfi",
+      "always": true,
+      "cooperative": true
+    }
+  ],
+  "package": [
+    {
+      "name": "Verify native toolchain",
+      "seconds": 120,
+      "script": "test \"$(uname -m)\" = arm64\nxcodebuild -version | tee xcode-version.log\ngrep -q \"Xcode 26.2\" xcode-version.log\nxcodebuild -showsdks"
+    },
+    {
+      "name": "List runtimes",
+      "seconds": 60,
+      "script": "xcrun simctl list runtimes -j > runtime-list.json"
+    },
+    {
+      "name": "Install XcodeGen",
+      "seconds": 300,
+      "script": "command -v xcodegen >/dev/null || brew install xcodegen"
+    },
+    {
+      "name": "Generate project",
+      "seconds": 120,
+      "script": "xcodegen generate"
+    },
+    {
+      "name": "Fetch pinned upgrade baselines",
+      "seconds": 300,
+      "script": "git fetch --no-tags --depth=1 origin 8074b807a864a79e659200ee9521141c3c00df98\ntest \"$(git rev-parse 8074b807a864a79e659200ee9521141c3c00df98^{commit})\" = 8074b807a864a79e659200ee9521141c3c00df98\ngit fetch --no-tags --depth=1 origin 59aa7329efa87ce01b247ca309941c20b2e3dc8d\ntest \"$(git rev-parse 59aa7329efa87ce01b247ca309941c20b2e3dc8d^{commit})\" = 59aa7329efa87ce01b247ca309941c20b2e3dc8d"
+    },
+    {
+      "name": "Verify install-over-existing simulator upgrade",
+      "seconds": 1200,
+      "script": "exec python3 \"$NATIVE_CONTROL/ci/codemagic_entry.py\" scripts/verify_simulator_upgrade.py --receipt \"$NATIVE_CONTROL/native-evidence/upgrade-receipt.json\" --result upgrade-results/result.json --upgrade --output upgrade-results --budget-seconds 1080",
+      "cooperative": true,
+      "receipt": "$NATIVE_CONTROL/native-evidence/upgrade-receipt.json"
+    },
+    {
+      "name": "Verify live release simulator upgrade",
+      "seconds": 1200,
+      "script": "exec python3 \"$NATIVE_CONTROL/ci/codemagic_entry.py\" scripts/jarvis_verify_upgrade.py --receipt \"$NATIVE_CONTROL/native-evidence/live-upgrade-receipt.json\" --result jarvis-live-upgrade-results/result.json --upgrade --output jarvis-live-upgrade-results --budget-seconds 1080",
+      "cooperative": true,
+      "receipt": "$NATIVE_CONTROL/native-evidence/live-upgrade-receipt.json"
+    },
+    {
+      "name": "Compile unsigned device app",
+      "seconds": 900,
+      "script": "set -euo pipefail\nxcodebuild -project AsterionVeyra.xcodeproj -scheme AsterionVeyra -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO MARKETING_VERSION=0.4.0 CURRENT_PROJECT_VERSION=9009 build\nmkdir Payload\ncp -R build/Build/Products/Release-iphoneos/AsterionVeyra.app Payload/\nzip -qr Jarvis-unsigned.ipa Payload\nunzip -t Jarvis-unsigned.ipa\npython3 scripts/verify_app_icon.py --ipa Jarvis-unsigned.ipa --asset-info-output app-icon-assets.json\n\npython3 -c \"from pathlib import Path; import sys; sys.path.insert(0,'scripts'); import jarvis_release; jarvis_release.validate_ipa(Path('Jarvis-unsigned.ipa'),9009)\"\nshasum -a 256 Jarvis-unsigned.ipa > IPA-SHA256SUMS\n"
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+# Manual evidence only. No triggers, signing, secrets, integrations or publishing.
+workflows:
+  pr9-tls:
+    name: PR9 pinned tls (manual only)
+    instance_type: mac_mini_m2
+    max_build_duration: 40
+    environment:
+      xcode: '26.2'
+    scripts:
+    - name: Verify pinned candidate and retain evidence
+      script: python3 ci/codemagic_native.py tls
+    artifacts: &id001
+    - native-evidence/**
+    - candidate/*.log
+    - candidate/runtime-list.json
+    - candidate/TestResults.xcresult/**
+    - candidate/PairingTLSResults.xcresult/**
+    - candidate/ChecklistLifecycleResults.xcresult/**
+    - candidate/ChecklistInteractionResults.xcresult/**
+    - candidate/ChecklistPrivacyResults.xcresult/**
+    - candidate/test-screenshots/**
+    - candidate/checklist-lifecycle-screenshots/**
+    - candidate/checklist-privacy-screenshots/**
+    - candidate/checklist-test-screenshots/**
+    - candidate/pairing-tls-screenshots/**
+    - candidate/test-simulator/**
+    - candidate/upgrade-results/**
+    - candidate/jarvis-live-upgrade-results/**
+    - candidate/Jarvis-unsigned.ipa
+    - candidate/IPA-SHA256SUMS
+    - candidate/app-icon-assets.json
+  pr9-native:
+    name: PR9 pinned native (manual only)
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+    environment:
+      xcode: '26.2'
+    scripts:
+    - name: Verify pinned candidate and retain evidence
+      script: python3 ci/codemagic_native.py native
+    artifacts: *id001
+  pr9-package:
+    name: PR9 pinned package (manual only)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      xcode: '26.2'
+    scripts:
+    - name: Verify pinned candidate and retain evidence
+      script: python3 ci/codemagic_native.py package
+    artifacts: *id001
