@@ -5,7 +5,10 @@ import Foundation
 /// Reduced, synthetic lifecycle comparison. No AssistantStore, preferences,
 /// credentials, disk persistence, network services or voice objects are created.
 struct ChecklistLifecycleUITestFixture {
-    enum Scenario: String { case editor, form }
+    enum Scenario: String {
+        case editor, form
+        case privacyQA = "privacy-qa"
+    }
     let scenario: Scenario
     let note: MemoryNote
     let checklist: EditableChecklist
@@ -70,6 +73,8 @@ private struct ChecklistLifecycleUITestHost: View {
             case .form:
                 ChecklistLifecycleFormControl(initialGoal: fixture.checklist.goal, initialStep: fixture.checklist.step,
                     onDismiss: { presenting = false })
+            case .privacyQA:
+                ChecklistPrivacyUITestEditor(fixture: fixture, onDismiss: { presenting = false })
             }
         }
         .onAppear { fixture.log("appear phase=\(scenePhase)") }
@@ -108,9 +113,8 @@ private struct ChecklistLifecycleFormControl: View {
                         .focused($editing).accessibilityIdentifier("checklistLifecycle.step")
                 }
             }
-            // Diagnostic only: keep all Form content privacy-sensitive while
-            // excluding navigation chrome from the marker. The unchanged exact
-            // editor remains the whole-stack privacy positive crash control.
+            // This content-only boundary passed the reduced background control;
+            // keep it aligned with the exact editor's privacy boundary.
             .privacySensitive()
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Edit checklist")
@@ -126,6 +130,34 @@ private struct ChecklistLifecycleFormControl: View {
                     Spacer(); Button("Done") { editing = false }.accessibilityIdentifier("checklistLifecycle.keyboardDone")
                 }
             }
+        }
+    }
+}
+
+/// Explicit rendering QA only, separate from both lifecycle cases. The supplied
+/// privacy reason exercises markings; it does not simulate the app switcher or
+/// promise that screenshots, recordings or accessibility content are hidden.
+private struct ChecklistPrivacyUITestEditor: View {
+    let fixture: ChecklistLifecycleUITestFixture
+    let onDismiss: () -> Void
+    @State private var redactionEnabled = false
+
+    var body: some View {
+        EditableChecklistView(note: fixture.note, checklist: fixture.checklist,
+            onSave: { _, _, _ in
+                throw AppFailure.message("Synthetic private save detail for redaction QA")
+            }, onCancel: onDismiss)
+        .redacted(reason: redactionEnabled ? .privacy : [])
+        .safeAreaInset(edge: .bottom) {
+            Button(redactionEnabled ? "Show original synthetic content" : "Show explicit privacy redaction") {
+                redactionEnabled.toggle()
+            }
+            .accessibilityIdentifier("checklistPrivacy.toggle")
+            .accessibilityValue(redactionEnabled ? "On" : "Off")
+            .font(.caption)
+            .frame(maxWidth: .infinity)
+            .padding(12)
+            .background(.bar)
         }
     }
 }

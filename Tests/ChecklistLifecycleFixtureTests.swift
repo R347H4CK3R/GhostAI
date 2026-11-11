@@ -4,7 +4,7 @@ import XCTest
 
 final class ChecklistLifecycleFixtureTests: XCTestCase {
     func testReducedRouteRequiresExplicitScenarioAndIsolatedChecklistInput() {
-        for scenario in ["editor", "form"] {
+        for scenario in ["editor", "form", "privacy-qa"] {
             let fixture = ChecklistLifecycleUITestFixture.fromLaunchArguments([
                 "--uitest-chat", "checklists", "--uitest-checklist-lifecycle", scenario
             ])

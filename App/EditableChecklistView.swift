@@ -45,6 +45,9 @@ struct EditableChecklistView: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
+            // Mark all private values, errors and provenance without including
+            // the navigation container in privacy-driven rendering updates.
+            .privacySensitive()
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Edit checklist")
             .toolbar {
@@ -58,7 +61,7 @@ struct EditableChecklistView: View {
                     Spacer(); Button("Done") { editing = false }.accessibilityIdentifier("checklist.keyboardDone")
                 }
             }
-        }.privacySensitive()
+        }
     }
     private var canSave: Bool {
         (goal.utf8.elementsEqual(checklist.goal.utf8) == false
