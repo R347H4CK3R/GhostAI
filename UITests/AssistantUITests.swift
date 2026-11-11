@@ -537,15 +537,29 @@ import XCTest
 
     private func waitForExactText(_ text: String, in field: XCUIElement, app: XCUIApplication,
                                   file: StaticString = #filePath, line: UInt = #line) {
-        let matches = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", text), object: field)
-        let result = XCTWaiter.wait(for: [matches], timeout: 5)
-        let actual = field.value as? String
-        if result != .completed || actual != text {
+        // Start the unchanged deadline before the first fresh AX observation.
+        // XCTNSPredicateExpectation delays its first check, then its outer
+        // watchdog can interrupt that same remote read even when text is ready.
+        let started = ProcessInfo.processInfo.systemUptime
+        var actual = field.value as? String
+        let remaining = 5 - (ProcessInfo.processInfo.systemUptime - started)
+        var settledInTime = actual == text && remaining >= 0
+        var observation = "Immediate value read"
+        if !settledInTime && remaining > 0 {
+            let matches = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", text), object: field)
+            let result = XCTWaiter.wait(for: [matches], timeout: remaining)
+            settledInTime = result == .completed && ProcessInfo.processInfo.systemUptime - started <= 5
+            observation = "Predicate wait result: \(result.rawValue)"
+            // A later matching value is diagnostic, never a substitute for a
+            // completed observation within the original monotonic deadline.
+            actual = field.value as? String
+        }
+        if !settledInTime || actual != text {
             saveFailureDiagnostics(app, name: "Exact input failure: \(field.identifier)")
         }
         // Assert the value first: a waiter timeout must not hide what actually arrived.
-        XCTAssertEqual(actual, text, "Exact input wait result: \(result.rawValue)", file: file, line: line)
-        XCTAssertEqual(result, .completed, "Input must settle within the existing deadline", file: file, line: line)
+        XCTAssertEqual(actual, text, observation, file: file, line: line)
+        XCTAssertTrue(settledInTime, "Input must settle within the existing five-second deadline; \(observation)", file: file, line: line)
     }
 
     private func saveFailureDiagnostics(_ app: XCUIApplication, name: String) {
