@@ -101,6 +101,18 @@ final class RepositoryProposalTests: XCTestCase {
         XCTAssertNoThrow(try review.approve(fullReviewConfirmed: true, destinationConfirmed: true))
     }
 
+    func testByteDifferentCanonicalUnicodeCanBeReviewedWithoutLosingOriginalBytes() async throws {
+        let original = "caf\u{00e9}\n"
+        let replacement = "cafe\u{0301}\n"
+        let source = try await RepositoryProposalSource.load(repository: repo, immutableCommit: pinned,
+            path: "README.md", reader: readerFor(text: original))
+        let review = try RepositoryProposalReview(source: source, replacement: replacement, title: "Normalize sample text")
+        XCTAssertEqual(Array(review.original.utf8), [99, 97, 102, 195, 169, 10])
+        XCTAssertEqual(Array(review.replacement.utf8), [99, 97, 102, 101, 204, 129, 10])
+        XCTAssertThrowsError(try review.approve(fullReviewConfirmed: false, destinationConfirmed: true))
+        XCTAssertNoThrow(try review.approve(fullReviewConfirmed: true, destinationConfirmed: true))
+    }
+
     func testChangedReviewCannotPublishWithOldConsent() async throws {
         let review = try await makeReview()
         let other = try RepositoryProposalReview(source: review.source, replacement: "Another public edit.\n", title: review.title)
