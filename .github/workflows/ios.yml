@@ -121,7 +121,8 @@ jobs:
           set -euo pipefail
           xcodebuild -project AsterionVeyra.xcodeproj -scheme AsterionVeyra -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -destination-timeout 120 -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 180 -derivedDataPath simulator-build -only-testing:AsterionVeyraUITests/ChecklistPrivacyUITests -resultBundlePath ChecklistPrivacyResults.xcresult CODE_SIGNING_ALLOWED=NO test-without-building 2>&1 | tee checklist-privacy-tests.log
       - name: Unit tests
-        timeout-minutes: 30
+        # Allow the expanded unit/UI suite to finish; per-test limits stay unchanged.
+        timeout-minutes: 45
         run: |
           set -euo pipefail
           xcodebuild -project AsterionVeyra.xcodeproj -scheme AsterionVeyra -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -destination-timeout 120 -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 180 -derivedDataPath simulator-build -resultBundlePath TestResults.xcresult CODE_SIGNING_ALLOWED=NO test-without-building 2>&1 | tee xcode-tests.log
