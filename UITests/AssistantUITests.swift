@@ -529,8 +529,11 @@ import XCTest
     private func appendAtEnd(_ suffix: String, to field: XCUIElement, expected: String, app: XCUIApplication) {
         field.tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
-        // The bottom-right of a multiline field places the insertion point after its text.
-        field.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.95)).tap()
+        // The synthetic goal initially occupies one line. A bottom-edge tap can
+        // leave its caret at the start; target the right side of that text line.
+        // Keep the existing lower-right target for the taller step fixture.
+        let verticalTarget: CGFloat = field.identifier == "checklist.goal" ? 0.5 : 0.95
+        field.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: verticalTarget)).tap()
         app.typeText(suffix)
         waitForExactText(expected, in: field, app: app)
     }
