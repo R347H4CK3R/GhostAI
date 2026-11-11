@@ -20,10 +20,14 @@ import XCTest
         let app = launchPrivacyEditor()
         let goal = enterSyntheticDraft(in: app)
         let step = app.descendants(matching: .any).matching(identifier: "checklist.step").firstMatch
-        let counts = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@ AND label CONTAINS %@",
-            "Goal: ", "/300 · Step:")).firstMatch
-        revealTogether([goal, step, app.switches["checklist.done"], counts], in: app)
-        capturePair(app, name: "Privacy QA 1 draft fields and completion")
+        let counts = content("checklist.counts", in: app)
+        capturePair(app, name: "Privacy QA 1 draft fields and completion",
+            targets: [goal, step, app.switches["checklist.done"], counts],
+            redactedTargets: [goal, step, content("checklist.done.redacted", in: app), counts],
+            inspectOriginal: {
+                XCTAssertTrue(counts.label.hasPrefix("Goal: "))
+                XCTAssertTrue(counts.label.contains("/300 · Step:"))
+            })
         app.buttons["checklist.cancel"].tap()
         let open = app.buttons["checklistLifecycle.open"]
         XCTAssertTrue(open.waitForExistence(timeout: 5))
@@ -42,27 +46,30 @@ import XCTest
         let issue = app.staticTexts["checklist.issue"]
         XCTAssertTrue(issue.waitForExistence(timeout: 5))
         XCTAssertEqual(issue.label, "Synthetic private save detail for redaction QA")
-        let workspace = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@",
-            "Save updates only this copy in General.")).firstMatch
-        revealTogether([workspace, issue], in: app)
-        capturePair(app, name: "Privacy QA 2 workspace and save error")
+        let workspace = content("checklist.workspaceNotice", in: app)
+        capturePair(app, name: "Privacy QA 2 workspace and save error", targets: [workspace, issue], inspectOriginal: {
+            XCTAssertTrue(workspace.label.hasPrefix("Save updates only this copy in General."))
+        })
         app.buttons["checklist.cancel"].tap()
     }
 
     func testCaptureReferenceProvenanceWithExplicitPrivacyRedaction() {
         let app = launchPrivacyEditor()
-        let source = app.staticTexts["Luma checklist snapshot · Synthetic.json · source synthetic-task · no source timestamp; date is import time"]
-        let reference = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@",
-            "Luma checklist snapshot (reference only, not an executable job)\nGoal: Synthetic editable goal")).firstMatch
+        let source = content("checklist.reference.source", in: app)
+        let reference = content("checklist.reference.text", in: app)
         // Keep the complete source and selectable reference visible together;
         // capture identity/date separately rather than requiring all four rows
         // to fit one viewport after the unrelated typing/error capture work.
-        revealTogether([source, reference], in: app)
-        capturePair(app, name: "Privacy QA 3 original source and reference")
-        let identity = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Source snapshot ID:")).firstMatch
-        let date = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Copy creation/import time:")).firstMatch
-        revealTogether([identity, date], in: app)
-        capturePair(app, name: "Privacy QA 4 source identity and date")
+        capturePair(app, name: "Privacy QA 3 original source and reference", targets: [source, reference], inspectOriginal: {
+            XCTAssertEqual(source.label, "Luma checklist snapshot · Synthetic.json · source synthetic-task · no source timestamp; date is import time")
+            XCTAssertTrue(reference.label.hasPrefix("Luma checklist snapshot (reference only, not an executable job)\nGoal: Synthetic editable goal"))
+        })
+        let identity = content("checklist.reference.id", in: app)
+        let date = content("checklist.reference.date", in: app)
+        capturePair(app, name: "Privacy QA 4 source identity and date", targets: [identity, date], inspectOriginal: {
+            XCTAssertTrue(identity.label.hasPrefix("Source snapshot ID:"))
+            XCTAssertTrue(date.label.hasPrefix("Copy creation/import time:"))
+        })
         app.buttons["checklist.cancel"].tap()
     }
 
@@ -74,34 +81,43 @@ import XCTest
         let done = app.switches["checklist.done"]
         XCTAssertTrue(done.waitForExistence(timeout: 5))
         XCTAssertEqual(done.value as? String, "0")
-        revealTogether([done], in: app)
-        captureCompletionPair(app, expectedValue: "0", name: "Privacy QA completion initially OFF")
+        let offLabel = captureCompletionPair(app, expectedValue: "0", name: "Privacy QA completion initially OFF")
         done.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
         XCTAssertEqual(done.value as? String, "1", "The ordinary toggle must remain interactive")
-        captureCompletionPair(app, expectedValue: "1", name: "Privacy QA completion initially ON")
+        let onLabel = captureCompletionPair(app, expectedValue: "1", name: "Privacy QA completion initially ON")
+        XCTAssertEqual(onLabel, offLabel, "The placeholder's presented label must be independent of completion state")
         done.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
         XCTAssertEqual(done.value as? String, "0", "Restoring the editor must not disable its binding")
         app.buttons["checklist.cancel"].tap()
     }
 
-    private func captureCompletionPair(_ app: XCUIApplication, expectedValue: String, name: String) {
+    private func captureCompletionPair(_ app: XCUIApplication, expectedValue: String, name: String) -> String {
         let done = app.switches["checklist.done"]
         let placeholder = app.descendants(matching: .any).matching(identifier: "checklist.done.redacted").firstMatch
         XCTAssertEqual(done.value as? String, expectedValue)
         XCTAssertTrue(done.isEnabled)
         XCTAssertFalse(placeholder.exists)
-        capturePair(app, name: name) {
+        var presentedLabel = ""
+        capturePair(app, name: name, targets: [done], redactedTargets: [placeholder], inspectRedacted: {
             XCTAssertTrue(placeholder.waitForExistence(timeout: 5))
-            XCTAssertEqual(placeholder.label, "Completion state hidden")
+            // iOS may mask even this generic label. Require state-independent
+            // semantics rather than forcing privacy-rendered text to be readable.
+            presentedLabel = placeholder.label
+            XCTAssertFalse(["0", "1", "On", "Off", "Completed", "Not completed"].contains(presentedLabel))
             XCTAssertNil(placeholder.value, "The privacy placeholder must not expose a state value")
             XCTAssertNotEqual(placeholder.elementType, .button)
             XCTAssertFalse(placeholder.buttons.firstMatch.exists)
             XCTAssertFalse(app.switches.firstMatch.exists, "No state-bearing switch may remain in the redacted editor")
-        }
+        })
         XCTAssertTrue(done.waitForExistence(timeout: 5))
         XCTAssertEqual(done.value as? String, expectedValue, "Redaction must not alter the unsaved completion state")
         XCTAssertTrue(done.isEnabled)
         XCTAssertFalse(placeholder.exists)
+        return presentedLabel
+    }
+
+    private func content(_ identifier: String, in app: XCUIApplication) -> XCUIElement {
+        app.descendants(matching: .any).matching(identifier: identifier).firstMatch
     }
 
     private func launchPrivacyEditor() -> XCUIApplication {
@@ -135,14 +151,23 @@ import XCTest
         return goal
     }
 
-    private func capturePair(_ app: XCUIApplication, name: String, inspectRedacted: () -> Void = {}) {
+    private func capturePair(_ app: XCUIApplication, name: String, targets: [XCUIElement],
+                             redactedTargets: [XCUIElement]? = nil,
+                             inspectOriginal: () -> Void = {}, inspectRedacted: () -> Void = {}) {
         let toggle = app.buttons["checklistPrivacy.toggle"]
         XCTAssertTrue(toggle.waitForExistence(timeout: 5))
         XCTAssertEqual(toggle.value as? String, "Off")
+        revealTogether(targets, in: app)
+        XCTAssertEqual(toggle.value as? String, "Off")
+        inspectOriginal()
         attachScreenshot(app, name: name + " - original synthetic content")
         toggle.tap()
         waitForRedactionMode("On", toggle: toggle)
         inspectRedacted()
+        // Privacy rendering can reset the Form scroll position. Reacquire the
+        // same non-data IDs and prove their full geometry in this mode too.
+        revealTogether(redactedTargets ?? targets, in: app)
+        XCTAssertEqual(toggle.value as? String, "On", "The redacted target capture must remain in privacy mode")
         // Do not infer redaction from accessibility labels: the pixels, not this
         // toggle or the accessibility tree, are the manual acceptance evidence.
         attachScreenshot(app, name: name + " - explicit privacy redaction")
@@ -170,8 +195,10 @@ import XCTest
             let bounds = app.frame.intersection(formFrame)
             let navigation = app.navigationBars["Edit checklist"]
             let toggle = app.buttons["checklistPrivacy.toggle"]
-            let top = max(bounds.minY, navigation.frame.maxY) + 8
-            let bottom = min(bounds.maxY, toggle.frame.minY) - 8
+            // The QA control is a separate sibling above NavigationStack, not
+            // an overlay hiding the Form's last row at maximum scroll.
+            let top = max(bounds.minY, max(navigation.frame.maxY, toggle.frame.maxY)) + 8
+            let bottom = bounds.maxY - 8
             guard bounds.width > 32, bottom - top > 80 else {
                 XCTFail("No unobscured Form region for the privacy QA capture")
                 return
@@ -184,7 +211,11 @@ import XCTest
             print("Privacy QA reveal \(attempt): frames=\(frames), safe top=\(top), bottom=\(bottom)")
             if materialized, target.minY >= top, target.maxY <= bottom,
                target.minX >= bounds.minX, target.maxX <= bounds.maxX,
-               elements.allSatisfy({ $0.isHittable }) { return }
+               elements.allSatisfy({
+                   // This fixed placeholder deliberately rejects hit testing.
+                   // Its full geometry is still required, like every target.
+                   $0.identifier == "checklist.done.redacted" || $0.isHittable
+               }) { return }
             if materialized {
                 guard target.height <= bottom - top else {
                     print("Privacy QA group is taller than the safe viewport: \(target)")
@@ -214,7 +245,7 @@ import XCTest
         let hierarchy = XCTAttachment(string: app.debugDescription)
         hierarchy.name = "Privacy QA visibility failure hierarchy"; hierarchy.lifetime = .keepAlways; add(hierarchy)
         attachScreenshot(app, name: "Privacy QA visibility failure")
-        XCTFail("All requested synthetic values must fit in the unredacted capture before making its redacted pair")
+        XCTFail("Every target must be fully visible in the current original or redacted capture")
     }
 
     private func attachScreenshot(_ app: XCUIApplication, name: String) {

@@ -143,12 +143,10 @@ private struct ChecklistPrivacyUITestEditor: View {
     @State private var redactionEnabled = false
 
     var body: some View {
-        EditableChecklistView(note: fixture.note, checklist: fixture.checklist,
-            onSave: { _, _, _ in
-                throw AppFailure.message("Synthetic private save detail for redaction QA")
-            }, onCancel: onDismiss)
-        .redacted(reason: redactionEnabled ? .privacy : [])
-        .safeAreaInset(edge: .bottom) {
+        // A sibling above the editor gives NavigationStack a real, smaller
+        // viewport. An outer bottom safeAreaInset overlapped the Form's last
+        // row even at its maximum scroll offset on iOS 26.
+        VStack(spacing: 0) {
             Button(redactionEnabled ? "Show original synthetic content" : "Show explicit privacy redaction") {
                 redactionEnabled.toggle()
             }
@@ -158,6 +156,12 @@ private struct ChecklistPrivacyUITestEditor: View {
             .frame(maxWidth: .infinity)
             .padding(12)
             .background(.bar)
+
+            EditableChecklistView(note: fixture.note, checklist: fixture.checklist,
+                onSave: { _, _, _ in
+                    throw AppFailure.message("Synthetic private save detail for redaction QA")
+                }, onCancel: onDismiss)
+            .redacted(reason: redactionEnabled ? .privacy : [])
         }
     }
 }

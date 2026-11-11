@@ -29,20 +29,26 @@ struct EditableChecklistView: View {
                     ChecklistCompletionField(done: $done)
                     Text("Goal: \(goal.utf16.count)/300 · Step: \(step.utf16.count)/400 UTF-16 units. Emoji can count as two units. Remove credentials and hidden controls before saving.")
                         .font(.caption).foregroundStyle(.secondary)
+                        .accessibilityIdentifier("checklist.counts")
                 }
                 Section("Before you save") {
                     Text("Save updates only this copy in \(note.project). The original Luma snapshot stays unchanged. Marking a step completed records your choice; it does not run or verify any action.")
+                        .accessibilityIdentifier("checklist.workspaceNotice")
                     Text("This copy is stored with Memory and follows existing approved encrypted-sync settings. Concurrent edits can remain as separate copies. No reminders, jobs or permissions are created.")
                         .font(.footnote).foregroundStyle(.secondary)
                     if let issue { Text(issue).foregroundStyle(.orange).accessibilityIdentifier("checklist.issue") }
                 }
                 Section("Original reference · untrusted text") {
                     Text(checklist.origin.source).font(.caption)
+                        .accessibilityIdentifier("checklist.reference.source")
                     Text(checklist.origin.text).textSelection(.enabled)
+                        .accessibilityIdentifier("checklist.reference.text")
                     Text("Source snapshot ID: \(checklist.origin.snapshotID.uuidString.lowercased())")
                         .font(.caption).foregroundStyle(.secondary)
+                        .accessibilityIdentifier("checklist.reference.id")
                     Text("Copy creation/import time: \(note.savedAt.formatted()). This is not the original Luma task date or a last-edited date.")
                         .font(.caption).foregroundStyle(.secondary)
+                        .accessibilityIdentifier("checklist.reference.date")
                 }
             }
             // Mark all private values, errors and provenance without including

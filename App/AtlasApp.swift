@@ -45,6 +45,8 @@ struct MainView: View {
     @StateObject private var diagnostics = DiagnosticsController()
     @ObservedObject private var preferences: AssistantPreferences
     @State private var selectedTab: String
+    // Remains true through the sheet's dismissal animation, not just while its route exists.
+    @State private var checklistEditorPresented = false
     @ObservedObject private var voiceEntry = VoiceEntryRequest.shared
     init(preferences: AssistantPreferences) {
         self.preferences = preferences
@@ -52,11 +54,13 @@ struct MainView: View {
     }
     var body: some View {
         TabView(selection: $selectedTab) {
-            ChatView(isSelected: selectedTab == "assistant").tabItem { Label("Assistant", systemImage: "sparkles") }.tag("assistant")
+            ChatView(isSelected: selectedTab == "assistant", canPresentVoiceEntry: !checklistEditorPresented)
+                .tabItem { Label("Assistant", systemImage: "sparkles") }.tag("assistant")
             RepositoriesView(onRepositorySelected: { repository, commit, client, workspace in
                 store.selectRepository(repository, commit: commit, client: client, workspace: workspace)
             }).tabItem { Label("Projects", systemImage: "folder") }.tag("projects")
-            MemoryView().tabItem { Label("Memory", systemImage: "brain") }.tag("memory")
+            MemoryView(checklistEditorPresented: $checklistEditorPresented)
+                .tabItem { Label("Memory", systemImage: "brain") }.tag("memory")
             HostedAssistantView().tabItem { Label("Hosted", systemImage: "cloud") }.tag("hosted")
             AboutView(onOpenIntegration: { selectedTab = $0 }).tabItem { Label("About", systemImage: "info.circle") }.tag("about")
         }
@@ -64,9 +68,10 @@ struct MainView: View {
         .task {
             diagnostics.runIfDue()
             store.memorySync?.sceneBecameActive()
-            if voiceEntry.pending { selectedTab = "assistant" }
+            routePendingVoiceEntry()
         }
-        .onChange(of: voiceEntry.pending) { _, pending in if pending { selectedTab = "assistant" } }
+        .onChange(of: voiceEntry.pending) { _, pending in if pending { routePendingVoiceEntry() } }
+        .onChange(of: checklistEditorPresented) { _, presented in if !presented { routePendingVoiceEntry() } }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 diagnostics.runIfDue()
@@ -83,6 +88,10 @@ struct MainView: View {
         .alert(preferences.value.name, isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) {
             Button("OK") { store.error = nil }
         } message: { Text(store.error ?? "") }
+    }
+    private func routePendingVoiceEntry() {
+        guard voiceEntry.pending, !checklistEditorPresented else { return }
+        selectedTab = "assistant"
     }
 }
 struct AboutView: View {

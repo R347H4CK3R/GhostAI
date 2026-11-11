@@ -3,6 +3,7 @@ import UIKit
 
 struct ChatView: View {
     var isSelected = true
+    var canPresentVoiceEntry = true
     @State private var showingPlanning = false
     @EnvironmentObject var store: AssistantStore
     @EnvironmentObject private var preferences: AssistantPreferences
@@ -86,6 +87,7 @@ struct ChatView: View {
                     UnifiedPlanningView(onSubmitQuestion: submitPlannedQuestion)
                 }
                 .onChange(of: isSelected) { _, selected in if selected { consumeVoiceEntry() } }
+                .onChange(of: canPresentVoiceEntry) { _, canPresent in if canPresent { consumeVoiceEntry() } }
                 .onChange(of: scenePhase) { _, phase in if phase == .active { consumeVoiceEntry() } }
                 .sheet(item: $activeSheet, onDismiss: consumeVoiceEntry) { sheet in
                     switch sheet {
@@ -367,7 +369,7 @@ struct ChatView: View {
     }
     private func consumeVoiceEntry() {
         guard isSelected, scenePhase == .active else { return }
-        if voiceEntry.consume(canPresent: activeSheet == nil) { showingPlanning = false; openVoiceSettings() }
+        if voiceEntry.consume(canPresent: canPresentVoiceEntry && activeSheet == nil) { showingPlanning = false; openVoiceSettings() }
     }
     private func openVoiceSettings() { composerFocused = false; activeSheet = .voice }
     private func submitPlannedQuestion(_ text: String) -> Bool {

@@ -3,6 +3,7 @@ import UniformTypeIdentifiers
 
 struct MemoryView: View {
     @EnvironmentObject var store: AssistantStore
+    @Binding var checklistEditorPresented: Bool
     @State private var note = ""
     @FocusState private var noteFocused: Bool
     @State private var search = ""
@@ -110,7 +111,10 @@ struct MemoryView: View {
                     }
                 }.id(route.id)
             }
-            .sheet(item: $checklistEditor) { route in
+            .sheet(item: $checklistEditor, onDismiss: {
+                // Save, Cancel and interactive dismissal release routing only after the sheet is gone.
+                checklistEditorPresented = false
+            }) { route in
                 if let checklist = EditableChecklist.decode(route.note) {
                     EditableChecklistView(note: route.note, checklist: checklist, onSave: { goal, step, done in
                         guard checklistEditor?.id == route.id else {
@@ -195,7 +199,8 @@ struct MemoryView: View {
                 Text(checklist.goal).font(.headline).textSelection(.enabled)
                 Text(checklist.step).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                 Button {
-                    guard !store.loadFailed, checklistEditor == nil else { return }
+                    guard !store.loadFailed, !checklistEditorPresented, checklistEditor == nil else { return }
+                    checklistEditorPresented = true
                     checklistEditor = ChecklistEditorRoute(note: memory, workspaceEpoch: store.workspaceEpoch)
                 } label: { Label("Edit checklist", systemImage: "square.and.pencil") }
                 .disabled(store.loadFailed).buttonStyle(.borderless)
