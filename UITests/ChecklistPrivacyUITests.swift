@@ -97,10 +97,10 @@ import XCTest
 
     private func captureCompletionPair(_ app: XCUIApplication, expectedValue: String, name: String) -> (label: String, value: String?) {
         let done = app.switches["checklist.done"]
-        let placeholder = app.descendants(matching: .any).matching(identifier: "checklist.done.redacted").firstMatch
+        let placeholders = app.descendants(matching: .any).matching(identifier: "checklist.done.redacted")
         XCTAssertEqual(done.value as? String, expectedValue)
         XCTAssertTrue(done.isEnabled)
-        XCTAssertFalse(placeholder.exists)
+        XCTAssertEqual(placeholders.count, 0)
         var presentedLabel = ""
         var presentedValue: String?
         capturePair(app, name: name, identifiers: ["checklist.done"],
@@ -119,8 +119,8 @@ import XCTest
                 XCTAssertEqual(presentedValue, "", "The privacy placeholder must not expose a state value")
             }
             XCTAssertNotEqual(placeholder.elementType, .button)
-            XCTAssertFalse(placeholder.buttons.firstMatch.exists)
-            XCTAssertFalse(form.switches.firstMatch.exists, "No state-bearing switch may remain in the redacted Form")
+            XCTAssertEqual(placeholder.buttons.count, 0)
+            XCTAssertEqual(form.switches.count, 0, "No state-bearing switch may remain in the redacted Form")
             // SwiftUI retains a covered original Form in its accessibility
             // tree. Prove that its switches are covered, not merely offscreen.
             let visibleBounds = unobscuredBounds(in: app, form: form)
@@ -134,12 +134,14 @@ import XCTest
         XCTAssertTrue(done.waitForExistence(timeout: 5))
         XCTAssertEqual(done.value as? String, expectedValue, "Redaction must not alter the unsaved completion state")
         XCTAssertTrue(done.isEnabled)
-        XCTAssertFalse(placeholder.exists)
+        XCTAssertEqual(placeholders.count, 0)
         return (presentedLabel, presentedValue)
     }
 
     private func content(_ identifier: String, in root: XCUIElement) -> XCUIElement {
-        root.descendants(matching: .any).matching(identifier: identifier).firstMatch
+        // On iOS 26, firstMatch can continue past an index-bound ancestor into
+        // its sibling Form. Exact-one resolution preserves this query boundary.
+        root.descendants(matching: .any).matching(identifier: identifier).element
     }
 
     private func launchPrivacyEditor() -> XCUIApplication {
@@ -218,23 +220,50 @@ import XCTest
             forms = app.tables
             XCTAssertTrue(forms.firstMatch.waitForExistence(timeout: 5))
         }
+        let indexedForms = forms.allElementsBoundByIndex
+        let marker = redacted ? "checklist.done.redacted" : "checklist.done"
+        // Enumerate the complete bounded queries. A firstMatch existence query
+        // can find the same redacted marker from both sibling Form indices.
+        let markerCounts = indexedForms.map { $0.descendants(matching: .any).matching(identifier: marker).count }
+        let globalMarkerCount = app.descendants(matching: .any).matching(identifier: marker).count
         if !redacted {
             // The fixture has exactly one ordinary Form, even when its
             // completion row has been virtualized by a previous lower capture.
-            guard forms.count == 1 else {
-                XCTFail("Original mode must have exactly one Form, not a retained privacy copy")
+            guard indexedForms.count == 1 else {
+                failFormSelection(in: app, forms: indexedForms, marker: marker,
+                    markerCounts: markerCounts, globalMarkerCount: globalMarkerCount,
+                    reason: "Original mode must have exactly one Form, not a retained privacy copy")
                 return nil
             }
-            return forms.element(boundBy: 0)
+            return indexedForms[0]
         }
-        let candidates = forms.allElementsBoundByIndex.filter { content("checklist.done.redacted", in: $0).exists }
-        guard candidates.count == 1 else {
-            XCTFail("Require exactly one Form containing the materialized privacy completion marker")
+        let candidateIndices = markerCounts.indices.filter { markerCounts[$0] > 0 }
+        guard candidateIndices.count == 1, markerCounts[candidateIndices[0]] == 1, globalMarkerCount == 1 else {
+            failFormSelection(in: app, forms: indexedForms, marker: marker,
+                markerCounts: markerCounts, globalMarkerCount: globalMarkerCount,
+                reason: "Require exactly one Form containing the single materialized privacy completion marker")
             return nil
         }
         // Keep the selected index-based element, not a query dependent on a
         // virtualized row continuing to exist while lower targets are scrolled.
-        return candidates[0]
+        return indexedForms[candidateIndices[0]]
+    }
+
+    private func failFormSelection(in app: XCUIApplication, forms: [XCUIElement], marker: String,
+                                   markerCounts: [Int], globalMarkerCount: Int, reason: String) {
+        let summary = "\(reason); forms=\(forms.count), marker=\(marker), scoped counts=\(markerCounts), global count=\(globalMarkerCount)"
+        let modeValue = String(describing: app.buttons["checklistPrivacy.toggle"].value)
+        var details = [summary, "Privacy control value: \(modeValue)"]
+        for (index, form) in forms.enumerated() {
+            details.append("Form \(index): frame=\(form.frame), marker count=\(markerCounts[index]), hittable=\(form.isHittable)")
+        }
+        print(details.joined(separator: "\n"))
+        let selection = XCTAttachment(string: details.joined(separator: "\n"))
+        selection.name = "Privacy QA Form selection counts"; selection.lifetime = .keepAlways; add(selection)
+        let hierarchy = XCTAttachment(string: app.debugDescription)
+        hierarchy.name = "Privacy QA Form selection hierarchy"; hierarchy.lifetime = .keepAlways; add(hierarchy)
+        attachScreenshot(app, name: "Privacy QA Form selection failure")
+        XCTFail(summary)
     }
 
     private func unobscuredBounds(in app: XCUIApplication, form: XCUIElement) -> CGRect {
