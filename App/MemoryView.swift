@@ -121,7 +121,9 @@ struct MemoryView: View {
                         checklistEditor = nil
                     }, onCancel: {
                         if checklistEditor?.id == route.id { checklistEditor = nil }
-                    }).id(route.id)
+                    })
+                    // sheet(item:) already owns the route identity. Do not give its
+                    // NavigationStack a second explicit identity during scene updates.
                 }
             }
             .onChange(of: store.workspaceEpoch) { _, epoch in
