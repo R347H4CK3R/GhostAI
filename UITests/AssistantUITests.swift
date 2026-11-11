@@ -160,6 +160,8 @@ import XCTest
         XCTAssertFalse(app.staticTexts["Synthetic workspace for draft isolation"].exists)
         let selected = app.buttons["planning.reference.select.99999999-1111-4111-8111-111111111111"]
         XCTAssertTrue(selected.waitForExistence(timeout: 5)); selected.tap()
+        XCTAssertTrue(app.navigationBars["Saved planning reference"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Plan and act"].waitForExistence(timeout: 5))
         let goal = app.descendants(matching: .any).matching(identifier: "planning.goal").firstMatch
         XCTAssertTrue(goal.waitForExistence(timeout: 5))
         let enteredGoal = goal.value as? String ?? ""
@@ -198,6 +200,9 @@ import XCTest
         XCTAssertTrue(revealInContent(choose, in: app)); choose.tap()
         let selected = app.buttons["planning.reference.select.99999999-1111-4111-8111-111111111111"]
         XCTAssertTrue(selected.waitForExistence(timeout: 5)); selected.tap()
+        // Do not measure parent content against the outgoing sheet's navigation bar.
+        XCTAssertTrue(app.navigationBars["Saved planning reference"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Plan and act"].waitForExistence(timeout: 5))
         let goal = app.descendants(matching: .any).matching(identifier: "planning.goal").firstMatch
         let review = app.buttons["planning.reviewQuestion"]
         XCTAssertFalse(review.isEnabled, "A selected note does not replace a user-entered goal")
@@ -210,6 +215,8 @@ import XCTest
         XCTAssertTrue(revealInContent(choose, in: app, searchUpIfMissing: true)); choose.tap()
         let cancel = app.buttons["planning.reference.cancel"]
         XCTAssertTrue(cancel.waitForExistence(timeout: 5)); cancel.tap()
+        XCTAssertTrue(app.navigationBars["Saved planning reference"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Plan and act"].waitForExistence(timeout: 5))
         XCTAssertTrue(revealInContent(question, in: app, readOnlyText: true))
         XCTAssertEqual(question.label, originalQuestion, "Cancelling the picker must preserve the already reviewed selection")
         let remove = app.buttons["planning.reference.remove"]
@@ -583,7 +590,10 @@ import XCTest
             var bottom = min(bounds.maxY, tabs.exists ? tabs.frame.minY : bounds.maxY,
                              keyboard.exists ? keyboard.frame.minY : bounds.maxY) - 8
             if keyboard.exists && keyboardAccessory.exists { bottom = min(bottom, keyboardAccessory.frame.minY - 8) }
-            guard bottom - top > 80 else { return false }
+            guard bottom - top > 80 else {
+                saveFailureDiagnostics(app, name: "Invalid content bounds: \(element.identifier)")
+                return false
+            }
             let frame = element.exists ? element.frame : .zero
             if !frame.isEmpty && frame.minY >= top && frame.maxY <= bottom && element.isHittable { return true }
             // The exact question can be taller than one screen. Materialize its

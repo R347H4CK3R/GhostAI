@@ -27,15 +27,18 @@ struct OfflineMemoryIntegration: IntegrationAdapter {
 }
 
 struct GitHubReadIntegration: IntegrationAdapter {
-    static let descriptor = IntegrationDescriptor(id: "github.read", version: .init(major: 1, minor: 0, patch: 0),
-        name: "GitHub source reading", summary: "Read directories and regular text files in one selected repository at a pinned commit.",
+    static let descriptor = IntegrationDescriptor(id: "github.read", version: .init(major: 1, minor: 1, patch: 0),
+        name: "GitHub source reading", summary: "Read directories and regular text files, or find literal text within one file, in a selected repository at a pinned commit.",
         symbol: "chevron.left.forwardslash.chevron.right", setup: "Public repositories need no token. Private repositories need an explicit read connection in Projects. A read token never grants proposal publication.",
-        dataDisclosure: "GitHub receives the repository, requested path and immutable Git object IDs. A private read session sends its credential only to the fixed GitHub API origin. Your notes and chats are not sent.",
+        dataDisclosure: "GitHub receives the repository, requested path and immutable Git object IDs. A private read session sends its credential only to the fixed GitHub API origin. Your notes, chats and local file-search query are not sent.",
         operations: [
             .init(id: "list_tree", name: "List a pinned directory", access: .read, resourceKind: .repository,
                 recipient: .githubAPI, dataScopes: [.repositoryIdentity, .repositoryPath, .pinnedRevision, .optionalReadCredential],
                 consent: .userStartedRead, modelCallable: true, allowsRootPath: true),
             .init(id: "read_text", name: "Read one pinned text file", access: .read, resourceKind: .repository,
+                recipient: .githubAPI, dataScopes: [.repositoryIdentity, .repositoryPath, .pinnedRevision, .optionalReadCredential],
+                consent: .userStartedRead, modelCallable: true),
+            .init(id: "search_text", name: "Find literal text within one pinned file", access: .read, resourceKind: .repository,
                 recipient: .githubAPI, dataScopes: [.repositoryIdentity, .repositoryPath, .pinnedRevision, .optionalReadCredential],
                 consent: .userStartedRead, modelCallable: true)
         ])

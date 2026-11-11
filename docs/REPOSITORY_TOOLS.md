@@ -1,15 +1,16 @@
 # Pinned read-only repository tools
 
-The iPhone can give Apple's on-device model two tools while answering a question in a selected GitHub project:
+The iPhone can give Apple's on-device model three tools while answering a question in a selected GitHub project:
 
 - `list_selected_repository_directory`: direct children of a relative directory; an empty path lists the root.
 - `read_selected_repository_text`: an excerpt from one regular text file.
+- `search_selected_repository_text`: case-sensitive literal matches and nearby lines within one regular text file.
 
 The tools do not start until the user asks a question. Selecting a project may separately fetch its commit and browse its files through the UI. There is no autonomous background crawl, shell, file write, repository modification, arbitrary URL fetch, or remote model call.
 
 ## Scope and credentials
 
-The application captures one repository, a full immutable 40-character commit, and the selected GitHub client before generation. The only model argument is `path`. The model cannot choose a repository, account, host, branch, commit or credential.
+The application captures one repository, a full immutable 40-character commit, and the selected GitHub client before generation. List/read accept only `path`; file search also accepts a bounded literal `query`. The model cannot choose a repository, account, host, branch, commit or credential. The search query stays on device: GitHub receives the same pinned tree/blob reads, never a code-search query.
 
 Paths are resolved from the pinned Git tree through previously observed child tree IDs. File content is fetched by its observed blob ID. Git modes distinguish regular files from symlinks and submodules; these tools do not use GitHub's symlink-dereferencing Contents API. Every file's declared byte size must match its returned blob. Output includes repository, path and pinned commit; file excerpts also include the blob ID. A cached tree applies only to this one response and cannot silently drift with a moving branch.
 
@@ -19,7 +20,7 @@ Repository content is untrusted reference data. Instructions inside it must not 
 
 ## Per-question bounds
 
-Both tools share one actor, created fresh for each user-started question:
+All three tools share one actor, created fresh for each user-started question:
 
 | Resource | Bound |
 | --- | --- |
@@ -39,6 +40,18 @@ These byte counts do not include HTTP/TLS headers or buffers prefetched by URLSe
 
 Character bounds are not token guarantees. Tool schemas, instructions, saved notes, attached source, question and conversation history also consume model context. Keep those other inputs small when tools are active; a model context error is still possible and must be surfaced honestly. These are per-question limits, not daily usage limits.
 
+## Literal file search
+
+Search validates a nonblank query of at most 128 UTF-8 bytes, rejecting possible credentials, Unicode newlines, controls and bidi overrides before I/O. Matching is exact Unicode-scalar comparison: no regex, case folding, trimming of the literal, or normalization. Only the selected file is searched. A no-match result never means the repository contains no match.
+
+The entire eligible file is fetched and passes the same size, binary and possible-credential checks as a prefix read before any matching excerpt is selected. A secret elsewhere in the file still withholds the result. Repeated searches fetch the complete blob again and consume the same shared request/response-byte budgets; no persistent source cache is created.
+
+Results count matching LF-separated lines and select the first three as anchors, each with one neighboring line on either side. Overlapping windows are merged. An additional match can appear as context even when it was not selected as an anchor. Every displayed line retains its original one-based number. CRLF counts as one newline; a trailing LF creates an empty final line. Standalone CR and Unicode line/paragraph separators are shown as visible escapes, not unnumbered visual lines.
+
+Each line excerpt includes at most 240 source Unicode scalars. A matching line shows its first match with up to 56 preceding scalars, so a match late in a long line is still useful. Omitted line prefixes/suffixes and non-context gaps are marked. Escape expansion and provenance also count toward the final shared character budget, which can truncate the entire result with the existing explicit marker.
+
+The root preflight already consumes one call and up to 600 output characters. For a known symbol or phrase, choose search before a long prefix read: search does not restore an output budget that an earlier read exhausted. Query errors consume a call, not a network request. Existing cancellation, revocation, error sanitization and unavailable-connection fallback apply unchanged.
+
 ## Application integration
 
 Create one scope inside the question operation, never a new scope on every tool call:
@@ -52,6 +65,7 @@ let repositoryTools = try RepositoryQuestionTools(
 var tools: [any Tool] = [ProjectMemoryTool(notes: notes, project: project)]
 tools.append(ListRepositoryDirectoryTool(repository: repositoryTools))
 tools.append(ReadRepositoryTextTool(repository: repositoryTools))
+tools.append(SearchRepositoryTextTool(repository: repositoryTools))
 let session = LanguageModelSession(tools: tools, instructions: instructions)
 ```
 
@@ -62,5 +76,7 @@ The injected `RepositoryToolReader` enables network-free tests. Its production a
 ## Verification
 
 `Tests/RepositoryToolTests.swift` exercises scope validation, path rejection, pinned ancestor traversal, cache behavior, symlink/submodule refusal, malformed metadata, size mismatches, binary/credential withholding, shared call/request/byte/output budgets, concurrent reservations, error sanitization, revoked access and cancellation using deterministic reader stubs.
+
+`Tests/RepositoryTextSearchTests.swift` adds late-file/long-line matches, Unicode and CRLF literal semantics, bounded context/omission reports, full-file screening, and shared-budget, cancellation and revocation regressions through the real actor with only transport substituted. The compiled integration declaration has a distinct exact-scope read grant; it does not replace the actor's runtime checks.
 
 Run the project's `AsterionVeyra` XCTest scheme on an iOS 26 simulator using Xcode 26. The authoring Linux environment lacks Swift/Xcode, so test source was written before implementation but cannot establish an executed red/green cycle. Native type checking, FoundationModels integration and physical-device model behavior require the existing native CI/device workflows. No live private-repository credential is needed for these tests.
