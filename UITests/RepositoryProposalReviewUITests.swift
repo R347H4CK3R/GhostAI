@@ -12,7 +12,7 @@ import XCTest
         XCTAssertTrue(original.waitForExistence(timeout: 5))
         XCTAssertEqual(original.label, "let greeting = \"Hello\"\r\nprint(greeting)\n")
         XCTAssertEqual(replacement.label, "let greeting = \"Hello, Jarvis\"\nprint(greeting)\n")
-        let preview = app.buttons["proposal-change-preview"]
+        let preview = app.buttons["Change preview"]
         XCTAssertTrue(preview.waitForExistence(timeout: 5), "Prepared proposals need a change-focused comparison, not just two whole files")
         preview.tap()
         let detail = app.staticTexts["proposal-change-lines"]
@@ -30,7 +30,7 @@ import XCTest
         let app = XCUIApplication()
         app.launchArguments = ["--uitest-proposal-review", "--uitest-proposal-review-large"]
         app.launch()
-        let preview = app.buttons["proposal-change-preview"]
+        let preview = app.buttons["Change preview"]
         XCTAssertTrue(preview.waitForExistence(timeout: 5))
         let limits = app.staticTexts["proposal-change-limits"]
         XCTAssertTrue(limits.label.contains("12 of 20 old lines and 12 of 15 new lines"))
