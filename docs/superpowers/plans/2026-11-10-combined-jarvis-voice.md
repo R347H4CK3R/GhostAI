@@ -36,3 +36,10 @@
 - [ ] Run local script tests and publish. Verify all six exact-head jobs and every new UI regression.
 - [ ] Obtain one fresh composition review, then fix Important/Critical findings with a failing regression and full green suite. Preserve each prior branch review.
 - [ ] Promote only the final verified descendant to the existing release branch once. Verify all release jobs, published assets, checksums and preview feed. Report actual device limitations and remaining capability gaps.
+
+### Added diagnostic gate: isolate the editor lifecycle before routing changes
+- [ ] Keep the unchanged full-app background control and all three dismissal regressions. Require exact unsaved-draft survival, not merely a running application.
+- [ ] Compare the exact editor in an independent DEBUG-only synthetic host with a minimal navigation/form control. Record public app-side process IDs and scene events; do not use undocumented XCTest process APIs.
+- [ ] Run these focused regressions against the compiled app before the unchanged full suite, retaining failed-run artifacts. A focused pass is not a full verification pass.
+- [ ] Revert unsuccessful production experiments. Change only the boundary the reduced reproducer identifies, prove the background control green, then isolate any remaining voice-routing defect with an actual delivered request.
+- [ ] Retain all exact-head unit/UI, encrypted-transfer, upgrade and package gates before the coordinated release.

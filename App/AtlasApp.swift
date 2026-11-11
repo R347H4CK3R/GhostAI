@@ -3,7 +3,21 @@ import UniformTypeIdentifiers
 import UIKit
 import FoundationModels
 
-@main @MainActor struct AsterionVeyraApp: App {
+#if DEBUG
+/// Route before constructing the ordinary app's stores, preferences or services.
+@main @MainActor enum AsterionDebugAppLauncher {
+    static func main() {
+        if ChecklistLifecycleUITestFixture.fromLaunchArguments() != nil {
+            ChecklistLifecycleUITestApp.main()
+        } else {
+            AsterionVeyraApp.main()
+        }
+    }
+}
+#else
+@main
+#endif
+@MainActor struct AsterionVeyraApp: App {
     @StateObject private var store: AssistantStore
     @StateObject private var credentials: GitHubCredentialStore
     @StateObject private var preferences = AssistantPreferences.forApplication()

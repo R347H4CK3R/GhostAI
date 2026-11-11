@@ -103,6 +103,11 @@ jobs:
         run: |
           set -euo pipefail
           xcodebuild -project AsterionVeyra.xcodeproj -scheme AsterionVeyra -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -destination-timeout 120 -derivedDataPath simulator-build CODE_SIGNING_ALLOWED=NO build-for-testing 2>&1 | tee simulator-build.log
+      - name: Reduced checklist lifecycle controls
+        timeout-minutes: 8
+        run: |
+          set -euo pipefail
+          xcodebuild -project AsterionVeyra.xcodeproj -scheme AsterionVeyra -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -destination-timeout 120 -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 180 -derivedDataPath simulator-build -only-testing:AsterionVeyraTests/ChecklistLifecycleFixtureTests -only-testing:AsterionVeyraUITests/ChecklistLifecycleUITests -resultBundlePath ChecklistLifecycleResults.xcresult CODE_SIGNING_ALLOWED=NO test-without-building 2>&1 | tee checklist-lifecycle-tests.log
       - name: Checklist interaction regressions
         timeout-minutes: 12
         run: |
@@ -118,6 +123,9 @@ jobs:
         run: |
           if [ -d TestResults.xcresult ]; then
             xcrun xcresulttool export attachments --path TestResults.xcresult --output-path test-screenshots || true
+          fi
+          if [ -d ChecklistLifecycleResults.xcresult ]; then
+            xcrun xcresulttool export attachments --path ChecklistLifecycleResults.xcresult --output-path checklist-lifecycle-screenshots || true
           fi
           if [ -d ChecklistInteractionResults.xcresult ]; then
             xcrun xcresulttool export attachments --path ChecklistInteractionResults.xcresult --output-path checklist-test-screenshots || true
@@ -162,6 +170,9 @@ jobs:
           name: AsterionVeyra-iOS-test-results
           path: |
             TestResults.xcresult
+            ChecklistLifecycleResults.xcresult
+            checklist-lifecycle-tests.log
+            checklist-lifecycle-screenshots
             ChecklistInteractionResults.xcresult
             checklist-interaction-tests.log
             checklist-test-screenshots

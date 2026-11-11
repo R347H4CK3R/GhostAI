@@ -110,6 +110,20 @@ struct MemoryView: View {
                     }
                 }.id(route.id)
             }
+            .sheet(item: $checklistEditor) { route in
+                if let checklist = EditableChecklist.decode(route.note) {
+                    EditableChecklistView(note: route.note, checklist: checklist, onSave: { goal, step, done in
+                        guard checklistEditor?.id == route.id else {
+                            throw AppFailure.message("This editor is no longer active. Reopen the checklist.")
+                        }
+                        try store.saveChecklist(route.note, goal: goal, step: step, done: done,
+                                                expectedWorkspaceEpoch: route.workspaceEpoch)
+                        checklistEditor = nil
+                    }, onCancel: {
+                        if checklistEditor?.id == route.id { checklistEditor = nil }
+                    }).id(route.id)
+                }
+            }
             .onChange(of: store.workspaceEpoch) { _, epoch in
                 if let route = conversationImport, route.workspaceEpoch != epoch { conversationImport = nil }
                 if let route = checklistEditor, route.workspaceEpoch != epoch { checklistEditor = nil }
@@ -154,20 +168,6 @@ struct MemoryView: View {
                 } else {
                     Text("This removes the note from your saved memory. If included in private sync, the deletion is sent when sync next succeeds. Encrypted older versions can remain in remote history.")
                 }
-            }
-        }
-        .sheet(item: $checklistEditor) { route in
-            if let checklist = EditableChecklist.decode(route.note) {
-                EditableChecklistView(note: route.note, checklist: checklist, onSave: { goal, step, done in
-                    guard checklistEditor?.id == route.id else {
-                        throw AppFailure.message("This editor is no longer active. Reopen the checklist.")
-                    }
-                    try store.saveChecklist(route.note, goal: goal, step: step, done: done,
-                                            expectedWorkspaceEpoch: route.workspaceEpoch)
-                    checklistEditor = nil
-                }, onCancel: {
-                    if checklistEditor?.id == route.id { checklistEditor = nil }
-                }).id(route.id)
             }
         }
     }
