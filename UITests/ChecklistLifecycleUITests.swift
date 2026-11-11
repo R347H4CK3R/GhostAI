@@ -54,16 +54,13 @@ import XCTest
 
         for cycle in 1...2 {
             XCUIDevice.shared.press(.home)
-            let background = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-                app.state == .runningBackground || app.state == .runningBackgroundSuspended
-            }, object: app)
-            let result = XCTWaiter.wait(for: [background], timeout: 5)
-            guard result == .completed else {
+            let result = ApplicationBackgroundWaiter.wait(timeout: 5, state: { app.state })
+            guard result.observedInTime else {
                 // Do not activate after a failed alive check: activate can relaunch
                 // a crashed process and obscure the actual lifecycle failure.
-                let state = XCTAttachment(string: "scenario=\(scenario) cycle=\(cycle) state=\(app.state.rawValue) wait=\(result.rawValue)")
+                let state = XCTAttachment(string: "scenario=\(scenario) cycle=\(cycle) state=\(result.lastState.rawValue) elapsed=\(result.elapsed)")
                 state.name = "Reduced lifecycle failed before activation"; state.lifetime = .keepAlways; add(state)
-                XCTFail("\(scenario) must remain alive after Home; actual state: \(app.state.rawValue)")
+                XCTFail("\(scenario) must remain alive after Home; observed state: \(result.lastState.rawValue)")
                 return
             }
             app.activate()
