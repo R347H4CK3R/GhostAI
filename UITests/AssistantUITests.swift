@@ -405,12 +405,61 @@ import XCTest
     }
 
     private func backgroundAndReturn(_ app: XCUIApplication) {
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        // project.yml fixes CFBundleDisplayName to Jarvis, including the synthetic fixture.
+        let icons = springboard.icons.matching(identifier: "Jarvis")
+        var rejectedState: XCUIApplication.State?
+        func invalidAppStateObserved() -> Bool {
+            let state = app.state
+            switch state {
+            case .runningForeground, .runningBackground, .runningBackgroundSuspended: break
+            default: rejectedState = state
+            }
+            return rejectedState != nil
+        }
+        func fail(_ message: String) {
+            let diagnostics = XCTAttachment(string: """
+                \(message)
+                App state: \(app.state.rawValue); rejected state: \(rejectedState.map { String($0.rawValue) } ?? "none")
+                SpringBoard hierarchy:
+                \(springboard.debugDescription)
+                """)
+            diagnostics.name = "Checklist Home-and-return failure"
+            diagnostics.lifetime = .keepAlways; add(diagnostics)
+            let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            screenshot.name = "Checklist Home-and-return failure screen"
+            screenshot.lifetime = .keepAlways; add(screenshot)
+            XCTFail(message)
+        }
+        guard !invalidAppStateObserved() else {
+            fail("Cannot press Home with an unknown or not-running app state"); return
+        }
+        guard !icons.allElementsBoundByIndex.contains(where: { $0.exists && $0.isHittable }) else {
+            fail("The Jarvis Home icon must not be hittable before pressing Home"); return
+        }
         XCUIDevice.shared.press(.home)
-        let background = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-            app.state == .runningBackground || app.state == .runningBackgroundSuspended
-        }, object: app)
-        XCTAssertEqual(XCTWaiter.wait(for: [background], timeout: 5), .completed,
-                       "The app must remain alive after backgrounding; actual state: \(app.state.rawValue)")
+        var homeVisible = false
+        let home = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            // Stop promptly on a known bad state. Cached foreground (4) is not
+            // background or liveness proof; only the actual Home icon satisfies this wait.
+            if invalidAppStateObserved() { return true }
+            homeVisible = icons.allElementsBoundByIndex.contains { icon in
+                guard icon.exists else { return false }
+                let frame = icon.frame
+                return !frame.isEmpty && springboard.frame.contains(frame) && icon.isHittable
+            }
+            return homeVisible
+        }, object: springboard)
+        let result = XCTWaiter.wait(for: [home], timeout: 5)
+        guard !invalidAppStateObserved() else {
+            fail("Cannot reactivate after observing an unknown or not-running app state"); return
+        }
+        guard result == .completed && homeVisible else {
+            fail("The Jarvis Home icon must become visible and hittable within 5 seconds; wait result: \(result.rawValue)"); return
+        }
+        // This proves user-visible Home followed by the callers' exact retained editor/draft,
+        // not a PID or scene-callback count. Fixture launches reset state and discard the
+        // local unsaved draft, so the unchanged caller assertions reject an implicit relaunch.
         app.activate()
     }
 
