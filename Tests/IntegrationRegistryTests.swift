@@ -75,6 +75,32 @@ final class IntegrationRegistryTests: XCTestCase {
         }
     }
 
+    func testPinnedFileSearchRequiresItsOwnExactReadGrant() throws {
+        // Policy declarations only. No provider, source text or credential is contacted.
+        let registry = try IntegrationRegistry.bundled()
+        let request = IntegrationInvocation(integrationID: "github.read", operationID: "search_text",
+            resource: read().resource, recipient: .githubAPI, dataScopes: read().dataScopes)
+        let grant = try registry.approve(request, initiatedBy: .user, runtime: online)
+        XCTAssertNoThrow(try registry.validate(request, grant: grant, initiatedBy: .model, runtime: online))
+        XCTAssertThrowsError(try registry.validate(request, grant: nil, initiatedBy: .model, runtime: online)) {
+            XCTAssertEqual($0 as? IntegrationFailure, .missingGrant)
+        }
+        let readGrant = try registry.approve(read(), initiatedBy: .user, runtime: online)
+        XCTAssertThrowsError(try registry.validate(request, grant: readGrant, initiatedBy: .model, runtime: online)) {
+            XCTAssertEqual($0 as? IntegrationFailure, .scopeMismatch)
+        }
+        for changed in [read(path: "Other.swift"), read(repository: "other/repo"), read(commit: String(repeating: "b", count: 40))] {
+            let changedSearch = IntegrationInvocation(integrationID: "github.read", operationID: "search_text",
+                resource: changed.resource, recipient: .githubAPI, dataScopes: changed.dataScopes)
+            XCTAssertThrowsError(try registry.validate(changedSearch, grant: grant, initiatedBy: .model, runtime: online)) {
+                XCTAssertEqual($0 as? IntegrationFailure, .scopeMismatch)
+            }
+        }
+        XCTAssertThrowsError(try registry.approve(request, initiatedBy: .model, runtime: online)) {
+            XCTAssertEqual($0 as? IntegrationFailure, .modelPermissionChange)
+        }
+    }
+
     func testNarrowerDataDeclarationsCannotHideActualAdapterRequirements() throws {
         let registry = try IntegrationRegistry.bundled()
         let request = IntegrationInvocation(integrationID: "github.read", operationID: "read_text",
