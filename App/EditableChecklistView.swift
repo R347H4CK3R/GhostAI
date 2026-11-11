@@ -26,7 +26,7 @@ struct EditableChecklistView: View {
                         .focused($editing).accessibilityIdentifier("checklist.goal")
                     TextField("Step", text: $step, axis: .vertical).lineLimit(2...8)
                         .focused($editing).accessibilityIdentifier("checklist.step")
-                    Toggle("Completed", isOn: $done).accessibilityIdentifier("checklist.done")
+                    ChecklistCompletionField(done: $done)
                     Text("Goal: \(goal.utf16.count)/300 · Step: \(step.utf16.count)/400 UTF-16 units. Emoji can count as two units. Remove credentials and hidden controls before saving.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
@@ -75,6 +75,30 @@ struct EditableChecklistView: View {
         catch {
             issue = (error as? AppFailure)?.localizedDescription ?? "The checklist could not be saved. Your changes remain here; check storage and reopen if the source changed."
             saving = false
+        }
+    }
+}
+
+/// Native switches can retain their visible state under privacy redaction.
+/// Read the reason inside the marked Form and omit the state-bearing control
+/// only for privacy rendering; the editor continues to own the original draft.
+private struct ChecklistCompletionField: View {
+    @Binding var done: Bool
+    @Environment(\.redactionReasons) private var redactionReasons
+
+    var body: some View {
+        if redactionReasons.contains(.privacy) {
+            HStack {
+                Text("Completed")
+                Spacer()
+                Capsule().fill(.secondary.opacity(0.25)).frame(width: 63, height: 28)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Completion state hidden")
+            .accessibilityIdentifier("checklist.done.redacted")
+            .allowsHitTesting(false)
+        } else {
+            Toggle("Completed", isOn: $done).accessibilityIdentifier("checklist.done")
         }
     }
 }

@@ -99,6 +99,7 @@ jobs:
       # Match the release workflow: compile first, then run every test with the
       # unchanged suite/per-test limits. Compilation must not consume UI test time.
       - name: Compile simulator test bundles
+        id: simulator_build
         timeout-minutes: 25
         run: |
           set -euo pipefail
@@ -107,12 +108,18 @@ jobs:
         timeout-minutes: 8
         run: |
           set -euo pipefail
-          xcodebuild -project AsterionVeyra.xcodeproj -scheme AsterionVeyra -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -destination-timeout 120 -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 180 -derivedDataPath simulator-build -only-testing:AsterionVeyraTests/ChecklistLifecycleFixtureTests -only-testing:AsterionVeyraUITests/ChecklistLifecycleUITests -only-testing:AsterionVeyraUITests/ChecklistPrivacyUITests -resultBundlePath ChecklistLifecycleResults.xcresult CODE_SIGNING_ALLOWED=NO test-without-building 2>&1 | tee checklist-lifecycle-tests.log
+          xcodebuild -project AsterionVeyra.xcodeproj -scheme AsterionVeyra -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -destination-timeout 120 -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 180 -derivedDataPath simulator-build -only-testing:AsterionVeyraTests/ChecklistLifecycleFixtureTests -only-testing:AsterionVeyraUITests/ChecklistLifecycleUITests -resultBundlePath ChecklistLifecycleResults.xcresult CODE_SIGNING_ALLOWED=NO test-without-building 2>&1 | tee checklist-lifecycle-tests.log
       - name: Checklist interaction regressions
         timeout-minutes: 12
         run: |
           set -euo pipefail
           xcodebuild -project AsterionVeyra.xcodeproj -scheme AsterionVeyra -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -destination-timeout 120 -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 180 -derivedDataPath simulator-build -only-testing:AsterionVeyraUITests/AssistantUITests/testChecklistEditorSurvivesBackgroundWithoutVoiceRequest -only-testing:AsterionVeyraUITests/AssistantUITests/testVoiceRequestWaitsForChecklistCancelWithoutSavingDraft -only-testing:AsterionVeyraUITests/AssistantUITests/testVoiceRequestWaitsForChecklistSaveWithoutLosingDraft -only-testing:AsterionVeyraUITests/AssistantUITests/testVoiceRequestWaitsForInteractiveChecklistDismissalWithoutSavingDraft -resultBundlePath ChecklistInteractionResults.xcresult CODE_SIGNING_ALLOWED=NO test-without-building 2>&1 | tee checklist-interaction-tests.log
+      - name: Checklist privacy visual evidence
+        if: ${{ always() && steps.simulator_build.outcome == 'success' }}
+        timeout-minutes: 8
+        run: |
+          set -euo pipefail
+          xcodebuild -project AsterionVeyra.xcodeproj -scheme AsterionVeyra -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -destination-timeout 120 -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 180 -derivedDataPath simulator-build -only-testing:AsterionVeyraUITests/ChecklistPrivacyUITests -resultBundlePath ChecklistPrivacyResults.xcresult CODE_SIGNING_ALLOWED=NO test-without-building 2>&1 | tee checklist-privacy-tests.log
       - name: Unit tests
         timeout-minutes: 30
         run: |
@@ -126,6 +133,9 @@ jobs:
           fi
           if [ -d ChecklistLifecycleResults.xcresult ]; then
             xcrun xcresulttool export attachments --path ChecklistLifecycleResults.xcresult --output-path checklist-lifecycle-screenshots || true
+          fi
+          if [ -d ChecklistPrivacyResults.xcresult ]; then
+            xcrun xcresulttool export attachments --path ChecklistPrivacyResults.xcresult --output-path checklist-privacy-screenshots || true
           fi
           if [ -d ChecklistInteractionResults.xcresult ]; then
             xcrun xcresulttool export attachments --path ChecklistInteractionResults.xcresult --output-path checklist-test-screenshots || true
@@ -173,6 +183,9 @@ jobs:
             ChecklistLifecycleResults.xcresult
             checklist-lifecycle-tests.log
             checklist-lifecycle-screenshots
+            ChecklistPrivacyResults.xcresult
+            checklist-privacy-tests.log
+            checklist-privacy-screenshots
             ChecklistInteractionResults.xcresult
             checklist-interaction-tests.log
             checklist-test-screenshots
