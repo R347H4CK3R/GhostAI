@@ -19,12 +19,11 @@ import XCTest
     func testCaptureDraftFieldsWithExplicitPrivacyRedaction() {
         let app = launchPrivacyEditor()
         let goal = enterSyntheticDraft(in: app)
-        let step = app.descendants(matching: .any).matching(identifier: "checklist.step").firstMatch
-        let counts = content("checklist.counts", in: app)
         capturePair(app, name: "Privacy QA 1 draft fields and completion",
-            targets: [goal, step, app.switches["checklist.done"], counts],
-            redactedTargets: [goal, step, content("checklist.done.redacted", in: app), counts],
-            inspectOriginal: {
+            identifiers: ["checklist.goal", "checklist.step", "checklist.done", "checklist.counts"],
+            redactedIdentifiers: ["checklist.goal", "checklist.step", "checklist.done.redacted", "checklist.counts"],
+            inspectOriginal: { form in
+                let counts = self.content("checklist.counts", in: form)
                 XCTAssertTrue(counts.label.hasPrefix("Goal: "))
                 XCTAssertTrue(counts.label.contains("/300 · Step:"))
             })
@@ -46,27 +45,31 @@ import XCTest
         let issue = app.staticTexts["checklist.issue"]
         XCTAssertTrue(issue.waitForExistence(timeout: 5))
         XCTAssertEqual(issue.label, "Synthetic private save detail for redaction QA")
-        let workspace = content("checklist.workspaceNotice", in: app)
-        capturePair(app, name: "Privacy QA 2 workspace and save error", targets: [workspace, issue], inspectOriginal: {
+        capturePair(app, name: "Privacy QA 2 workspace and save error",
+            identifiers: ["checklist.workspaceNotice", "checklist.issue"], inspectOriginal: { form in
+            let workspace = self.content("checklist.workspaceNotice", in: form)
             XCTAssertTrue(workspace.label.hasPrefix("Save updates only this copy in General."))
+            XCTAssertEqual(self.content("checklist.issue", in: form).label, "Synthetic private save detail for redaction QA")
         })
         app.buttons["checklist.cancel"].tap()
     }
 
     func testCaptureReferenceProvenanceWithExplicitPrivacyRedaction() {
         let app = launchPrivacyEditor()
-        let source = content("checklist.reference.source", in: app)
-        let reference = content("checklist.reference.text", in: app)
         // Keep the complete source and selectable reference visible together;
         // capture identity/date separately rather than requiring all four rows
         // to fit one viewport after the unrelated typing/error capture work.
-        capturePair(app, name: "Privacy QA 3 original source and reference", targets: [source, reference], inspectOriginal: {
+        capturePair(app, name: "Privacy QA 3 original source and reference",
+            identifiers: ["checklist.reference.source", "checklist.reference.text"], inspectOriginal: { form in
+            let source = self.content("checklist.reference.source", in: form)
+            let reference = self.content("checklist.reference.text", in: form)
             XCTAssertEqual(source.label, "Luma checklist snapshot · Synthetic.json · source synthetic-task · no source timestamp; date is import time")
             XCTAssertTrue(reference.label.hasPrefix("Luma checklist snapshot (reference only, not an executable job)\nGoal: Synthetic editable goal"))
         })
-        let identity = content("checklist.reference.id", in: app)
-        let date = content("checklist.reference.date", in: app)
-        capturePair(app, name: "Privacy QA 4 source identity and date", targets: [identity, date], inspectOriginal: {
+        capturePair(app, name: "Privacy QA 4 source identity and date",
+            identifiers: ["checklist.reference.id", "checklist.reference.date"], inspectOriginal: { form in
+            let identity = self.content("checklist.reference.id", in: form)
+            let date = self.content("checklist.reference.date", in: form)
             XCTAssertTrue(identity.label.hasPrefix("Source snapshot ID:"))
             XCTAssertTrue(date.label.hasPrefix("Copy creation/import time:"))
         })
@@ -81,43 +84,62 @@ import XCTest
         let done = app.switches["checklist.done"]
         XCTAssertTrue(done.waitForExistence(timeout: 5))
         XCTAssertEqual(done.value as? String, "0")
-        let offLabel = captureCompletionPair(app, expectedValue: "0", name: "Privacy QA completion initially OFF")
+        let off = captureCompletionPair(app, expectedValue: "0", name: "Privacy QA completion initially OFF")
         done.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
         XCTAssertEqual(done.value as? String, "1", "The ordinary toggle must remain interactive")
-        let onLabel = captureCompletionPair(app, expectedValue: "1", name: "Privacy QA completion initially ON")
-        XCTAssertEqual(onLabel, offLabel, "The placeholder's presented label must be independent of completion state")
+        let on = captureCompletionPair(app, expectedValue: "1", name: "Privacy QA completion initially ON")
+        XCTAssertEqual(on.label, off.label, "The placeholder's presented label must be independent of completion state")
+        XCTAssertEqual(on.value, off.value, "Even the empty value representation must be independent of completion state")
         done.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
         XCTAssertEqual(done.value as? String, "0", "Restoring the editor must not disable its binding")
         app.buttons["checklist.cancel"].tap()
     }
 
-    private func captureCompletionPair(_ app: XCUIApplication, expectedValue: String, name: String) -> String {
+    private func captureCompletionPair(_ app: XCUIApplication, expectedValue: String, name: String) -> (label: String, value: String?) {
         let done = app.switches["checklist.done"]
         let placeholder = app.descendants(matching: .any).matching(identifier: "checklist.done.redacted").firstMatch
         XCTAssertEqual(done.value as? String, expectedValue)
         XCTAssertTrue(done.isEnabled)
         XCTAssertFalse(placeholder.exists)
         var presentedLabel = ""
-        capturePair(app, name: name, targets: [done], redactedTargets: [placeholder], inspectRedacted: {
+        var presentedValue: String?
+        capturePair(app, name: name, identifiers: ["checklist.done"],
+            redactedIdentifiers: ["checklist.done.redacted"], inspectRedacted: { form in
+            let placeholder = self.content("checklist.done.redacted", in: form)
             XCTAssertTrue(placeholder.waitForExistence(timeout: 5))
             // iOS may mask even this generic label. Require state-independent
             // semantics rather than forcing privacy-rendered text to be readable.
             presentedLabel = placeholder.label
             XCTAssertFalse(["0", "1", "On", "Off", "Completed", "Not completed"].contains(presentedLabel))
-            XCTAssertNil(placeholder.value, "The privacy placeholder must not expose a state value")
+            // iOS reports a value-less Other as either nil or an empty String.
+            // Do not coerce other types to nil or accept any nonempty value.
+            if let value = placeholder.value {
+                XCTAssertTrue(value is String, "The privacy placeholder must not expose a typed state value")
+                presentedValue = value as? String
+                XCTAssertEqual(presentedValue, "", "The privacy placeholder must not expose a state value")
+            }
             XCTAssertNotEqual(placeholder.elementType, .button)
             XCTAssertFalse(placeholder.buttons.firstMatch.exists)
-            XCTAssertFalse(app.switches.firstMatch.exists, "No state-bearing switch may remain in the redacted editor")
+            XCTAssertFalse(form.switches.firstMatch.exists, "No state-bearing switch may remain in the redacted Form")
+            // SwiftUI retains a covered original Form in its accessibility
+            // tree. Prove that its switches are covered, not merely offscreen.
+            let visibleBounds = unobscuredBounds(in: app, form: form)
+            for backingSwitch in app.switches.allElementsBoundByIndex {
+                let frame = backingSwitch.frame
+                XCTAssertFalse(frame.isEmpty)
+                XCTAssertTrue(visibleBounds.contains(frame), "Check the backing switch while its full frame is in the viewport")
+                XCTAssertFalse(backingSwitch.isHittable, "A backing switch must not be usable through privacy rendering")
+            }
         })
         XCTAssertTrue(done.waitForExistence(timeout: 5))
         XCTAssertEqual(done.value as? String, expectedValue, "Redaction must not alter the unsaved completion state")
         XCTAssertTrue(done.isEnabled)
         XCTAssertFalse(placeholder.exists)
-        return presentedLabel
+        return (presentedLabel, presentedValue)
     }
 
-    private func content(_ identifier: String, in app: XCUIApplication) -> XCUIElement {
-        app.descendants(matching: .any).matching(identifier: identifier).firstMatch
+    private func content(_ identifier: String, in root: XCUIElement) -> XCUIElement {
+        root.descendants(matching: .any).matching(identifier: identifier).firstMatch
     }
 
     private func launchPrivacyEditor() -> XCUIApplication {
@@ -151,22 +173,30 @@ import XCTest
         return goal
     }
 
-    private func capturePair(_ app: XCUIApplication, name: String, targets: [XCUIElement],
-                             redactedTargets: [XCUIElement]? = nil,
-                             inspectOriginal: () -> Void = {}, inspectRedacted: () -> Void = {}) {
+    private func capturePair(_ app: XCUIApplication, name: String, identifiers: [String],
+                             redactedIdentifiers: [String]? = nil,
+                             inspectOriginal: (XCUIElement) -> Void = { _ in },
+                             inspectRedacted: (XCUIElement) -> Void = { _ in }) {
         let toggle = app.buttons["checklistPrivacy.toggle"]
         XCTAssertTrue(toggle.waitForExistence(timeout: 5))
         XCTAssertEqual(toggle.value as? String, "Off")
-        revealTogether(targets, in: app)
+        guard let originalForm = captureForm(in: app, redacted: false) else { return }
+        revealTogether(identifiers.map { content($0, in: originalForm) }, in: app, form: originalForm, redacted: false)
         XCTAssertEqual(toggle.value as? String, "Off")
-        inspectOriginal()
+        inspectOriginal(originalForm)
         attachScreenshot(app, name: name + " - original synthetic content")
+        // Lower captures can virtualize completion. Materialize its ordinary
+        // row before the mode change so the new privacy copy has a known marker.
+        revealTogether([content("checklist.done", in: originalForm)], in: app,
+            form: originalForm, redacted: false, towardTop: true)
         toggle.tap()
         waitForRedactionMode("On", toggle: toggle)
-        inspectRedacted()
-        // Privacy rendering can reset the Form scroll position. Reacquire the
-        // same non-data IDs and prove their full geometry in this mode too.
-        revealTogether(redactedTargets ?? targets, in: app)
+        guard let redactedForm = captureForm(in: app, redacted: true) else { return }
+        // Privacy rendering retains a covered original Form and can reset the
+        // visible copy's scroll position. Query only the verified redacted copy.
+        revealTogether((redactedIdentifiers ?? identifiers).map { content($0, in: redactedForm) },
+            in: app, form: redactedForm, redacted: true)
+        inspectRedacted(redactedForm)
         XCTAssertEqual(toggle.value as? String, "On", "The redacted target capture must remain in privacy mode")
         // Do not infer redaction from accessibility labels: the pixels, not this
         // toggle or the accessibility tree, are the manual acceptance evidence.
@@ -180,25 +210,52 @@ import XCTest
         XCTAssertEqual(XCTWaiter.wait(for: [matches], timeout: 5), .completed)
     }
 
-    private func revealTogether(_ elements: [XCUIElement], in app: XCUIApplication) {
-        let form: XCUIElement
+    private func captureForm(in app: XCUIApplication, redacted: Bool) -> XCUIElement? {
+        let forms: XCUIElementQuery
         if app.collectionViews.firstMatch.waitForExistence(timeout: 5) {
-            form = app.collectionViews.firstMatch
+            forms = app.collectionViews
         } else {
-            form = app.tables.firstMatch
-            XCTAssertTrue(form.waitForExistence(timeout: 5))
+            forms = app.tables
+            XCTAssertTrue(forms.firstMatch.waitForExistence(timeout: 5))
         }
+        if !redacted {
+            // The fixture has exactly one ordinary Form, even when its
+            // completion row has been virtualized by a previous lower capture.
+            guard forms.count == 1 else {
+                XCTFail("Original mode must have exactly one Form, not a retained privacy copy")
+                return nil
+            }
+            return forms.element(boundBy: 0)
+        }
+        let candidates = forms.allElementsBoundByIndex.filter { content("checklist.done.redacted", in: $0).exists }
+        guard candidates.count == 1 else {
+            XCTFail("Require exactly one Form containing the materialized privacy completion marker")
+            return nil
+        }
+        // Keep the selected index-based element, not a query dependent on a
+        // virtualized row continuing to exist while lower targets are scrolled.
+        return candidates[0]
+    }
+
+    private func unobscuredBounds(in app: XCUIApplication, form: XCUIElement) -> CGRect {
+        let bounds = app.frame.intersection(form.frame)
+        let navigation = app.navigationBars["Edit checklist"]
+        let toggle = app.buttons["checklistPrivacy.toggle"]
+        let top = max(bounds.minY, max(navigation.frame.maxY, toggle.frame.maxY)) + 8
+        return CGRect(x: bounds.minX, y: top, width: bounds.width, height: max(0, bounds.maxY - 8 - top))
+    }
+
+    private func revealTogether(_ elements: [XCUIElement], in app: XCUIApplication,
+                                form: XCUIElement, redacted: Bool, towardTop: Bool = false) {
         var previousTarget: CGRect?
         var stalledAttempts = 0
         for attempt in 0...6 {
             let formFrame = form.frame
-            let bounds = app.frame.intersection(formFrame)
-            let navigation = app.navigationBars["Edit checklist"]
-            let toggle = app.buttons["checklistPrivacy.toggle"]
+            let bounds = unobscuredBounds(in: app, form: form)
             // The QA control is a separate sibling above NavigationStack, not
             // an overlay hiding the Form's last row at maximum scroll.
-            let top = max(bounds.minY, max(navigation.frame.maxY, toggle.frame.maxY)) + 8
-            let bottom = bounds.maxY - 8
+            let top = bounds.minY
+            let bottom = bounds.maxY
             guard bounds.width > 32, bottom - top > 80 else {
                 XCTFail("No unobscured Form region for the privacy QA capture")
                 return
@@ -208,14 +265,12 @@ import XCTest
             let frames = elements.map { $0.exists ? $0.frame : CGRect.null }
             let materialized = frames.allSatisfy { !$0.isNull && !$0.isEmpty }
             let target = materialized ? frames.reduce(CGRect.null) { $0.union($1) } : .null
-            print("Privacy QA reveal \(attempt): frames=\(frames), safe top=\(top), bottom=\(bottom)")
+            print("Privacy QA reveal \(attempt): redacted=\(redacted), frames=\(frames), safe top=\(top), bottom=\(bottom)")
             if materialized, target.minY >= top, target.maxY <= bottom,
                target.minX >= bounds.minX, target.maxX <= bounds.maxX,
-               elements.allSatisfy({
-                   // This fixed placeholder deliberately rejects hit testing.
-                   // Its full geometry is still required, like every target.
-                   $0.identifier == "checklist.done.redacted" || $0.isHittable
-               }) { return }
+               // Hittability is required for the ordinary editor, not its
+               // noninteractive privacy rendering. Both retain full geometry.
+               (redacted || elements.allSatisfy({ $0.isHittable })) { return }
             if materialized {
                 guard target.height <= bottom - top else {
                     print("Privacy QA group is taller than the safe viewport: \(target)")
@@ -232,7 +287,8 @@ import XCTest
             }
             guard attempt < 6 else { break }
             let maximum = (bottom - top) * 0.6
-            let offset = materialized ? min(maximum, max(-maximum, (top + bottom) / 2 - target.midY)) : -maximum
+            let offset = materialized ? min(maximum, max(-maximum, (top + bottom) / 2 - target.midY))
+                : (towardTop ? maximum : -maximum)
             let startY = offset > 0 ? top + (bottom - top) * 0.2 : top + (bottom - top) * 0.8
             let origin = form.coordinate(withNormalizedOffset: .zero)
             // Use the Form's empty left gutter, not the selectable reference
