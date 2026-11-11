@@ -11,18 +11,18 @@
       },
       "bundleIdentifier": "dev.asterionveyra.assistant",
       "developerName": "R347H4CK3R",
-      "iconURL": "https://raw.githubusercontent.com/R347H4CK3R/GhostAI/b5d891634eb5a4a80f02b88e66fbf81cf93ea781/App/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png",
+      "iconURL": "https://raw.githubusercontent.com/R347H4CK3R/GhostAI/96791e6e5bbaac9efc3826d7476a43dd8b922771/App/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png",
       "localizedDescription": "Opt-in unsigned Jarvis prerelease for SideStore. Requires iOS 26 or later. This uses the same app identity as Asterion Veyra and may update an existing installation; it is not a separate sandboxed app. Export important chats and notes first, keep the existing app installed, and use the same signing account. Physical-device signing, voice/background behavior and retained-data upgrades are not verified. Generative chat requires supported Apple Intelligence hardware, enabled Apple Intelligence and downloaded OS model assets. The stable SideStore sources remain unchanged.",
       "name": "Jarvis Preview",
       "versions": [
         {
-          "buildVersion": "11",
-          "date": "2026-11-10T17:10:17Z",
-          "downloadURL": "https://github.com/R347H4CK3R/GhostAI/releases/download/jarvis-v0.4.0-build-11/Jarvis-unsigned.ipa",
-          "localizedDescription": "Jarvis 0.4.0 build 11 unsigned preview. Full automated native/companion verification passed. Physical iPhone/SideStore installation and data retention remain unverified. Export important data before updating.",
+          "buildVersion": "12",
+          "date": "2026-11-11T10:25:33Z",
+          "downloadURL": "https://github.com/R347H4CK3R/GhostAI/releases/download/jarvis-v0.4.0-build-12/Jarvis-unsigned.ipa",
+          "localizedDescription": "Jarvis 0.4.0 build 12 unsigned preview. Full automated native/companion verification passed. Physical iPhone/SideStore installation and data retention remain unverified. Export important data before updating.",
           "minOSVersion": "26.0",
-          "sha256": "bc9e16f30870d70aee82180395d7ab1611aa3a18f221da71a5d5f011e30ccb98",
-          "size": 3105769,
+          "sha256": "1a7cd68a0012d54925859e1a40b878d65c4e0e20642b548a418b5fa7141f68e3",
+          "size": 3232086,
           "version": "0.4.0"
         }
       ]
