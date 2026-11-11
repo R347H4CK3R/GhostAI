@@ -32,8 +32,8 @@
 
 **Interfaces:** `RepositoryProposalDiff(original: String, replacement: String)` exposes changed-region counts, omitted/shortened counts and rendered preview text. `RepositoryProposalReview.changes` stores the comparison at preparation. `RepositoryProposalReviewContent(review:)` renders comparison plus complete review fields.
 
-- [ ] Add a compiling test against the existing prepared review that requires stored change-preview evidence while asserting unchanged complete originals/replacements and approval gates. Publish test-only draft PR and observe expected native RED.
-- [ ] Add focused pure comparison tests for every spec contract, then implement the linear comparison and immutable review property.
+- [x] Extract the unchanged complete-review display and add an isolated real-component UI regression requiring the missing change preview after complete-file assertions. Publish a test-first draft PR and observe expected native RED. Add an integrated canonical-equivalent Unicode regression before its corrective implementation.
+- [ ] Add focused pure comparison and immutable approval-binding tests for every spec contract, then implement the linear comparison and immutable review property. Tighten no-op and draft matching to exact UTF-8 only after the integrated Unicode RED is verified.
 - [ ] Extract current complete-review display into the component, preserving its text/identifiers; add bounded preview. Add isolated DEBUG UI host and tests for small and truncated synthetic changes, with screenshots and complete-file assertions.
 - [ ] Run local `python3 -m unittest discover -s scripts/tests -v`, source/whitespace checks and independent review. Resolve findings without changing consent or publication mechanics.
 - [ ] Publish reviewed source and require exact-head full native UI/unit, companion, transfer, upgrade and device gates. Inspect screenshots. Only then promote once to the existing prerelease branch and verify all final release gates, public hashes and preview source; stable/default remain untouched.

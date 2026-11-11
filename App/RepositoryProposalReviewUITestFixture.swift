@@ -6,8 +6,9 @@ import Foundation
 /// ordinary stores/services. No disk, credential, GitHub client or publisher exists.
 enum RepositoryProposalReviewUITestFixture {
     static var isEnabled: Bool { ProcessInfo.processInfo.arguments.contains("--uitest-proposal-review") }
-    static let original = "let greeting = \"Hello\"\r\nprint(greeting)\n"
-    static let replacement = "let greeting = \"Hello, Jarvis\"\nprint(greeting)\n"
+    static var isLarge: Bool { ProcessInfo.processInfo.arguments.contains("--uitest-proposal-review-large") }
+    static var original: String { isLarge ? (1...20).map { "old\($0) " + String(repeating: "a", count: $0 == 1 ? 260 : 0) + "\n" }.joined() : "let greeting = \"Hello\"\r\nprint(greeting)\n" }
+    static var replacement: String { isLarge ? (1...15).map { "new\($0)\n" }.joined() : "let greeting = \"Hello, Jarvis\"\nprint(greeting)\n" }
 
     static func review() async throws -> RepositoryProposalReview {
         let pinned = String(repeating: "a", count: 40)

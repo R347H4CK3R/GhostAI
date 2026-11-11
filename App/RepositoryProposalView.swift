@@ -105,8 +105,8 @@ struct RepositoryProposalView: View {
         .onChange(of: path) { _, _ in
             cancelLoading(); source = nil; replacement = ""; invalidateReview()
         }
-        .onChange(of: replacement) { _, _ in invalidateReview() }
-        .onChange(of: title) { _, _ in invalidateReview() }
+        .onChange(of: Data(replacement.utf8)) { _, _ in invalidateReview() }
+        .onChange(of: Data(title.utf8)) { _, _ in invalidateReview() }
         .onChange(of: token) { _, value in credentialEdited(value) }
         .onChange(of: fullReviewConfirmed) { _, value in if !value { pendingConsent = nil } }
         .onChange(of: destinationConfirmed) { _, value in if !value { pendingConsent = nil } }
@@ -281,7 +281,7 @@ struct RepositoryProposalView: View {
     private func preparePublication(_ review: RepositoryProposalReview) {
         guard !locked, directInstallationConfirmed, source == review.source,
               review.source.repository == repository, review.source.immutableCommit == immutableCommit.lowercased(), sourceReaderID == ObjectIdentifier(readClient),
-              replacement == review.replacement, title == review.title, self.review == review else { invalidateReview(); return }
+              review.matchesDraft(replacement: replacement, title: title), self.review == review else { invalidateReview(); return }
         do {
             try readClient.validateSession()
             pendingConsent = RepositoryProposalPublicationConsent(review: review,
@@ -293,7 +293,7 @@ struct RepositoryProposalView: View {
         guard !locked, scenePhase == .active, consent.directInstallationConfirmed, directInstallationConfirmed, fullReviewConfirmed, destinationConfirmed,
               let current = review, current == consent.review, source == current.source,
               current.source.repository == repository, current.source.immutableCommit == immutableCommit.lowercased(), sourceReaderID == ObjectIdentifier(readClient),
-              replacement == current.replacement, title == current.title, token == consent.token else {
+              current.matchesDraft(replacement: replacement, title: title), token == consent.token else {
             token = ""; pendingConsent = nil; clearAcknowledgments(); error = RepositoryProposalFailure.consentChanged.localizedDescription; return
         }
         do {

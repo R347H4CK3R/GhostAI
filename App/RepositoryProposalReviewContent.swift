@@ -5,6 +5,21 @@ struct RepositoryProposalReviewContent: View {
     let review: RepositoryProposalReview
 
     var body: some View {
+        Section {
+            DisclosureGroup {
+                Text(verbatim: review.changes.rendered)
+                    .font(.system(.caption, design: .monospaced)).textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("proposal-change-lines")
+                Text("- old marks removed-region lines; + new marks added-region lines. Line numbers refer to the complete original or replacement. End markers distinguish LF, CRLF and no final newline. Backslashes, tabs, standalone CR, Unicode line separators and trailing spaces are escaped.")
+                    .font(.caption).foregroundStyle(.secondary)
+            } label: { Label("Change preview", systemImage: "arrow.left.arrow.right") }
+                .accessibilityIdentifier("proposal-change-preview")
+            Text(verbatim: review.changes.summary).font(.caption)
+                .accessibilityIdentifier("proposal-change-summary")
+            Text(verbatim: review.changes.limitsSummary).font(.caption).foregroundStyle(.secondary)
+                .accessibilityIdentifier("proposal-change-limits")
+        }
         Section("Complete original · \(review.original.utf8.count) bytes") {
             Text(verbatim: review.original.isEmpty ? "[empty file]" : review.original)
                 .font(.system(.caption, design: .monospaced)).textSelection(.enabled)
