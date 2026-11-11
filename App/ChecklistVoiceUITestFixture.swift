@@ -16,12 +16,12 @@ struct ChecklistVoiceUITestFixture: ViewModifier {
     func body(content: Content) -> some View {
         content.onChange(of: scenePhase) { _, phase in
             guard enabled else { return }
-            print("CHECKLIST_VOICE_FIXTURE phase=\(phase) armed=\(trigger.backgrounded)")
+            print("CHECKLIST_VOICE_FIXTURE pid=\(ProcessInfo.processInfo.processIdentifier) phase=\(phase) armed=\(trigger.backgrounded)")
             if phase == .background {
                 trigger.backgrounded = true
             } else if phase == .active, trigger.backgrounded {
                 trigger.backgrounded = false
-                print("CHECKLIST_VOICE_FIXTURE request")
+                print("CHECKLIST_VOICE_FIXTURE pid=\(ProcessInfo.processInfo.processIdentifier) request")
                 VoiceEntryRequest.shared.request()
             }
         }

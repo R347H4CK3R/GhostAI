@@ -395,10 +395,12 @@ import XCTest
         XCTAssertTrue(goal.waitForExistence(timeout: 5))
         appendAtEnd("\nKeep this unsaved draft", to: goal, expected: "Synthetic editable goal\nKeep this unsaved draft", app: app)
         app.buttons["checklist.keyboardDone"].tap()
-        backgroundAndReturn(app)
-        XCTAssertTrue(goal.waitForExistence(timeout: 5))
-        XCTAssertEqual(goal.value as? String, "Synthetic editable goal\nKeep this unsaved draft")
-        XCTAssertFalse(app.buttons["chatStartVoiceCall"].exists)
+        for _ in 0..<2 {
+            backgroundAndReturn(app)
+            XCTAssertTrue(goal.waitForExistence(timeout: 5))
+            XCTAssertEqual(goal.value as? String, "Synthetic editable goal\nKeep this unsaved draft")
+            XCTAssertFalse(app.buttons["chatStartVoiceCall"].exists)
+        }
         app.buttons["checklist.cancel"].tap()
     }
 
@@ -438,7 +440,7 @@ import XCTest
         let voiceStart = app.buttons["chatStartVoiceCall"]
         for _ in 0..<(repeatRequest ? 2 : 1) {
             backgroundAndReturn(app)
-            XCTAssertTrue(goal.waitForExistence(timeout: 5), "Voice navigation must not dismiss an unsaved checklist")
+            XCTAssertTrue(goal.waitForExistence(timeout: 5), "Backgrounding or voice navigation must not discard an unsaved checklist")
             XCTAssertEqual(goal.value as? String, reviewedGoal)
             XCTAssertFalse(voiceStart.exists, "Voice controls must wait until this editor actually dismisses")
             XCTAssertFalse(app.alerts.firstMatch.exists, "A navigation request must not ask for microphone permission")
