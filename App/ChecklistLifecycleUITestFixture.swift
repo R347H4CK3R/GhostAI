@@ -83,7 +83,7 @@ private struct ChecklistLifecycleUITestHost: View {
     }
 }
 
-/// Keeps the editor's navigation/input/toolbar/privacy shape, without checklist
+/// Keeps the editor's navigation/input/toolbar shape, without checklist
 /// validation or reference sections. Differences are diagnostic, not a repair.
 private struct ChecklistLifecycleFormControl: View {
     let initialGoal: String
@@ -108,6 +108,10 @@ private struct ChecklistLifecycleFormControl: View {
                         .focused($editing).accessibilityIdentifier("checklistLifecycle.step")
                 }
             }
+            // Diagnostic only: keep all Form content privacy-sensitive while
+            // excluding navigation chrome from the marker. The unchanged exact
+            // editor remains the whole-stack privacy positive crash control.
+            .privacySensitive()
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Edit checklist")
             .toolbar {
@@ -122,7 +126,7 @@ private struct ChecklistLifecycleFormControl: View {
                     Spacer(); Button("Done") { editing = false }.accessibilityIdentifier("checklistLifecycle.keyboardDone")
                 }
             }
-        }.privacySensitive()
+        }
     }
 }
 #endif
